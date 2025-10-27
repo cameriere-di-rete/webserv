@@ -76,7 +76,8 @@ int main(int argc, char *argv[]) {
 
     /* ----- create listening socket ----- */
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (listen_fd == -1) die("socket");
+    if (listen_fd == -1)
+    die("socket");
 
     int opt = 1;
     setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -90,6 +91,9 @@ int main(int argc, char *argv[]) {
         die("bind");
     if (listen(listen_fd, SOMAXCONN) == -1) die("listen");
     if (set_nonblocking(listen_fd) == -1) die("set_nonblocking listen_fd");
+
+    printf("Server in ascolto sulla porta %d\n", port);
+    printf("In attesa di connessioni...\n");
 
     /* ----- create epoll instance ----- */
     int efd = epoll_create1(0);
@@ -129,6 +133,8 @@ int main(int argc, char *argv[]) {
                         continue;
                     }
 
+                    printf("Nuova connessione accettata: fd=%d\n", conn_fd);
+
                     /* allocate per‑connection state */
                     conn_state_t *cs = calloc(1, sizeof(conn_state_t));
                     if (!cs) {
@@ -165,12 +171,15 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     if (r == 0) {               /* client closed */
+                        printf("Client disconnesso: fd=%d\n", fd);
                         close(fd);
                         free(c);
                         states[fd] = NULL;
                         break;
                     }
 
+                    printf("Ricevuti %zd bytes da fd=%d\n", r, fd);
+                    
                     /* copy data into the connection's write buffer */
                     size_t to_copy = (size_t)r;
                     if (to_copy > WRITE_BUF_SIZE) to_copy = WRITE_BUF_SIZE;
@@ -187,8 +196,10 @@ int main(int argc, char *argv[]) {
             if (ev_mask & EPOLLOUT) {
                 while (c->write_off < c->write_len) {
                     ssize_t w = write(fd,
-                                      c->write_buf + c->write_off,
-                                      c->write_len - c->write_off);
+                                      "messaggio ricevuto\n", 18);
+
+                        printf("Inviati %zd bytes a fd=%d\n", w, fd);
+
                     if (w == -1) {
                         if (errno == EAGAIN || errno == EWOULDBLOCK) break;
                         perror("write");
