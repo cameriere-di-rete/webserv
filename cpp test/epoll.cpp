@@ -9,12 +9,54 @@
 #include <string.h>
 #include <errno.h>
 
-#define MAX_EVENTS      64
-#define WRITE_BUF_SIZE 4096
-#define MAX_FDS        10240
-
-// Global array of connection states
+// Global array of connection states (definition)
 conn_state_t* states[MAX_FDS] = {0};
+
+conn_state_t::conn_state_t(int fd) : fd(fd), write_len(0), write_off(0) 
+{
+    std::memset(write_buf, 0, WRITE_BUF_SIZE);
+}
+
+
+    // Getters
+    int conn_state_t::get_fd() const
+    {
+        return fd;
+    }
+    char* conn_state_t::get_write_buf()
+    {
+        return write_buf;
+    }
+    size_t conn_state_t::get_write_len() const
+    {
+        return write_len;
+    }
+    size_t conn_state_t::get_write_off() const
+    {
+        return write_off;
+    }
+
+    // Setters
+    void conn_state_t::set_write_len(size_t len)
+    {
+        write_len = len;
+    }
+    void conn_state_t::set_write_off(size_t off)
+    {
+        write_off = off;
+    }
+    
+    // Utility methods
+    void conn_state_t::add_write_off(size_t n)
+    {
+        write_off += n;
+    }
+
+    void conn_state_t::reset_write()
+    { 
+        write_len = 0; 
+        write_off = 0; 
+    }
 
 void die(const char *msg) {
     perror(msg);
@@ -31,8 +73,10 @@ void update_events(int efd, int fd, unsigned int events) {
     struct epoll_event ev;
     ev.events = events;
     ev.data.fd = fd;
+    
     if (epoll_ctl(efd, EPOLL_CTL_MOD, fd, &ev) == -1) {
         if (errno == ENOENT) {
+            // fd not yet in the set -> add it
             if (epoll_ctl(efd, EPOLL_CTL_ADD, fd, &ev) == -1)
                 die("epoll_ctl ADD (update_events)");
         } else {
