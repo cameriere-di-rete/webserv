@@ -8,7 +8,7 @@ public:
   Server(const Server &other);
   ~Server();
 
-  Server &operator=(Server other);
+  Server &operator=(const Server &other);
 
   int fd;
   int port;

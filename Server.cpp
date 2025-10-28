@@ -19,9 +19,11 @@ Server::~Server() {
   disconnect();
 }
 
-Server &Server::operator=(Server other) {
-  fd = other.fd;
-  port = other.port;
+Server &Server::operator=(const Server &other) {
+  if (this != &other) {
+    fd = other.fd;
+    port = other.port;
+  }
   return *this;
 }
 

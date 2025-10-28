@@ -32,7 +32,7 @@ int main(void) {
   try {
     Server server(8080);
     server.init();
-    servers[server.fd] = server;
+    servers[0] = server;
     server.fd = -1;
   } catch (char *s) {
     std::cerr << "Error while initiating Server: " << s << std::endl;
