@@ -63,21 +63,22 @@ int main(void) {
     int n = epoll_wait(efd, events, MAX_EVENTS, -1);
     if (n == -1) {
       if (errno == EINTR)
-        continue; /* interrupted by signal */
+      continue; /* interrupted by signal */
       return error("epoll_wait");
     }
-
+    
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
-
+      
       /* ----- new incoming connection ----- */
-      std::map<int, Server>::iterator s = servers.find(fd);
+      std::cout << "Checking fd=" << fd << std::endl;
+      std::map<int, Server>::iterator s = servers.find(0);
       if (s != servers.end()) {
         while (1) {
           int conn_fd = accept(s->second.fd, NULL, NULL);
           if (conn_fd == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
-              break;
+            break;
             perror("accept");
             break;
           }
@@ -87,7 +88,8 @@ int main(void) {
             continue;
           }
 
-          printf("Nuova connessione accettata: fd=%d\n", conn_fd);
+          std::cout << "=== Nuova connessione accettata ===" << std::endl;
+          std::cout << "File descriptor: " << conn_fd << std::endl;
 
           /* allocate per‑connection state */
           Connection connection(conn_fd);
@@ -122,13 +124,19 @@ int main(void) {
             break;
           }
           if (r == 0) { /* client closed */
-            printf("Client disconnesso: fd=%d\n", fd);
+            std::cout << "=== Client disconnesso ===" << std::endl;
+            std::cout << "File descriptor: " << fd << std::endl;
             close(fd);
             connections.erase(fd);
             break;
           }
 
-          printf("Ricevuti %zd bytes da fd=%d\n", r, fd);
+          std::cout << "=== Richiesta HTTP ricevuta ===" << std::endl;
+          std::cout << "File descriptor: " << fd << std::endl;
+          std::cout << "Bytes ricevuti: " << r << std::endl;
+          std::cout << "Contenuto:" << std::endl;
+          std::cout << std::string(buf, r) << std::endl;
+          std::cout << "===========================" << std::endl;
 
           /* copy data into the connection's write buffer */
           c.in.append(buf);
