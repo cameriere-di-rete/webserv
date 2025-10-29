@@ -113,8 +113,8 @@ int main(void) {
       /* ----- readable ----- */
       if (ev_mask & EPOLLIN) {
         while (1) {
-          char buf[WRITE_BUF_SIZE];
-          ssize_t r = read(fd, buf, sizeof(buf));
+          char buf[WRITE_BUF_SIZE] = {0};
+          ssize_t r = recv(fd, buf, sizeof(buf), 0);
           if (r == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
               break;
@@ -138,6 +138,9 @@ int main(void) {
           std::cout << std::string(buf, r) << std::endl;
           std::cout << "===========================" << std::endl;
 
+          c.in = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
+                 "charset=utf-8" CRLF CRLF;
+
           /* copy data into the connection's write buffer */
           c.in.append(buf);
 
@@ -149,7 +152,7 @@ int main(void) {
       /* ----- writable ----- */
       if (ev_mask & EPOLLOUT) {
         while (c.write_offset < c.in.size()) {
-          ssize_t w = write(fd, "messaggio ricevuto\n", 18);
+          ssize_t w = send(fd, c.in.c_str(), c.in.size(), 0);
 
           printf("Inviati %zd bytes a fd=%d\n", w, fd);
 
