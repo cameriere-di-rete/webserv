@@ -152,7 +152,8 @@ int main(void) {
       /* ----- writable ----- */
       if (ev_mask & EPOLLOUT) {
         while (c.write_offset < c.in.size()) {
-          ssize_t w = send(fd, c.in.c_str() + c.write_offset, c.in.size() - c.write_offset, 0);
+          ssize_t w = send(fd, c.in.c_str() + c.write_offset,
+                           c.in.size() - c.write_offset, 0);
 
           printf("Inviati %zd bytes a fd=%d\n", w, fd);
 
