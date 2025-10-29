@@ -26,7 +26,7 @@ int main(void) {
 
   std::map<int, Server> servers;
 
-  // loop and instanciate Servers
+  // loop and instantiate Servers
   try {
     Server server(8080);
     server.init();
