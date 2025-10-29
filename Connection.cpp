@@ -10,6 +10,10 @@ Connection::Connection(const Connection &other)
 Connection::~Connection() {}
 
 Connection &Connection::operator=(Connection other) {
-  fd = other.fd;
+  if (this != &other) {
+    fd = other.fd;
+    in = other.in;
+    write_offset = other.write_offset;
+  }
   return *this;
 }
