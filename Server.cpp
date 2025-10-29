@@ -11,7 +11,7 @@
 
 Server::Server(void) : fd(-1), port(-1) {}
 
-Server::Server(int port) : port(port) {}
+Server::Server(int port) : fd(-1), port(port) {}
 
 Server::Server(const Server &other) : fd(other.fd), port(other.port) {}
 
