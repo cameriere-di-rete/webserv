@@ -56,7 +56,7 @@ void Server::init(void) {
     throw strerror(errno);
   }
 
-  if (set_nonblocking(fd)) {
+  if (set_nonblocking(fd) < 0) {
     disconnect();
     throw strerror(errno);
   }
