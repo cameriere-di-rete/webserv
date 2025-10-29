@@ -2,7 +2,6 @@
 #include "Server.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
-#include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
 #include <csignal>
@@ -16,7 +15,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <vector>
 
 int error(const char *s) {
   std::cerr << s << ": " << strerror(errno) << std::endl;
@@ -32,7 +30,7 @@ int main(void) {
   try {
     Server server(8080);
     server.init();
-    servers[0] = server;
+    servers[server.fd] = server;
     server.fd = -1;
   } catch (char *s) {
     std::cerr << "Error while initiating Server: " << s << std::endl;
@@ -48,10 +46,12 @@ int main(void) {
     return error("epoll_create1");
   }
 
+  std::map<int, Server>::iterator s = servers.begin();
+
   struct epoll_event ev;
   ev.events = EPOLLIN; /* only need read events for the listener */
-  ev.data.fd = servers[0].fd;
-  if (epoll_ctl(efd, EPOLL_CTL_ADD, servers[0].fd, &ev) == -1) {
+  ev.data.fd = s->first;
+  if (epoll_ctl(efd, EPOLL_CTL_ADD, s->first, &ev) == -1) {
     return error("epoll_ctl ADD listen_fd");
   }
 
@@ -63,22 +63,22 @@ int main(void) {
     int n = epoll_wait(efd, events, MAX_EVENTS, -1);
     if (n == -1) {
       if (errno == EINTR)
-      continue; /* interrupted by signal */
+        continue; /* interrupted by signal */
       return error("epoll_wait");
     }
-    
+
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
-      
+
       /* ----- new incoming connection ----- */
       std::cout << "Checking fd=" << fd << std::endl;
-      std::map<int, Server>::iterator s = servers.find(0);
+      s = servers.find(fd);
       if (s != servers.end()) {
         while (1) {
           int conn_fd = accept(s->second.fd, NULL, NULL);
           if (conn_fd == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
-            break;
+              break;
             perror("accept");
             break;
           }
