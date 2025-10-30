@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+
 class Connection {
 private:
 public:
