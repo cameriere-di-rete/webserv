@@ -2,8 +2,8 @@ CXX			=	c++
 CXXFLAGS	=	-Wall -Wextra -Werror -std=c++98
 
 NAME	=	webserv
-FILES	=	main.cpp Connection.cpp Server.cpp utils.cpp
-HEADERS	= constants.hpp Connection.hpp Server.hpp utils.hpp
+FILES	=	main.cpp Connection.cpp Server.cpp ServerManager.cpp utils.cpp
+HEADERS	= constants.hpp Connection.hpp Server.hpp ServerManager.hpp utils.hpp
 
 OBJ		=	$(FILES:.cpp=.o)
 
