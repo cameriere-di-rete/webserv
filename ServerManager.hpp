@@ -2,8 +2,8 @@
 
 #include "Connection.hpp"
 #include "Server.hpp"
-#include <cstdint>
 #include <map>
+#include <sys/types.h>
 #include <vector>
 
 class ServerManager {
@@ -25,7 +25,7 @@ public:
 
   int run();
 
-  void updateEvents(int fd, uint32_t events);
+  void updateEvents(int fd, u_int32_t events);
 
   void shutdown();
 };

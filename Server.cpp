@@ -30,14 +30,14 @@ Server &Server::operator=(const Server &other) {
 void Server::init(void) {
   fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
-    throw strerror(errno);
+    throw "socket";
   }
 
   /* avoid "address already in use" on quick restarts */
   int opt = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
     disconnect();
-    throw strerror(errno);
+    throw "setsockopt";
   }
 
   struct sockaddr_in addr;
@@ -48,17 +48,17 @@ void Server::init(void) {
 
   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     disconnect();
-    throw strerror(errno);
+    throw "bind";
   }
 
   if (listen(fd, MAX_CONNECTIONS_PER_SERVER) < 0) {
     disconnect();
-    throw strerror(errno);
+    throw "listen";
   }
 
   if (set_nonblocking(fd) < 0) {
     disconnect();
-    throw strerror(errno);
+    throw "set_nonblocking";
   }
 
   std::cout << "Listening on port " << port << "..." << std::endl;
