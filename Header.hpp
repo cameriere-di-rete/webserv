@@ -3,7 +3,6 @@
 #include <string>
 
 class Header {
-private:
 public:
   Header();
   Header(const std::string &n, const std::string &v);
