@@ -1,22 +1,24 @@
-CXX			=	c++
-CXXFLAGS	=	-Wall -Wextra -Werror -std=c++98
+CXX			:=	c++
+CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
-NAME	=	webserv
-FILES	=	main.cpp
-HEADERS	=
+NAME	:=	webserv
+SOURCES	:=	main.cpp
 
-OBJ		=	$(FILES:.cpp=.o)
+OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
+DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
 
 all: $(NAME)
 
-$(NAME): $(OBJ)
+$(NAME): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-%.o: %.cpp $(HEADERS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+-include $(DEPENDS)
+
+%.o: %.cpp Makefile
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 clean:
-	$(RM) $(OBJ)
+	$(RM) $(OBJECTS) $(DEPENDS)
 
 fclean: clean
 	$(RM) $(NAME)
