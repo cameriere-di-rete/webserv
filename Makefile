@@ -2,7 +2,18 @@ CXX			:=	c++
 CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
-SOURCES	:=	main.cpp Body.cpp Header.cpp Message.cpp Request.cpp RequestLine.cpp Response.cpp StatusLine.cpp
+SOURCES	:=	main.cpp			\
+			Body.cpp			\
+			Connection.cpp		\
+			Header.cpp			\
+			Message.cpp			\
+			Request.cpp			\
+			RequestLine.cpp		\
+			Response.cpp		\
+			Server.cpp			\
+			ServerManager.cpp	\
+			StatusLine.cpp		\
+			utils.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
