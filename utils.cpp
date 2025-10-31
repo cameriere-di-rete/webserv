@@ -3,7 +3,6 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
-#include <sys/epoll.h>
 
 int error(const char *s) {
   std::cerr << s << ": " << strerror(errno) << std::endl;
