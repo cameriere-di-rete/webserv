@@ -1,4 +1,10 @@
+# executables
 webserv
-.swp
-*.o
 *.out
+
+# build
+*.o
+*.d
+
+# editors
+.swp
