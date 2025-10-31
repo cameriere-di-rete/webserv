@@ -14,7 +14,7 @@ public:
 
   void addHeader(const std::string &name, const std::string &value);
   bool getHeader(const std::string &name, std::string &out) const;
-  std::vector<std::string> getHeaders(void) const;
+  std::vector<std::string> getHeaders(const std::string &name) const;
 
   void setBody(const Body &b);
   Body &getBody();

@@ -7,12 +7,14 @@
 namespace {
 std::string trim_copy(const std::string &s) {
   std::string res = s;
+
   // left trim
   std::string::size_type i = 0;
   while (i < res.size() &&
          (res[i] == ' ' || res[i] == '\t' || res[i] == '\r' || res[i] == '\n'))
     ++i;
   res.erase(0, i);
+
   // right trim
   if (!res.empty()) {
     std::string::size_type j = res.size();
@@ -21,6 +23,7 @@ std::string trim_copy(const std::string &s) {
       --j;
     res.erase(j);
   }
+
   return res;
 }
 
@@ -41,8 +44,10 @@ bool ci_equal_copy(const std::string &a, const std::string &b) {
 
 /* Message */
 Message::Message() : headers(), body() {}
+
 Message::Message(const Message &other)
     : headers(other.headers), body(other.body) {}
+
 Message &Message::operator=(const Message &other) {
   if (this != &other) {
     headers = other.headers;
@@ -50,6 +55,7 @@ Message &Message::operator=(const Message &other) {
   }
   return *this;
 }
+
 Message::~Message() {}
 
 void Message::addHeader(const std::string &name, const std::string &value) {
@@ -67,11 +73,12 @@ bool Message::getHeader(const std::string &name, std::string &out) const {
   return false;
 }
 
-std::vector<std::string> Message::getHeaders(void) const {
+std::vector<std::string> Message::getHeaders(const std::string &name) const {
   std::vector<std::string> res;
   for (std::vector<Header>::const_iterator it = headers.begin();
        it != headers.end(); ++it) {
-    res.push_back(it->value);
+    if (ci_equal_copy(it->name, name))
+      res.push_back(it->value);
   }
   return res;
 }
@@ -79,9 +86,11 @@ std::vector<std::string> Message::getHeaders(void) const {
 void Message::setBody(const Body &b) {
   body = b;
 }
+
 Body &Message::getBody() {
   return body;
 }
+
 const Body &Message::getBody() const {
   return body;
 }
