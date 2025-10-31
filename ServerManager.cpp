@@ -164,10 +164,10 @@ int ServerManager::run() {
           std::cout << std::string(buf, r) << std::endl;
           std::cout << "===========================" << std::endl;
 
-          c.in = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
-                 "charset=utf-8" CRLF CRLF;
+          c.write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
+                           "charset=utf-8" CRLF CRLF;
 
-          c.in.append(buf, static_cast<size_t>(r));
+          c.write_buffer.append(buf, static_cast<size_t>(r));
 
           /* enable EPOLLOUT now that we have data to send */
           updateEvents(fd, EPOLLIN | EPOLLOUT | EPOLLET);
@@ -176,10 +176,10 @@ int ServerManager::run() {
 
       /* writable */
       if (ev_mask & EPOLLOUT) {
-        while (c.write_offset < c.in.size()) {
-          ssize_t w =
-              send(fd, c.in.c_str() + c.write_offset,
-                   static_cast<size_t>(c.in.size()) - c.write_offset, 0);
+        while (c.write_offset < c.write_buffer.size()) {
+          ssize_t w = send(
+              fd, c.write_buffer.c_str() + c.write_offset,
+              static_cast<size_t>(c.write_buffer.size()) - c.write_offset, 0);
 
           printf("Sent %zd bytes to fd=%d\n", w, fd);
 
@@ -195,8 +195,8 @@ int ServerManager::run() {
         }
 
         /* If everything was sent, stop watching EPOLLOUT */
-        if (c.write_offset == c.in.size()) {
-          c.in.clear();
+        if (c.write_offset == c.write_buffer.size()) {
+          c.write_buffer.clear();
           c.write_offset = 0;
           updateEvents(fd, EPOLLIN | EPOLLET); /* drop EPOLLOUT */
         }

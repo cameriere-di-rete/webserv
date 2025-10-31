@@ -14,6 +14,6 @@ public:
   Connection &operator=(Connection other);
 
   int fd;
-  std::string in;
+  std::string write_buffer;
   std::size_t write_offset;
 };
