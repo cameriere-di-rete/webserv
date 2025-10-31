@@ -1,8 +1,9 @@
 #include "StatusLine.hpp"
+#include "constants.hpp"
 #include <sstream>
 
 StatusLine::StatusLine()
-    : version("HTTP/1.0"), status_code(200), reason("OK") {}
+    : version(HTTP_VERSION), status_code(200), reason("OK") {}
 
 StatusLine::StatusLine(const StatusLine &other)
     : version(other.version), status_code(other.status_code),

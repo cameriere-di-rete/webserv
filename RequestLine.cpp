@@ -1,7 +1,7 @@
 #include "RequestLine.hpp"
 #include <sstream>
 
-RequestLine::RequestLine() : method(), uri(), version("HTTP/1.0") {}
+RequestLine::RequestLine() : method(), uri(), version() {}
 
 RequestLine::RequestLine(const RequestLine &other)
     : method(other.method), uri(other.uri), version(other.version) {}

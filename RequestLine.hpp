@@ -11,7 +11,7 @@ public:
 
   std::string method;
   std::string uri;
-  std::string version; // e.g. "HTTP/1.1"
+  std::string version;
 
   std::string toString() const;
   bool parse(const std::string &line);
