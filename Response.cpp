@@ -25,14 +25,6 @@ bool Response::parseStartAndHeaders(const std::vector<std::string> &lines) {
     return false;
   if (!status_line.parse(lines[0]))
     return false;
-  for (std::vector<std::string>::size_type i = 1; i < lines.size(); ++i) {
-    const std::string &ln = lines[i];
-    if (ln.empty())
-      continue;
-    Header h;
-    if (parseHeaderLine(ln, h))
-      headers.push_back(h);
-  }
-
+  parseHeaders(lines, 1);
   return true;
 }

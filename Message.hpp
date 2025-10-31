@@ -29,4 +29,7 @@ public:
 protected:
   std::vector<Header> headers;
   Body body;
+
+  std::size_t parseHeaders(const std::vector<std::string> &lines,
+                           std::size_t start);
 };

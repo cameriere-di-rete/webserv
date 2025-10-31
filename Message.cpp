@@ -121,3 +121,19 @@ std::string Message::serialize() const {
   o << body.data;
   return o.str();
 }
+
+std::size_t Message::parseHeaders(const std::vector<std::string> &lines,
+                                  std::size_t start) {
+  std::size_t count = 0;
+  for (std::vector<std::string>::size_type i = start; i < lines.size(); ++i) {
+    const std::string &ln = lines[i];
+    if (ln.empty())
+      continue;
+    Header h;
+    if (parseHeaderLine(ln, h)) {
+      headers.push_back(h);
+      ++count;
+    }
+  }
+  return count;
+}
