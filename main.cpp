@@ -15,7 +15,7 @@ int main(void) {
   } catch (const std::exception &e) {
     return error(e.what());
   } catch (...) {
-    return error("Unknown error while initiating Server");
+    return error("Unknown error while initializing Server");
   }
 
   /* ignore SIGPIPE so a broken client won't kill the process when we write */
