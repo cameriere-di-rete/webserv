@@ -4,7 +4,6 @@
 #include <string>
 
 class Connection {
-private:
 public:
   Connection();
   Connection(int fd);
