@@ -1,4 +1,5 @@
 #include "Logger.hpp"
+#include <cstring>
 #include <ctime>
 #include <iostream>
 #include <sstream>
@@ -19,7 +20,7 @@ void Logger::setLevel(LogLevel level) { _level = level; }
 std::string Logger::getCurrentTime() {
   time_t now = time(0);
   struct tm *timeinfo = localtime(&now);
-  char buffer[20];
+  char buffer[32];
   strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
   return std::string(buffer);
 }
