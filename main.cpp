@@ -1,8 +1,7 @@
-#include "ServerManager.hpp"
-#include "utils.hpp"
-#include "Config_Reader.hpp"
 #include "Lexer.hpp"
 #include "Parser.hpp"
+#include "ServerManager.hpp"
+#include "utils.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -13,11 +12,14 @@ int main(void) {
 
   // Try to read configuration file 'webserv.conf' in current directory
   try {
-    std::string content = ConfigFileReader::readFile("webserv.conf");
+    std::string content = readFile("webserv.conf");
     Lexer lexer(content);
     std::vector<std::string> tokens = lexer.tokenize();
     Parser parser(tokens);
     Block root = parser.parse();
+
+  // DEBUG: dumpConfig(root);
+  dumpConfig(root);
 
     // Search for server blocks and extract 'listen' directives
     for (size_t i = 0; i < root.sub_blocks.size(); ++i) {
@@ -29,7 +31,8 @@ int main(void) {
             // Expect formats like '8080' or '0.0.0.0:8080'
             std::string a = d.args[0];
             size_t pos = a.find(':');
-            std::string portstr = (pos == std::string::npos) ? a : a.substr(pos + 1);
+            std::string portstr =
+                (pos == std::string::npos) ? a : a.substr(pos + 1);
             int p = std::atoi(portstr.c_str());
             if (p > 0)
               ports.push_back(p);
