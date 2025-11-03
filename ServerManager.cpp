@@ -45,13 +45,13 @@ void ServerManager::initServers(const std::vector<int> &ports) {
 void ServerManager::acceptConnection(int listen_fd) {
   while (1) {
     int conn_fd = accept(listen_fd, NULL, NULL);
-    if (conn_fd == -1) {
+    if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         break;
       error("accept");
       break;
     }
-    if (set_nonblocking(conn_fd) == -1) {
+    if (set_nonblocking(conn_fd) < 0) {
       error("set_nonblocking conn_fd");
       close(conn_fd);
       continue;
@@ -78,9 +78,9 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
   ev.events = events;
   ev.data.fd = fd;
 
-  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) == -1) {
+  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
         error("epoll_ctl ADD");
       }
     } else {
@@ -92,7 +92,7 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
 int ServerManager::run() {
   /* create epoll instance */
   _efd = epoll_create1(0);
-  if (_efd == -1) {
+  if (_efd < 0) {
     return error("epoll_create1");
   }
 
@@ -103,7 +103,7 @@ int ServerManager::run() {
     struct epoll_event ev;
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) == -1) {
+    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
       return error("epoll_ctl ADD listen_fd");
     }
   }
@@ -113,7 +113,7 @@ int ServerManager::run() {
 
   while (1) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
-    if (n == -1) {
+    if (n < 0) {
       if (errno == EINTR)
         continue; /* interrupted by signal */
       return error("epoll_wait");
@@ -141,7 +141,7 @@ int ServerManager::run() {
         while (1) {
           char buf[WRITE_BUF_SIZE] = {0};
           ssize_t r = recv(fd, buf, sizeof(buf), 0);
-          if (r == -1) {
+          if (r < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
               break;
             error("read");
@@ -183,7 +183,7 @@ int ServerManager::run() {
 
           printf("Sent %zd bytes to fd=%d\n", w, fd);
 
-          if (w == -1) {
+          if (w < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
               break;
             error("write");
@@ -194,11 +194,18 @@ int ServerManager::run() {
           c.write_offset += static_cast<size_t>(w);
         }
 
-        /* If everything was sent, stop watching EPOLLOUT */
+        /* If everything was sent, remove the connection and clean up */
         if (c.write_offset == c.write_buffer.size()) {
-          c.write_buffer.clear();
-          c.write_offset = 0;
-          updateEvents(fd, EPOLLIN | EPOLLET); /* drop EPOLLOUT */
+          /* attempt to remove from epoll */
+          if (epoll_ctl(_efd, EPOLL_CTL_DEL, fd, NULL) < 0) {
+            if (errno != ENOENT) {
+              error("epoll_ctl DEL");
+            }
+          }
+
+          /* close the socket and remove tracked connection */
+          close(fd);
+          _connections.erase(fd);
         }
       }
     }
