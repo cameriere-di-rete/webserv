@@ -6,6 +6,7 @@ SOURCES	:=	main.cpp			\
 			Body.cpp			\
 			Connection.cpp		\
 			Header.cpp			\
+			Logger.cpp			\
 			Message.cpp			\
 			Request.cpp			\
 			RequestLine.cpp		\

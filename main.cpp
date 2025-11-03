@@ -1,3 +1,4 @@
+#include "Logger.hpp"
 #include "ServerManager.hpp"
 #include "utils.hpp"
 #include <csignal>
@@ -5,6 +6,8 @@
 #include <cstring>
 
 int main(void) {
+  Logger::setLevel(Logger::DEBUG);
+
   std::vector<int> ports;
   ports.push_back(8080);
   ports.push_back(9090);

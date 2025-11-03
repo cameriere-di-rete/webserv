@@ -1,4 +1,5 @@
 #include "ServerManager.hpp"
+#include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 
@@ -9,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
+#include <sstream>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -57,8 +59,9 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    std::cout << "=== New connection accepted ===" << std::endl;
-    std::cout << "File descriptor: " << conn_fd << std::endl;
+    std::ostringstream oss;
+    oss << "New connection accepted (fd: " << conn_fd << ")";
+    Logger::info(oss.str());
 
     Connection connection(conn_fd);
     _connections[conn_fd] = connection;
@@ -150,19 +153,18 @@ int ServerManager::run() {
             break;
           }
           if (r == 0) { /* client closed */
-            std::cout << "=== Client disconnected ===" << std::endl;
-            std::cout << "File descriptor: " << fd << std::endl;
+            std::ostringstream oss;
+            oss << "Client disconnected (fd: " << fd << ")";
+            Logger::info(oss.str());
             close(fd);
             _connections.erase(fd);
             break;
           }
 
-          std::cout << "=== HTTP request received ===" << std::endl;
-          std::cout << "File descriptor: " << fd << std::endl;
-          std::cout << "Bytes received: " << r << std::endl;
-          std::cout << "Content:" << std::endl;
-          std::cout << std::string(buf, r) << std::endl;
-          std::cout << "===========================" << std::endl;
+          std::ostringstream oss;
+          oss << "HTTP request received (fd: " << fd << ", bytes: " << r << ")";
+          Logger::info(oss.str());
+          Logger::debug(std::string(buf, r));
 
           c.write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
                            "charset=utf-8" CRLF CRLF;
@@ -181,7 +183,9 @@ int ServerManager::run() {
               fd, c.write_buffer.c_str() + c.write_offset,
               static_cast<size_t>(c.write_buffer.size()) - c.write_offset, 0);
 
-          printf("Sent %zd bytes to fd=%d\n", w, fd);
+          std::ostringstream oss;
+          oss << "Response sent (fd: " << fd << ", bytes: " << w << ")";
+          Logger::info(oss.str());
 
           if (w == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
