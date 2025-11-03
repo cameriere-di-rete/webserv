@@ -13,3 +13,6 @@ std::string readFile(const std::string &path);
 // Debug helper: print the parsed configuration tree
 struct Block; // forward-declare to avoid including Parser.hpp here
 void dumpConfig(const Block &b);
+
+// Print an error message to stderr in red color
+void printError(const std::string &msg);

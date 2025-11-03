@@ -18,8 +18,8 @@ int main(void) {
     Parser parser(tokens);
     Block root = parser.parse();
 
-  // DEBUG: dumpConfig(root);
-  dumpConfig(root);
+    // DEBUG: dumpConfig(root);
+    dumpConfig(root);
 
     // Search for server blocks and extract 'listen' directives
     for (size_t i = 0; i < root.sub_blocks.size(); ++i) {
@@ -40,11 +40,17 @@ int main(void) {
         }
       }
     }
+
+    // If no valid listen directives were found, print error and exit
+    if (ports.empty()) {
+      printError("Error: no valid 'listen' directives found in configuration; "
+                 "please specify at least one valid 'listen <port>;'");
+      return EXIT_FAILURE;
+    }
   } catch (const std::exception &e) {
-    std::cerr << "Warning: could not read/parse config: " << e.what()
-              << "\nFalling back to default ports." << std::endl;
-    ports.push_back(8080);
-    ports.push_back(9090);
+    printError(std::string("Warning: could not read/parse config: ") +
+               e.what());
+    return EXIT_FAILURE;
   }
 
   ServerManager sm;

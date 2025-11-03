@@ -7,8 +7,16 @@
 #include <iostream>
 #include <sstream>
 
+// Print an error message in red to stderr
+void printError(const std::string &msg) {
+  const char *RED = "\x1b[31m";
+  const char *RESET = "\x1b[0m";
+  std::cerr << RED << msg << RESET << std::endl;
+}
+
 int error(const char *s) {
-  std::cerr << s << ": " << strerror(errno) << std::endl;
+  std::string m = std::string(s) + ": " + strerror(errno);
+  printError(m);
   return EXIT_FAILURE;
 }
 
