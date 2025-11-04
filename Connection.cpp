@@ -21,8 +21,11 @@ Connection::~Connection() {}
 Connection &Connection::operator=(const Connection &other) {
   if (this != &other) {
     fd = other.fd;
+    read_buffer = other.read_buffer;
+    read_done = other.read_done;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
+    write_ready = other.write_ready;
   }
   return *this;
 }
@@ -55,7 +58,7 @@ int Connection::handleRead() {
       std::cout << "File descriptor: " << fd << std::endl;
       std::cout << "Bytes received: " << r << std::endl;
       std::cout << "Content:" << std::endl;
-      std::cout << std::string(buf, r) << std::endl;
+      std::cout << read_buffer << std::endl;
       std::cout << "===========================" << std::endl;
       write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
                      "charset=utf-8" CRLF CRLF;
