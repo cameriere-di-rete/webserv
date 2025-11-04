@@ -10,9 +10,9 @@ int set_nonblocking(int fd);
 // can't be opened.
 std::string readFile(const std::string &path);
 
-// Debug helper: print the parsed configuration tree
-struct Block; // forward-declare to avoid including Parser.hpp here
-void dumpConfig(const Block &b);
+// Debug helper: print the parsed configuration tree (uses parsecfg AST)
+#include "Parse_Config.hpp"
+void dumpConfig(const parsecfg::BlockNode &b);
 
 // Print an error message to stderr in red color
 void printError(const std::string &msg);

@@ -1,4 +1,4 @@
-#include "Parser.hpp"
+#include "Parse_Config.hpp"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -39,19 +39,29 @@ std::string readFile(const std::string &path) {
 }
 
 // Print Block tree for debugging
-static void _printBlockRec(const Block &b, int indent) {
+// Print parsecfg::BlockNode tree for debugging
+static void _printBlockRec(const parsecfg::BlockNode &b, int indent) {
   std::string pad(indent, ' ');
   std::cout << pad << "Block: type='" << b.type << "'";
   if (!b.param.empty())
     std::cout << " param='" << b.param << "'";
   std::cout << "\n";
   for (size_t i = 0; i < b.directives.size(); ++i) {
-    const Directive &d = b.directives[i];
+    const parsecfg::DirectiveNode &d = b.directives[i];
     std::cout << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
       if (j)
         std::cout << ", ";
-      std::cout << "'" << d.args[j] << "'";
+      std::cout << "'" << d.args[j].raw << "'";
+      if (!d.args[j].subparts.empty()) {
+        std::cout << "{";
+        for (size_t k = 0; k < d.args[j].subparts.size(); ++k) {
+          if (k)
+            std::cout << ",";
+          std::cout << d.args[j].subparts[k];
+        }
+        std::cout << "}";
+      }
     }
     std::cout << "]\n";
   }
@@ -59,6 +69,6 @@ static void _printBlockRec(const Block &b, int indent) {
     _printBlockRec(b.sub_blocks[i], indent + 2);
 }
 
-void dumpConfig(const Block &b) {
+void dumpConfig(const parsecfg::BlockNode &b) {
   _printBlockRec(b, 0);
 }

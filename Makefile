@@ -3,9 +3,9 @@ CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
 SOURCES	:=	main.cpp			\
-			Lexer.cpp			\
-			Parser.cpp 			\
+		Parse_Config.cpp 	\
 			Body.cpp			\
+			Parse_Config.cpp 	\
 			Connection.cpp		\
 			Header.cpp			\
 			Message.cpp			\
