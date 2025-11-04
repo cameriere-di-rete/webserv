@@ -56,7 +56,7 @@ int Connection::handleRead() {
     if (read_buffer.find("\r\n\r\n") != std::string::npos) {
       std::cout << "=== HTTP request received ===" << std::endl;
       std::cout << "File descriptor: " << fd << std::endl;
-      std::cout << "Bytes received: " << r << std::endl;
+      std::cout << "Bytes received: " << read_buffer.size() << std::endl;
       std::cout << "Content:" << std::endl;
       std::cout << read_buffer << std::endl;
       std::cout << "===========================" << std::endl;
