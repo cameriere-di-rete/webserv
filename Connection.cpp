@@ -10,7 +10,7 @@ Connection::Connection(const Connection &other)
 
 Connection::~Connection() {}
 
-Connection &Connection::operator=(Connection other) {
+Connection &Connection::operator=(const Connection &other) {
   if (this != &other) {
     fd = other.fd;
     write_buffer = other.write_buffer;

@@ -10,7 +10,7 @@ public:
   Connection(const Connection &other);
   ~Connection();
 
-  Connection &operator=(Connection other);
+  Connection &operator=(const Connection &other);
 
   int fd;
   std::string write_buffer;
