@@ -52,7 +52,7 @@ int Connection::handleRead() {
     // Add new data to persistent buffer
     read_buffer.append(buf, r);
 
-    // Controllo se la richiesta HTTP è completa
+    // Check if the HTTP request is complete
     if (read_buffer.find("\r\n\r\n") != std::string::npos) {
       std::cout << "=== HTTP request received ===" << std::endl;
       std::cout << "File descriptor: " << fd << std::endl;
