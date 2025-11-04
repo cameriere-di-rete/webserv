@@ -1,8 +1,8 @@
 #include "ServerManager.hpp"
+#include "Connection.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
-
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstdio>
@@ -11,7 +11,6 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <sstream>
-#include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -141,68 +140,27 @@ int ServerManager::run() {
 
       /* readable */
       if (ev_mask & EPOLLIN) {
-        while (1) {
-          char buf[WRITE_BUF_SIZE] = {0};
-          ssize_t r = recv(fd, buf, sizeof(buf), 0);
-          if (r == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-              break;
-            error("read");
-            close(fd);
-            _connections.erase(fd);
-            break;
-          }
-          if (r == 0) { /* client closed */
-            std::ostringstream oss;
-            oss << "Client disconnected (fd: " << fd << ")";
-            Logger::info(oss.str());
-            close(fd);
-            _connections.erase(fd);
-            break;
-          }
+        int status = c.handleRead();
 
-          std::ostringstream oss;
-          oss << "HTTP request received (fd: " << fd << ", bytes: " << r << ")";
-          Logger::info(oss.str());
-          Logger::debug(std::string(buf, r));
+        if (status < 0) {
+          close(fd);
+          _connections.erase(fd);
+          continue;
+        }
 
-          c.write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
-                           "charset=utf-8" CRLF CRLF;
-
-          c.write_buffer.append(buf, static_cast<size_t>(r));
-
+        if (c.read_done) {
           /* enable EPOLLOUT now that we have data to send */
-          updateEvents(fd, EPOLLIN | EPOLLOUT | EPOLLET);
+          updateEvents(fd, EPOLLOUT | EPOLLET);
         }
       }
 
       /* writable */
       if (ev_mask & EPOLLOUT) {
-        while (c.write_offset < c.write_buffer.size()) {
-          ssize_t w = send(
-              fd, c.write_buffer.c_str() + c.write_offset,
-              static_cast<size_t>(c.write_buffer.size()) - c.write_offset, 0);
+        int status = c.handleWrite();
 
-          std::ostringstream oss;
-          oss << "Response sent (fd: " << fd << ", bytes: " << w << ")";
-          Logger::info(oss.str());
-
-          if (w == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-              break;
-            error("write");
-            close(fd);
-            _connections.erase(fd);
-            break;
-          }
-          c.write_offset += static_cast<size_t>(w);
-        }
-
-        /* If everything was sent, stop watching EPOLLOUT */
-        if (c.write_offset == c.write_buffer.size()) {
-          c.write_buffer.clear();
-          c.write_offset = 0;
-          updateEvents(fd, EPOLLIN | EPOLLET); /* drop EPOLLOUT */
+        if (status <= 0) {
+          close(fd);
+          _connections.erase(fd);
         }
       }
     }
