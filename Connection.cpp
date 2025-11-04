@@ -49,7 +49,7 @@ int Connection::handleRead() {
       return -1;
     }
 
-    // Aggiungo i nuovi dati al buffer persistente
+    // Add new data to persistent buffer
     read_buffer.append(buf, r);
 
     // Controllo se la richiesta HTTP è completa
