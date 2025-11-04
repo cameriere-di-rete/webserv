@@ -23,7 +23,7 @@ int main(void) {
           const parsecfg::DirectiveNode &d = srv.directives[j];
           if (d.name == "listen" && d.args.size() > 0) {
             // Expect formats like '8080' or '0.0.0.0:8080'
-            std::string a = d.args[0].raw;
+            std::string a = d.args[0];
             size_t pos = a.find(':');
             std::string portstr =
                 (pos == std::string::npos) ? a : a.substr(pos + 1);

@@ -3,9 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 
 // Print an error message in red to stderr
 void printError(const std::string &msg) {
@@ -27,17 +25,6 @@ int set_nonblocking(int fd) {
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-// Implementazione della funzione per leggere file di configurazione
-std::string readFile(const std::string &path) {
-  std::ifstream file(path.c_str());
-  if (!file.is_open())
-    throw std::runtime_error(
-        std::string("Impossibile aprire il file di configurazione: ") + path);
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  return buffer.str();
-}
-
 // Print Block tree for debugging
 // Print parsecfg::BlockNode tree for debugging
 static void _printBlockRec(const parsecfg::BlockNode &b, int indent) {
@@ -52,16 +39,7 @@ static void _printBlockRec(const parsecfg::BlockNode &b, int indent) {
     for (size_t j = 0; j < d.args.size(); ++j) {
       if (j)
         std::cout << ", ";
-      std::cout << "'" << d.args[j].raw << "'";
-      if (!d.args[j].subparts.empty()) {
-        std::cout << "{";
-        for (size_t k = 0; k < d.args[j].subparts.size(); ++k) {
-          if (k)
-            std::cout << ",";
-          std::cout << d.args[j].subparts[k];
-        }
-        std::cout << "}";
-      }
+      std::cout << "'" << d.args[j] << "'";
     }
     std::cout << "]\n";
   }

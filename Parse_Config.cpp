@@ -1,13 +1,30 @@
 // Parse_Config.cpp
 #include "Parse_Config.hpp"
-#include "utils.hpp"
+#include "BlockNode.hpp"
+#include "DirectiveNode.hpp"
 #include <cctype>
+#include <fstream>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
-namespace parsecfg {
+namespace parsecfg
+{
 
-// Helper: remove comments '#' until end of line
-static void removeComments(std::string &s) {
+Config::Config() : tokens_(), idx_(0) {}
+Config::~Config() {}
+Config::Config(const Config &other)
+    : tokens_(other.tokens_), idx_(other.idx_) {}
+Config &Config::operator=(const Config &other) {
+  if (this != &other) {
+    tokens_ = other.tokens_;
+    idx_ = other.idx_;
+  }
+  return *this;
+}
+
+// helpers
+void Config::removeComments(std::string &s) {
   size_t pos = 0;
   while ((pos = s.find('#', pos)) != std::string::npos) {
     size_t e = s.find('\n', pos);
@@ -19,21 +36,20 @@ static void removeComments(std::string &s) {
   }
 }
 
-// Tokenize: split into tokens, keeping '{', '}', ';' as separate tokens
-static std::vector<std::string> tokenize(const std::string &content) {
-  std::vector<std::string> tokens;
+void Config::tokenize(const std::string &content) {
+  tokens_.clear();
   std::string cur;
   for (size_t i = 0; i < content.size(); ++i) {
     char c = content[i];
     if (c == '{' || c == '}' || c == ';') {
       if (!cur.empty()) {
-        tokens.push_back(cur);
+        tokens_.push_back(cur);
         cur.clear();
       }
-      tokens.push_back(std::string(1, c));
+      tokens_.push_back(std::string(1, c));
     } else if (std::isspace(static_cast<unsigned char>(c))) {
       if (!cur.empty()) {
-        tokens.push_back(cur);
+        tokens_.push_back(cur);
         cur.clear();
       }
     } else {
@@ -41,106 +57,89 @@ static std::vector<std::string> tokenize(const std::string &content) {
     }
   }
   if (!cur.empty())
-    tokens.push_back(cur);
-  return tokens;
+    tokens_.push_back(cur);
+  idx_ = 0;
 }
 
-// Split an argument token by ':' into subparts
-static std::vector<std::string> splitColon(const std::string &tok) {
-  std::vector<std::string> out;
-  std::string cur;
-  for (size_t i = 0; i < tok.size(); ++i) {
-    if (tok[i] == ':') {
-      out.push_back(cur);
-      cur.clear();
-    } else
-      cur.push_back(tok[i]);
-  }
-  out.push_back(cur);
-  return out;
+bool Config::eof() const {
+  return idx_ >= tokens_.size();
+}
+const std::string &Config::peek() const {
+  static std::string empty = "";
+  return idx_ < tokens_.size() ? tokens_[idx_] : empty;
+}
+std::string Config::get() {
+  if (idx_ >= tokens_.size())
+    throw std::runtime_error("Unexpected end of tokens");
+  return tokens_[idx_++];
 }
 
-class ParserState {
-public:
-  ParserState(const std::vector<std::string> &t) : tokens(t), idx(0) {}
-  const std::string &peek() const {
-    static std::string empty = "";
-    return idx < tokens.size() ? tokens[idx] : empty;
-  }
-  std::string get() {
-    if (idx >= tokens.size())
-      throw std::runtime_error("Unexpected end of tokens");
-    return tokens[idx++];
-  }
-  bool eof() const {
-    return idx >= tokens.size();
-  }
-
-private:
-  const std::vector<std::string> &tokens;
-  size_t idx;
-};
-
-// Forward
-static BlockNode parseBlock(ParserState &s);
-
-static DirectiveNode parseDirective(ParserState &s) {
+DirectiveNode Config::parseDirective() {
   DirectiveNode d;
-  d.name = s.get();
-  while (s.peek() != ";") {
-    if (s.eof())
+  d.name = get();
+  while (peek() != ";") {
+    if (eof())
       throw std::runtime_error(std::string("Directive '") + d.name +
                                "' missing ';'");
-    std::string a = s.get();
-    ArgPart p;
-    p.raw = a;
-    p.subparts = splitColon(a);
-    d.args.push_back(p);
+    d.args.push_back(get());
   }
-  s.get(); // consume ;
+  get(); // consume ;
   return d;
 }
 
-static BlockNode parseBlock(ParserState &s) {
+BlockNode Config::parseBlock() {
   BlockNode b;
-  b.type = s.get(); // server or location
+  b.type = get(); // server or location
   if (b.type == "location") {
-    if (s.peek().empty())
+    if (peek().empty())
       throw std::runtime_error("location missing parameter");
-    b.param = s.get();
+    b.param = get();
   }
-  if (s.get() != "{")
+  if (get() != "{")
     throw std::runtime_error("Expected '{' after block type");
-  while (s.peek() != "}") {
-    if (s.eof())
+  while (peek() != "}") {
+    if (eof())
       throw std::runtime_error(std::string("Missing '}' for block ") + b.type);
-    if (s.peek() == "location") {
-      b.sub_blocks.push_back(parseBlock(s));
+    if (peek() == "location") {
+      b.sub_blocks.push_back(parseBlock());
+    } else if (peek() == "server") {
+      b.sub_blocks.push_back(parseBlock());
     } else {
-      b.directives.push_back(parseDirective(s));
+      b.directives.push_back(parseDirective());
     }
   }
-  s.get(); // consume }
+  get(); // consume }
   return b;
 }
 
-BlockNode parseConfigFile(const std::string &path) {
-  std::string content = readFile(path);
-  removeComments(content);
-  std::vector<std::string> tokens = tokenize(content);
+BlockNode Config::parseFile(const std::string &path) {
+  // read file
+  std::ifstream file(path.c_str());
+  if (!file.is_open())
+    throw std::runtime_error(std::string("Unable to open config file: ") +
+                             path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::string content = buffer.str();
 
-  ParserState s(tokens);
+  removeComments(content);
+  tokenize(content);
+
   BlockNode root;
   root.type = "root";
-  while (!s.eof()) {
-    if (s.peek() == "server") {
-      root.sub_blocks.push_back(parseBlock(s));
+  while (!eof()) {
+    if (peek() == "server") {
+      root.sub_blocks.push_back(parseBlock());
     } else {
-      // global directives
-      root.directives.push_back(parseDirective(s));
+      root.directives.push_back(parseDirective());
     }
   }
   return root;
+}
+
+BlockNode parseConfigFile(const std::string &path) {
+  Config cfg;
+  return cfg.parseFile(path);
 }
 
 } // namespace parsecfg
