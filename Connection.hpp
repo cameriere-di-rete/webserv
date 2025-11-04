@@ -13,6 +13,12 @@ public:
   Connection &operator=(const Connection &other);
 
   int fd;
+  std::string read_buffer;
   std::string write_buffer;
   std::size_t write_offset;
+  bool read_done;
+  bool write_ready;
+
+  int handleRead();
+  int handleWrite();
 };
