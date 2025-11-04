@@ -59,7 +59,7 @@ int Connection::handleRead() {
       std::cout << "===========================" << std::endl;
       write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
                      "charset=utf-8" CRLF CRLF;
-  write_buffer.append(read_buffer);
+      write_buffer.append(read_buffer);
       read_done = true;
       break;
     }
@@ -89,5 +89,3 @@ int Connection::handleWrite() {
   // All data sent successfully
   return 0;
 }
-
-
