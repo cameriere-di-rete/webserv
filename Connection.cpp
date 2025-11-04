@@ -35,7 +35,7 @@ int Connection::handleRead() {
 
     if (r < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
-        break;
+        return 1;
       error("read");
       return -1;
     }
