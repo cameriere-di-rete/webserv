@@ -1,4 +1,4 @@
-#include "Parse_Config.hpp"
+#include "Config.hpp"
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
 #include <cctype>

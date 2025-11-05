@@ -5,11 +5,11 @@ NAME	:=	webserv
 SOURCES	:=	main.cpp			\
 			BlockNode.cpp		\
 			Body.cpp			\
+			Config.cpp			\
 			Connection.cpp		\
 			DirectiveNode.cpp	\
 			Header.cpp			\
 			Message.cpp			\
-			Parse_Config.cpp	\
 			Request.cpp			\
 			RequestLine.cpp		\
 			Response.cpp		\
