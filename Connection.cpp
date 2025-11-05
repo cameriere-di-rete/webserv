@@ -60,15 +60,6 @@ int Connection::handleRead() {
 
     // Check if the HTTP request is complete
     if (read_buffer.find(CRLF CRLF) != std::string::npos) {
-      std::cout << "=== HTTP request received ===" << std::endl;
-      std::cout << "File descriptor: " << fd << std::endl;
-      std::cout << "Bytes received: " << read_buffer.size() << std::endl;
-      std::cout << "Content:" << std::endl;
-      std::cout << read_buffer << std::endl;
-      std::cout << "===========================" << std::endl;
-      write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
-                     "charset=utf-8" CRLF CRLF;
-      write_buffer.append(read_buffer);
       read_done = true;
       break;
     }
