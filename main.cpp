@@ -10,17 +10,17 @@ int main(void) {
   // Try to read configuration file 'webserv.conf' in current directory
   try {
     // Use the consolidated parser that returns the syntax-tree AST
-    parsecfg::BlockNode root = parsecfg::parseConfigFile("webserv.conf");
+    BlockNode root = parseConfigFile("webserv.conf");
 
     // DEBUG: dumpConfig(root);
     dumpConfig(root);
 
     // Search for server blocks and extract 'listen' directives
     for (size_t i = 0; i < root.sub_blocks.size(); ++i) {
-      const parsecfg::BlockNode &srv = root.sub_blocks[i];
+      const BlockNode &srv = root.sub_blocks[i];
       if (srv.type == "server") {
         for (size_t j = 0; j < srv.directives.size(); ++j) {
-          const parsecfg::DirectiveNode &d = srv.directives[j];
+          const DirectiveNode &d = srv.directives[j];
           if (d.name == "listen" && d.args.size() > 0) {
             // Expect formats like '8080' or '0.0.0.0:8080'
             std::string a = d.args[0];

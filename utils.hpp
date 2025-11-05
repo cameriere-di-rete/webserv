@@ -8,7 +8,7 @@ int set_nonblocking(int fd);
 
 // Debug helper: print the parsed configuration tree (uses parsecfg AST)
 #include "Parse_Config.hpp"
-void dumpConfig(const parsecfg::BlockNode &b);
+void dumpConfig(const BlockNode &b);
 
 // Print an error message to stderr in red color
 void printError(const std::string &msg);

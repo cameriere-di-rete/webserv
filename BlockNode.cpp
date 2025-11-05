@@ -1,7 +1,5 @@
 #include "BlockNode.hpp"
 
-namespace parsecfg {
-
 BlockNode::BlockNode() : type(), param(), directives(), sub_blocks() {}
 
 BlockNode::BlockNode(const std::string &t, const std::string &p)
@@ -22,5 +20,3 @@ BlockNode &BlockNode::operator=(const BlockNode &other) {
 }
 
 BlockNode::~BlockNode() {}
-
-} // namespace parsecfg

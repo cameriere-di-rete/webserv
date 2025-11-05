@@ -26,15 +26,15 @@ int set_nonblocking(int fd) {
 }
 
 // Print Block tree for debugging
-// Print parsecfg::BlockNode tree for debugging
-static void _printBlockRec(const parsecfg::BlockNode &b, int indent) {
+// Print BlockNode tree for debugging
+static void _printBlockRec(const BlockNode &b, int indent) {
   std::string pad(indent, ' ');
   std::cout << pad << "Block: type='" << b.type << "'";
   if (!b.param.empty())
     std::cout << " param='" << b.param << "'";
   std::cout << "\n";
   for (size_t i = 0; i < b.directives.size(); ++i) {
-    const parsecfg::DirectiveNode &d = b.directives[i];
+    const DirectiveNode &d = b.directives[i];
     std::cout << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
       if (j)
@@ -47,6 +47,6 @@ static void _printBlockRec(const parsecfg::BlockNode &b, int indent) {
     _printBlockRec(b.sub_blocks[i], indent + 2);
 }
 
-void dumpConfig(const parsecfg::BlockNode &b) {
+void dumpConfig(const BlockNode &b) {
   _printBlockRec(b, 0);
 }

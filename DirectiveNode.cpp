@@ -1,7 +1,5 @@
 #include "DirectiveNode.hpp"
 
-namespace parsecfg {
-
 DirectiveNode::DirectiveNode() : name(), args() {}
 
 DirectiveNode::DirectiveNode(const std::string &n,
@@ -20,5 +18,3 @@ DirectiveNode &DirectiveNode::operator=(const DirectiveNode &other) {
 }
 
 DirectiveNode::~DirectiveNode() {}
-
-} // namespace parsecfg

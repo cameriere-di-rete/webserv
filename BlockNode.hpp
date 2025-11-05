@@ -1,11 +1,8 @@
-#ifndef PARSECFG_BLOCK_NODE_HPP
-#define PARSECFG_BLOCK_NODE_HPP
+#pragma once
 
 #include "DirectiveNode.hpp"
 #include <string>
 #include <vector>
-
-namespace parsecfg {
 
 class BlockNode {
 public:
@@ -22,7 +19,3 @@ public:
       directives;                    // directives directly inside this block
   std::vector<BlockNode> sub_blocks; // nested blocks
 };
-
-} // namespace parsecfg
-
-#endif // PARSECFG_BLOCK_NODE_HPP

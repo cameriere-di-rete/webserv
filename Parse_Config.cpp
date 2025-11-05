@@ -1,4 +1,3 @@
-// Parse_Config.cpp
 #include "Parse_Config.hpp"
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
@@ -7,9 +6,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-namespace parsecfg
-{
 
 Config::Config() : tokens_(), idx_(0) {}
 Config::~Config() {}
@@ -141,5 +137,3 @@ BlockNode parseConfigFile(const std::string &path) {
   Config cfg;
   return cfg.parseFile(path);
 }
-
-} // namespace parsecfg
