@@ -62,6 +62,8 @@ void ServerManager::acceptConnection(int listen_fd) {
     std::cout << "File descriptor: " << conn_fd << std::endl;
 
     Connection connection(conn_fd);
+    /* record which listening/server fd accepted this connection */
+    connection.server_fd = listen_fd;
     _connections[conn_fd] = connection;
 
     // watch for reads; no write interest yet
