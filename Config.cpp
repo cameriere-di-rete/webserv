@@ -113,7 +113,7 @@ BlockNode Config::parseBlock() {
   return b;
 }
 
-BlockNode Config::parseFile(const std::string &path) {
+void Config::parseFile(const std::string &path) {
   // read file
   std::ifstream file(path.c_str());
   if (!file.is_open())
@@ -126,16 +126,18 @@ BlockNode Config::parseFile(const std::string &path) {
   removeComments(content);
   tokenize(content);
 
-  BlockNode root;
-  root.type = "root";
+  root_.type = "root";
   while (!eof()) {
     if (peek() == "server") {
-      root.sub_blocks.push_back(parseBlock());
+      root_.sub_blocks.push_back(parseBlock());
     } else {
-      root.directives.push_back(parseDirective());
+      root_.directives.push_back(parseDirective());
     }
   }
-  return root;
+}
+
+BlockNode Config::getRoot(void) const {
+  return root_;
 }
 
 // Print Block tree for debugging

@@ -14,10 +14,12 @@ public:
 
   // Parse the file and return the root BlockNode.
   // Throws std::runtime_error on syntax errors.
-  BlockNode parseFile(const std::string &path);
+  void parseFile(const std::string &path);
+  BlockNode getRoot(void) const;
 
 private:
   std::vector<std::string> tokens_;
+  BlockNode root_;
   size_t idx_;
 
   // helpers

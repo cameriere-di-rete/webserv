@@ -14,7 +14,8 @@ int main(int argc, char **argv) {
 
   try {
     Config cfg;
-    BlockNode root = cfg.parseFile(std::string(path));
+    cfg.parseFile(std::string(path));
+    BlockNode root = cfg.getRoot();
 
     // DEBUG: dumpConfig(root);
     dumpConfig(root);
