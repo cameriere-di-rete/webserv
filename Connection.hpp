@@ -4,6 +4,7 @@
 #include "Response.hpp"
 #include <cstddef>
 #include <string>
+#include <sys/types.h>
 
 class Connection {
 public:
@@ -22,6 +23,12 @@ public:
   bool write_ready;
   Request request;
   Response response;
+  /* file streaming state (used when serving files without loading into memory)
+   */
+  int file_fd;
+  off_t file_offset;
+  off_t file_size;
+  bool sending_file;
 
   int handleRead();
   int handleWrite();
