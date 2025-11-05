@@ -44,13 +44,13 @@ void ServerManager::initServers(const std::vector<int> &ports) {
 void ServerManager::acceptConnection(int listen_fd) {
   while (1) {
     int conn_fd = accept(listen_fd, NULL, NULL);
-    if (conn_fd == -1) {
+    if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         break;
       error("accept");
       break;
     }
-    if (set_nonblocking(conn_fd) == -1) {
+    if (set_nonblocking(conn_fd) < 0) {
       error("set_nonblocking conn_fd");
       close(conn_fd);
       continue;
@@ -77,9 +77,9 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
   ev.events = events;
   ev.data.fd = fd;
 
-  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) == -1) {
+  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
         error("epoll_ctl ADD");
       }
     } else {
@@ -91,7 +91,7 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
 int ServerManager::run() {
   /* create epoll instance */
   _efd = epoll_create1(0);
-  if (_efd == -1) {
+  if (_efd < 0) {
     return error("epoll_create1");
   }
 
@@ -102,7 +102,7 @@ int ServerManager::run() {
     struct epoll_event ev;
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) == -1) {
+    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
       return error("epoll_ctl ADD listen_fd");
     }
   }
@@ -112,7 +112,7 @@ int ServerManager::run() {
 
   while (1) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
-    if (n == -1) {
+    if (n < 0) {
       if (errno == EINTR)
         continue; /* interrupted by signal */
       return error("epoll_wait");
