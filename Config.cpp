@@ -13,7 +13,7 @@ Config::Config() : tokens_(), idx_(0) {}
 Config::~Config() {}
 
 Config::Config(const Config &other)
-    : tokens_(other.tokens_), idx_(other.idx_), root_(other.root_) {}
+    : tokens_(other.tokens_), root_(other.root_), idx_(other.idx_) {}
 
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
