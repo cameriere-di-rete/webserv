@@ -6,7 +6,6 @@
 
 class BlockNode {
 public:
-  // Orthodox canonical form (C++98)
   BlockNode();
   BlockNode(const std::string &type, const std::string &param = "");
   BlockNode(const BlockNode &other);
