@@ -15,9 +15,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential
-
       - name: Compile project
         run: make
 
@@ -25,4 +22,5 @@ jobs:
         run: test -f webserv && echo "Build successful - webserv binary created"
 
       - name: Clean up
+        if: always()
         run: make clean
