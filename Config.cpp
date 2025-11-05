@@ -22,7 +22,6 @@ Config &Config::operator=(const Config &other) {
   return *this;
 }
 
-// helpers
 void Config::removeComments(std::string &s) {
   size_t pos = 0;
   while ((pos = s.find('#', pos)) != std::string::npos) {
@@ -63,10 +62,12 @@ void Config::tokenize(const std::string &content) {
 bool Config::eof() const {
   return idx_ >= tokens_.size();
 }
+
 const std::string &Config::peek() const {
   static std::string empty = "";
   return idx_ < tokens_.size() ? tokens_[idx_] : empty;
 }
+
 std::string Config::get() {
   if (idx_ >= tokens_.size())
     throw std::runtime_error("Unexpected end of tokens");

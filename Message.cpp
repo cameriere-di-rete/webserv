@@ -40,7 +40,7 @@ bool ci_equal_copy(const std::string &a, const std::string &b) {
   }
   return true;
 }
-} // anonymous namespace
+} // namespace
 
 /* Message */
 Message::Message() : headers(), body() {}
