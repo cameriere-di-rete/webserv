@@ -28,7 +28,3 @@ jobs:
             echo "Error: webserv binary was not created"
             exit 1
           fi
-
-      - name: Clean up
-        if: always()
-        run: make clean || true
