@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Request.hpp"
+#include "Response.hpp"
 #include <cstddef>
 #include <string>
 
@@ -18,6 +20,8 @@ public:
   std::size_t write_offset;
   bool read_done;
   bool write_ready;
+  Request request;
+  Response response;
 
   int handleRead();
   int handleWrite();

@@ -9,10 +9,12 @@
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
+#include <sstream>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 
 ServerManager::ServerManager() : _efd(-1) {}
 
@@ -160,6 +162,78 @@ int ServerManager::run() {
           _connections.erase(fd);
         }
       }
+    }
+
+    /* After processing events, iterate connections to prepare responses
+       for those that completed reading but don't yet have a write buffer. */
+    for (std::map<int, Connection>::iterator it = _connections.begin();
+         it != _connections.end(); ++it) {
+      Connection &conn = it->second;
+      int conn_fd = it->first;
+
+      if (!conn.read_done)
+        continue;
+
+      if (!conn.write_buffer.empty())
+        continue; /* already prepared */
+
+      /* find header/body separator */
+      std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
+      if (headers_pos == std::string::npos)
+        continue; /* wait for headers */
+
+      /* split header part into lines */
+      std::vector<std::string> lines;
+      std::string temp;
+      for (std::size_t i = 0; i < headers_pos; ++i) {
+        char ch = conn.read_buffer[i];
+        if (ch == '\r')
+          continue;
+        if (ch == '\n') {
+          lines.push_back(temp);
+          temp.clear();
+        } else {
+          temp.push_back(ch);
+        }
+      }
+
+      if (!temp.empty())
+        lines.push_back(temp);
+
+      if (!conn.request.parseStartAndHeaders(lines)) {
+        /* malformed start line or headers -> 400 Bad Request */
+        conn.response.status_line.version = HTTP_VERSION;
+        conn.response.status_line.status_code = 400;
+        conn.response.status_line.reason = "Bad Request";
+        conn.response.getBody().data = "400 Bad Request";
+        std::ostringstream oss;
+        oss << conn.response.getBody().size();
+        conn.response.addHeader("Content-Length", oss.str());
+        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+        conn.write_buffer = conn.response.serialize();
+        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        continue;
+      }
+
+      /* set body to remaining bytes after header separator */
+      std::size_t body_start = headers_pos + 4; /* \r\n\r\n */
+      conn.request.getBody().data.clear();
+      if (conn.read_buffer.size() > body_start)
+        conn.request.getBody().data = conn.read_buffer.substr(body_start);
+
+      /* prepare 200 OK response echoing the request body */
+      conn.response.status_line.version = HTTP_VERSION;
+      conn.response.status_line.status_code = 200;
+      conn.response.status_line.reason = "OK";
+      conn.response.setBody(Body(conn.read_buffer));
+      std::ostringstream oss2;
+      oss2 << conn.response.getBody().size();
+      conn.response.addHeader("Content-Length", oss2.str());
+      conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+      conn.write_buffer = conn.response.serialize();
+
+      /* enable EPOLLOUT now that we have data to send */
+      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
   }
 
