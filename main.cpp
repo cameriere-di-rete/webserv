@@ -42,13 +42,13 @@ int main(int argc, char **argv) {
 
     // If no valid listen directives were found, print error and exit
     if (ports.empty()) {
-      error("Error: no valid 'listen' directives found in configuration; "
-            "please specify at least one valid 'listen <port>;'");
-      return EXIT_FAILURE;
+      return error(
+          "Error: no valid 'listen' directives found in configuration; "
+          "please specify at least one valid 'listen <port>;'");
     }
   } catch (const std::exception &e) {
-    error(std::string("Warning: could not read/parse config: ") + e.what());
-    return EXIT_FAILURE;
+    return error(std::string("Error: could not read/parse config: ") +
+                 e.what());
   }
 
   ServerManager sm;
