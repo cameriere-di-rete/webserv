@@ -19,7 +19,13 @@ jobs:
         run: make
 
       - name: Verify binary was created
-        run: test -f webserv && echo "Build successful - webserv binary created"
+        run: |
+          if test -f webserv; then
+            echo "Build successful - webserv binary created"
+          else
+            echo "Error: webserv binary was not created"
+            exit 1
+          fi
 
       - name: Clean up
         if: always()
