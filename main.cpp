@@ -4,13 +4,17 @@
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
 
-int main(void) {
+int main(int argc, char **argv) {
+  const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
+
   std::vector<int> ports;
 
   try {
     Config cfg;
-    BlockNode root = cfg.parseFile("./webserv.conf");
+    BlockNode root = cfg.parseFile(std::string(path));
 
     // DEBUG: dumpConfig(root);
     dumpConfig(root);
