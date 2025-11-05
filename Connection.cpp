@@ -7,14 +7,18 @@
 #include <sys/socket.h>
 
 Connection::Connection()
-    : fd(-1), write_offset(0), read_done(false), write_ready(false) {}
+    : fd(-1), write_offset(0), read_done(false), write_ready(false), request(),
+      response() {}
 
 Connection::Connection(int fd)
-    : fd(fd), write_offset(0), read_done(false), write_ready(false) {}
+    : fd(fd), write_offset(0), read_done(false), write_ready(false), request(),
+      response() {}
 
 Connection::Connection(const Connection &other)
-    : fd(other.fd), write_buffer(other.write_buffer),
-      write_offset(other.write_offset) {}
+    : fd(other.fd), read_buffer(other.read_buffer),
+      write_buffer(other.write_buffer), write_offset(other.write_offset),
+      read_done(other.read_done), write_ready(other.write_ready),
+      request(other.request), response(other.response) {}
 
 Connection::~Connection() {}
 
@@ -26,6 +30,8 @@ Connection &Connection::operator=(const Connection &other) {
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
     write_ready = other.write_ready;
+    request = other.request;
+    response = other.response;
   }
   return *this;
 }
