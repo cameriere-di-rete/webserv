@@ -30,3 +30,5 @@ private:
   BlockNode parseBlock();
   DirectiveNode parseDirective();
 };
+
+void dumpConfig(const BlockNode &b);

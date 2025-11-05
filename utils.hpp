@@ -1,9 +1,7 @@
 
 #pragma once
 
-#include "BlockNode.hpp"
+#include <string>
 
 int error(const std::string &s);
 int set_nonblocking(int fd);
-
-void dumpConfig(const BlockNode &b);
