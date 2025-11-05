@@ -53,7 +53,7 @@ int Connection::handleRead() {
     read_buffer.append(buf, r);
 
     // Check if the HTTP request is complete
-    if (read_buffer.find("\r\n\r\n") != std::string::npos) {
+    if (read_buffer.find(CRLF CRLF) != std::string::npos) {
       std::cout << "=== HTTP request received ===" << std::endl;
       std::cout << "File descriptor: " << fd << std::endl;
       std::cout << "Bytes received: " << read_buffer.size() << std::endl;
