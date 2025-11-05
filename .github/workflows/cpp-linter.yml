@@ -3,6 +3,13 @@ name: cpp-linter
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - '**.h'
+      - '**.c'
+      - '**.cc'
+      - '**.cxx'
 
 jobs:
   cpp-linter:
