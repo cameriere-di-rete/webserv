@@ -31,4 +31,4 @@ jobs:
 
       - name: Clean up
         if: always()
-        run: make clean
+        run: make clean || true
