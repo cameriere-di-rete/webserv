@@ -70,7 +70,7 @@ void ServerManager::acceptConnection(int listen_fd) {
 
 void ServerManager::updateEvents(int fd, uint32_t events) {
   if (_efd < 0) {
-    printError("epoll fd not initialized");
+    error("epoll fd not initialized");
     return;
   }
 

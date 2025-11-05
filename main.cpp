@@ -1,3 +1,4 @@
+#include "Config.hpp"
 #include "ServerManager.hpp"
 #include "utils.hpp"
 #include <csignal>
@@ -37,13 +38,12 @@ int main(void) {
 
     // If no valid listen directives were found, print error and exit
     if (ports.empty()) {
-      printError("Error: no valid 'listen' directives found in configuration; "
-                 "please specify at least one valid 'listen <port>;'");
+      error("Error: no valid 'listen' directives found in configuration; "
+            "please specify at least one valid 'listen <port>;'");
       return EXIT_FAILURE;
     }
   } catch (const std::exception &e) {
-    printError(std::string("Warning: could not read/parse config: ") +
-               e.what());
+    error(std::string("Warning: could not read/parse config: ") + e.what());
     return EXIT_FAILURE;
   }
 

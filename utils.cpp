@@ -5,16 +5,8 @@
 #include <fcntl.h>
 #include <iostream>
 
-// Print an error message in red to stderr
-void printError(const std::string &msg) {
-  const char *RED = "\x1b[31m";
-  const char *RESET = "\x1b[0m";
-  std::cerr << RED << msg << RESET << std::endl;
-}
-
-int error(const char *s) {
-  std::string m = std::string(s) + ": " + strerror(errno);
-  printError(m);
+int error(const std::string &s) {
+  std::cerr << s << ": " << strerror(errno) << std::endl;
   return EXIT_FAILURE;
 }
 
