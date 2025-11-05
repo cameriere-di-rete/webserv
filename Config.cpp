@@ -13,12 +13,13 @@ Config::Config() : tokens_(), idx_(0) {}
 Config::~Config() {}
 
 Config::Config(const Config &other)
-    : tokens_(other.tokens_), idx_(other.idx_) {}
+    : tokens_(other.tokens_), idx_(other.idx_), root_(other.root_) {}
 
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
     tokens_ = other.tokens_;
     idx_ = other.idx_;
+    root_ = other.root_;
   }
   return *this;
 }
@@ -140,8 +141,6 @@ BlockNode Config::getRoot(void) const {
   return root_;
 }
 
-// Print Block tree for debugging
-// Print BlockNode tree for debugging
 static void _printBlockRec(const BlockNode &b, int indent) {
   std::string pad(indent, ' ');
   std::cout << pad << "Block: type='" << b.type << "'";
