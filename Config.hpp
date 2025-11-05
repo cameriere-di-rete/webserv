@@ -22,7 +22,6 @@ private:
   BlockNode root_;
   size_t idx_;
 
-  // helpers
   void removeComments(std::string &s);
   void tokenize(const std::string &content);
   bool eof() const;
