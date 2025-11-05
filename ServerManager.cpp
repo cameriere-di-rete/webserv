@@ -69,7 +69,7 @@ void ServerManager::acceptConnection(int listen_fd) {
 
 void ServerManager::updateEvents(int fd, uint32_t events) {
   if (_efd < 0) {
-    std::cerr << "epoll fd not initialized\n";
+    error("epoll fd not initialized");
     return;
   }
 
