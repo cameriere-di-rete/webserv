@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-// Config is the parser+state holder. It exposes parseFile.
-// parseConfigFile(path) is a convenience wrapper.
 class Config {
 public:
   Config();
@@ -19,7 +17,6 @@ public:
   BlockNode parseFile(const std::string &path);
 
 private:
-  // parser state
   std::vector<std::string> tokens_;
   size_t idx_;
 
@@ -33,6 +30,3 @@ private:
   BlockNode parseBlock();
   DirectiveNode parseDirective();
 };
-
-// convenience free function
-BlockNode parseConfigFile(const std::string &path);

@@ -8,9 +8,12 @@
 #include <string>
 
 Config::Config() : tokens_(), idx_(0) {}
+
 Config::~Config() {}
+
 Config::Config(const Config &other)
     : tokens_(other.tokens_), idx_(other.idx_) {}
+
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
     tokens_ = other.tokens_;
@@ -131,9 +134,4 @@ BlockNode Config::parseFile(const std::string &path) {
     }
   }
   return root;
-}
-
-BlockNode parseConfigFile(const std::string &path) {
-  Config cfg;
-  return cfg.parseFile(path);
 }

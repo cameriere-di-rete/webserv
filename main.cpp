@@ -8,10 +8,9 @@
 int main(void) {
   std::vector<int> ports;
 
-  // Try to read configuration file 'webserv.conf' in current directory
   try {
-    // Use the consolidated parser that returns the syntax-tree AST
-    BlockNode root = parseConfigFile("webserv.conf");
+    Config cfg;
+    BlockNode root = cfg.parseFile("./webserv.conf");
 
     // DEBUG: dumpConfig(root);
     dumpConfig(root);
