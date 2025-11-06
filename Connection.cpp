@@ -25,11 +25,11 @@ Connection::~Connection() {}
 Connection &Connection::operator=(const Connection &other) {
   if (this != &other) {
     fd = other.fd;
-    read_buffer = other.read_buffer;
-    read_done = other.read_done;
     server_fd = other.server_fd;
+    read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
+    read_done = other.read_done;
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
