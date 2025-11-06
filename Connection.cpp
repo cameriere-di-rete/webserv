@@ -7,15 +7,15 @@
 #include <sys/socket.h>
 
 Connection::Connection()
-    : fd(-1), write_offset(0), read_done(false), write_ready(false), request(),
-      response() {}
+    : fd(-1), server_fd(-1), write_offset(0), read_done(false),
+      write_ready(false), request(), response() {}
 
 Connection::Connection(int fd)
-    : fd(fd), write_offset(0), read_done(false), write_ready(false), request(),
-      response() {}
+    : fd(fd), server_fd(-1), write_offset(0), read_done(false),
+      write_ready(false), request(), response() {}
 
 Connection::Connection(const Connection &other)
-    : fd(other.fd), read_buffer(other.read_buffer),
+    : fd(other.fd), server_fd(other.server_fd), read_buffer(other.read_buffer),
       write_buffer(other.write_buffer), write_offset(other.write_offset),
       read_done(other.read_done), write_ready(other.write_ready),
       request(other.request), response(other.response) {}
@@ -25,10 +25,11 @@ Connection::~Connection() {}
 Connection &Connection::operator=(const Connection &other) {
   if (this != &other) {
     fd = other.fd;
+    server_fd = other.server_fd;
     read_buffer = other.read_buffer;
-    read_done = other.read_done;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
+    read_done = other.read_done;
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
