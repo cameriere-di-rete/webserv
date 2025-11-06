@@ -234,7 +234,7 @@ int ServerManager::run() {
 
       if (method == "GET") {
         // map URI to filesystem path (simple, serve from current directory)
-        std::string path = "." + uri;
+        std::string path = "./www" + uri;
         if (!path.empty() && path[path.size() - 1] == '/')
           path += "index.html";
 

@@ -241,4 +241,4 @@ int prepareFileResponse(const std::string &path, const std::string *rangeHeader,
   return 0;
 }
 
-} // namespace FileHandler
+}
