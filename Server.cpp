@@ -9,11 +9,14 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-Server::Server(void) : fd(-1), port(-1) {}
+Server::Server(void) : fd(-1), port(-1), host(), directives(), locations() {}
 
-Server::Server(int port) : fd(-1), port(port) {}
+Server::Server(int port)
+    : fd(-1), port(port), host(), directives(), locations() {}
 
-Server::Server(const Server &other) : fd(other.fd), port(other.port) {}
+Server::Server(const Server &other)
+    : fd(other.fd), port(other.port), host(other.host),
+      directives(other.directives), locations(other.locations) {}
 
 Server::~Server() {
   disconnect();
@@ -23,6 +26,9 @@ Server &Server::operator=(const Server &other) {
   if (this != &other) {
     fd = other.fd;
     port = other.port;
+    host = other.host;
+    directives = other.directives;
+    locations = other.locations;
   }
   return *this;
 }
