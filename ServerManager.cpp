@@ -11,6 +11,7 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <sstream>
+#include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -59,9 +60,7 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    std::ostringstream oss;
-    oss << "New connection accepted (fd: " << conn_fd << ")";
-    Logger::info(oss.str());
+    LOG(INFO) << "New connection accepted (fd: " << conn_fd << ")";
 
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */

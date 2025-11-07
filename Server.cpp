@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
-#include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -63,9 +62,7 @@ void Server::init(void) {
     throw std::runtime_error("set_nonblocking");
   }
 
-  std::ostringstream oss;
-  oss << "Server initialized on port " << port;
-  Logger::info(oss.str());
+  LOG(INFO) << "Server initialized on port " << port;
 }
 
 void Server::disconnect(void) {

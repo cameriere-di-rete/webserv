@@ -1,16 +1,30 @@
 #pragma once
 
+#include <sstream>
 #include <string>
 
 class Logger {
 public:
   enum LogLevel { DEBUG, INFO, ERROR };
 
-private:
-  Logger();
-  Logger(const Logger &other);
-  Logger &operator=(const Logger &other);
+  // Logger can also be used as a temporary RAII stream object. This allows
+  // usage like: LOG(INFO) << "message"; A temporary Logger is constructed
+  // with the message location and level, its stream() is used to build the
+  // message, and the destructor forwards the composed message to the static
+  // logging backend.
+  Logger(LogLevel level, const char *file, int line);
+  ~Logger();
 
+  std::ostringstream &stream();
+
+private:
+  // Instance fields used by the temporary RAII Logger
+  LogLevel _msgLevel;
+  const char *_file;
+  int _line;
+  std::ostringstream _stream;
+
+  // Static logging configuration and helpers
   static LogLevel _level;
 
   static std::string getCurrentTime();
@@ -22,4 +36,8 @@ public:
   static void debug(const std::string &message);
   static void info(const std::string &message);
   static void error(const std::string &message);
+  static void printStartupLevel();
 };
+
+// Macro for convenient logging using the nested LogStream helper
+#define LOG(level) Logger(Logger::level, __FILE__, __LINE__).stream()

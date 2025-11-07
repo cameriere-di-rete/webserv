@@ -11,8 +11,6 @@
 int main(int argc, char **argv) {
   const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
 
-  Logger::setLevel(Logger::DEBUG);
-
   std::vector<int> ports;
 
   try {

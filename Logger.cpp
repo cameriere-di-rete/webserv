@@ -2,20 +2,39 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
+
 #include <sstream>
 
-Logger::LogLevel Logger::_level = Logger::INFO;
+// Logger instance implementation used as a temporary RAII stream object
+// constructed by the LOG(...) macro.
 
-Logger::Logger() {}
+Logger::Logger(LogLevel level, const char *file, int line)
+    : _msgLevel(level), _file(file), _line(line) {}
 
-Logger::Logger(const Logger &other) { (void)other; }
-
-Logger &Logger::operator=(const Logger &other) {
-  (void)other;
-  return *this;
+Logger::~Logger() {
+  std::ostringstream o;
+  o << "(" << _file << ":" << _line << ") " << _stream.str();
+  Logger::log(_msgLevel, o.str());
 }
 
-void Logger::setLevel(LogLevel level) { _level = level; }
+std::ostringstream &Logger::stream() {
+  return _stream;
+}
+
+// Map numeric LOG_LEVEL macro to the LogLevel enum. Define LOG_LEVEL in
+// constants.hpp (or via -DLOG_LEVEL=N). If LOG_LEVEL is not defined here we
+// default to INFO.
+#ifndef LOG_LEVEL
+#define LOG_LEVEL Logger::INFO
+#endif
+
+Logger::LogLevel Logger::_level = static_cast<Logger::LogLevel>(
+    (LOG_LEVEL >= Logger::DEBUG && LOG_LEVEL <= Logger::ERROR) ? LOG_LEVEL
+                                                               : Logger::INFO);
+
+void Logger::setLevel(LogLevel level) {
+  _level = level;
+}
 
 std::string Logger::getCurrentTime() {
   time_t now = time(0);
@@ -47,8 +66,18 @@ void Logger::log(LogLevel level, const std::string &message) {
             << message << std::endl;
 }
 
-void Logger::debug(const std::string &message) { log(DEBUG, message); }
+void Logger::debug(const std::string &message) {
+  log(DEBUG, message);
+}
 
-void Logger::info(const std::string &message) { log(INFO, message); }
+void Logger::info(const std::string &message) {
+  log(INFO, message);
+}
 
-void Logger::error(const std::string &message) { log(ERROR, message); }
+void Logger::error(const std::string &message) {
+  log(ERROR, message);
+}
+
+void Logger::printStartupLevel() {
+  std::cout << "Effective log level: " << levelToString(_level) << std::endl;
+}
