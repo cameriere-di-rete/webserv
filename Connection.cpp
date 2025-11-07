@@ -52,8 +52,7 @@ int Connection::handleRead() {
     }
 
     if (r == 0) {
-      LOG(INFO) << "=== Client disconnected ===";
-      LOG(INFO) << "File descriptor: " << fd;
+      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
       return -1;
     }
 
