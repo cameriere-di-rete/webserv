@@ -1,67 +1,65 @@
 #include "Config.hpp"
+#include "ConfigTranslator.hpp"
+#include "ConfigValidator.hpp"
 #include "ServerManager.hpp"
 #include "utils.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
 int main(int argc, char **argv) {
   const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
 
-  std::vector<int> ports;
+  std::vector<Server> servers;
+  std::map<int, std::string> global_error_pages;
+  std::size_t global_max_request_body;
 
+  // ===== CONFIGURATION PHASE =====
+  // 1. Parse config file into BlockNode tree
+  // 2. Translate BlockNode tree to Server objects with directive maps
+  // 3. Validate all directives and settings
   try {
     Config cfg;
     cfg.parseFile(std::string(path));
     BlockNode root = cfg.getRoot();
 
-    // DEBUG: dumpConfig(root);
-    dumpConfig(root);
+    // Translate parsed config tree into Server objects
+    // Populates Server.directives map and Server.locations map
+    servers = ConfigTranslator::translateConfig(root, global_error_pages,
+                                                 global_max_request_body);
 
-    // Search for server blocks and extract 'listen' directives
-    for (size_t i = 0; i < root.sub_blocks.size(); ++i) {
-      const BlockNode &srv = root.sub_blocks[i];
-      if (srv.type == "server") {
-        for (size_t j = 0; j < srv.directives.size(); ++j) {
-          const DirectiveNode &d = srv.directives[j];
-          if (d.name == "listen" && d.args.size() > 0) {
-            // Expect formats like '8080' or '0.0.0.0:8080'
-            std::string a = d.args[0];
-            size_t pos = a.find(':');
-            std::string portstr =
-                (pos == std::string::npos) ? a : a.substr(pos + 1);
-            int p = std::atoi(portstr.c_str());
-            if (p > 0)
-              ports.push_back(p);
-          }
-        }
-      }
+    // Validate all server configurations (ports, paths, methods, etc.)
+    // Throws exception on invalid configuration
+    ConfigValidator::validateServers(servers);
+
+    if (servers.empty()) {
+      return error("Error: no valid 'server' blocks found in configuration");
     }
 
-    // If no valid listen directives were found, print error and exit
-    if (ports.empty()) {
-      return error(
-          "Error: no valid 'listen' directives found in configuration; "
-          "please specify at least one valid 'listen <port>;'");
-    }
   } catch (const std::exception &e) {
     return error(std::string("Error: could not read/parse config: ") +
                  e.what());
   }
 
+  // ===== SERVER INITIALIZATION =====
+  // Initialize sockets and prepare for accepting connections
   ServerManager sm;
   try {
-    sm.initServers(ports);
+    sm.initServers(servers);
   } catch (const std::exception &e) {
     return error(e.what());
   } catch (...) {
     return error("Unknown error while initializing Server");
   }
 
-  /* ignore SIGPIPE so a broken client won't kill the process when we write */
+  // ===== EVENT LOOP =====
+  // Ignore SIGPIPE to prevent crashes when clients disconnect
   signal(SIGPIPE, SIG_IGN);
 
+  // Enter main event loop (epoll-based I/O multiplexing)
   return sm.run();
 }
