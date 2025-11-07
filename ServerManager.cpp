@@ -1,5 +1,6 @@
 #include "ServerManager.hpp"
 #include "Connection.hpp"
+#include "RequestHandler.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 #include <arpa/inet.h>
@@ -31,10 +32,10 @@ ServerManager::~ServerManager() {
   shutdown();
 }
 
-void ServerManager::initServers(const std::vector<int> &ports) {
-  for (std::vector<int>::const_iterator it = ports.begin(); it != ports.end();
-       ++it) {
-    Server server(*it);
+void ServerManager::initServers(const std::vector<Server> &servers) {
+  for (std::vector<Server>::const_iterator it = servers.begin();
+       it != servers.end(); ++it) {
+    Server server = *it;
     server.init();
     /* store by listening fd */
     _servers[server.fd] = server;
@@ -223,16 +224,25 @@ int ServerManager::run() {
       if (conn.read_buffer.size() > body_start)
         conn.request.getBody().data = conn.read_buffer.substr(body_start);
 
-      /* prepare 200 OK response echoing the request body */
-      conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = 200;
-      conn.response.status_line.reason = "OK";
-      conn.response.setBody(Body(conn.read_buffer));
-      std::ostringstream oss2;
-      oss2 << conn.response.getBody().size();
-      conn.response.addHeader("Content-Length", oss2.str());
-      conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-      conn.write_buffer = conn.response.serialize();
+      /* find the server that accepted this connection */
+      std::map<int, Server>::iterator srv_it = _servers.find(conn.server_fd);
+      if (srv_it == _servers.end()) {
+        /* shouldn't happen, but handle gracefully */
+        conn.response.status_line.version = HTTP_VERSION;
+        conn.response.status_line.status_code = 500;
+        conn.response.status_line.reason = "Internal Server Error";
+        conn.response.getBody().data = "500 Internal Server Error";
+        std::ostringstream oss_err;
+        oss_err << conn.response.getBody().size();
+        conn.response.addHeader("Content-Length", oss_err.str());
+        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+        conn.write_buffer = conn.response.serialize();
+        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        continue;
+      }
+
+      /* handle the request using the server configuration */
+      RequestHandler::handleRequest(conn, srv_it->second);
 
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);

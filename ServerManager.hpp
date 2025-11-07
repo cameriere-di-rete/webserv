@@ -19,13 +19,18 @@ public:
   ServerManager();
   ~ServerManager();
 
-  void initServers(const std::vector<int> &ports);
+  // Initializes all servers from configuration and registers them with epoll
+  void initServers(const std::vector<Server> &servers);
 
+  // Accepts new client connection on given listening socket
   void acceptConnection(int listen_fd);
 
+  // Main event loop: waits for events and handles requests
   int run();
 
+  // Updates epoll events for a file descriptor
   void updateEvents(int fd, u_int32_t events);
 
+  // Closes all connections and server sockets
   void shutdown();
 };
