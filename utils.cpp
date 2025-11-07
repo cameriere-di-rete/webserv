@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <iostream>
 
-int error(const char *s) {
+int error(const std::string &s) {
   std::cerr << s << ": " << strerror(errno) << std::endl;
   return EXIT_FAILURE;
 }

@@ -7,25 +7,32 @@
 #include <sys/socket.h>
 
 Connection::Connection()
-    : fd(-1), write_offset(0), read_done(false), write_ready(false) {}
+    : fd(-1), server_fd(-1), write_offset(0), read_done(false),
+      write_ready(false), request(), response() {}
 
 Connection::Connection(int fd)
-    : fd(fd), write_offset(0), read_done(false), write_ready(false) {}
+    : fd(fd), server_fd(-1), write_offset(0), read_done(false),
+      write_ready(false), request(), response() {}
 
 Connection::Connection(const Connection &other)
-    : fd(other.fd), write_buffer(other.write_buffer),
-      write_offset(other.write_offset) {}
+    : fd(other.fd), server_fd(other.server_fd), read_buffer(other.read_buffer),
+      write_buffer(other.write_buffer), write_offset(other.write_offset),
+      read_done(other.read_done), write_ready(other.write_ready),
+      request(other.request), response(other.response) {}
 
 Connection::~Connection() {}
 
 Connection &Connection::operator=(const Connection &other) {
   if (this != &other) {
     fd = other.fd;
+    server_fd = other.server_fd;
     read_buffer = other.read_buffer;
-    read_done = other.read_done;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
+    read_done = other.read_done;
     write_ready = other.write_ready;
+    request = other.request;
+    response = other.response;
   }
   return *this;
 }
@@ -53,16 +60,7 @@ int Connection::handleRead() {
     read_buffer.append(buf, r);
 
     // Check if the HTTP request is complete
-    if (read_buffer.find("\r\n\r\n") != std::string::npos) {
-      std::cout << "=== HTTP request received ===" << std::endl;
-      std::cout << "File descriptor: " << fd << std::endl;
-      std::cout << "Bytes received: " << read_buffer.size() << std::endl;
-      std::cout << "Content:" << std::endl;
-      std::cout << read_buffer << std::endl;
-      std::cout << "===========================" << std::endl;
-      write_buffer = "HTTP/1.0 200 OK" CRLF "Content-Type: text/plain; "
-                     "charset=utf-8" CRLF CRLF;
-      write_buffer.append(read_buffer);
+    if (read_buffer.find(CRLF CRLF) != std::string::npos) {
       read_done = true;
       break;
     }

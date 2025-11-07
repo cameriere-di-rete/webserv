@@ -3,8 +3,11 @@ CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
 SOURCES	:=	main.cpp			\
+			BlockNode.cpp		\
 			Body.cpp			\
+			Config.cpp			\
 			Connection.cpp		\
+			DirectiveNode.cpp	\
 			Header.cpp			\
 			Logger.cpp			\
 			Message.cpp			\

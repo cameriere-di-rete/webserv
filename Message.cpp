@@ -1,4 +1,5 @@
 #include "Message.hpp"
+#include "constants.hpp"
 
 #include <cctype>
 #include <sstream>
@@ -40,7 +41,7 @@ bool ci_equal_copy(const std::string &a, const std::string &b) {
   }
   return true;
 }
-} // anonymous namespace
+} // namespace
 
 /* Message */
 Message::Message() : headers(), body() {}
@@ -99,7 +100,7 @@ std::string Message::serializeHeaders() const {
   std::ostringstream o;
   for (std::vector<Header>::const_iterator it = headers.begin();
        it != headers.end(); ++it) {
-    o << it->name << ": " << it->value << "\r\n";
+    o << it->name << ": " << it->value << CRLF;
   }
   return o.str();
 }
@@ -115,9 +116,9 @@ bool Message::parseHeaderLine(const std::string &line, Header &out) {
 
 std::string Message::serialize() const {
   std::ostringstream o;
-  o << startLine() << "\r\n";
+  o << startLine() << CRLF;
   o << serializeHeaders();
-  o << "\r\n";
+  o << CRLF;
   o << body.data;
   return o.str();
 }
