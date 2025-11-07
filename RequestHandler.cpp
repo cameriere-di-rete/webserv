@@ -6,7 +6,9 @@
 #include <sys/stat.h>
 
 RequestHandler::RequestHandler() {}
-RequestHandler::RequestHandler(const RequestHandler &other) { (void)other; }
+RequestHandler::RequestHandler(const RequestHandler &other) {
+  (void)other;
+}
 RequestHandler &RequestHandler::operator=(const RequestHandler &other) {
   (void)other;
   return *this;
@@ -58,7 +60,7 @@ std::string RequestHandler::readFile(const std::string &path) {
 }
 
 void RequestHandler::sendError(Connection &conn, int status_code,
-                                const std::string &reason) {
+                               const std::string &reason) {
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = status_code;
   conn.response.status_line.reason = reason;
@@ -79,7 +81,7 @@ void RequestHandler::sendError(Connection &conn, int status_code,
 }
 
 void RequestHandler::serveStaticFile(Connection &conn, const Server &srv,
-                                      const std::string &file_path) {
+                                     const std::string &file_path) {
   // Get root from directives map
   std::string root = "./";
   std::map<std::string, std::vector<std::string> >::const_iterator root_it =

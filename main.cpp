@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     // Translate parsed config tree into Server objects
     // Populates Server.directives map and Server.locations map
     servers = ConfigTranslator::translateConfig(root, global_error_pages,
-                                                 global_max_request_body);
+                                                global_max_request_body);
 
     // Validate all server configurations (ports, paths, methods, etc.)
     // Throws exception on invalid configuration

@@ -5,7 +5,9 @@
 #include <sys/stat.h>
 
 ConfigValidator::ConfigValidator() {}
-ConfigValidator::ConfigValidator(const ConfigValidator &other) { (void)other; }
+ConfigValidator::ConfigValidator(const ConfigValidator &other) {
+  (void)other;
+}
 ConfigValidator &ConfigValidator::operator=(const ConfigValidator &other) {
   (void)other;
   return *this;
@@ -62,9 +64,8 @@ void ConfigValidator::validateServer(const Server &srv, size_t server_index) {
   }
 }
 
-void ConfigValidator::validateLocation(const Location &loc,
-                                        size_t server_index,
-                                        const std::string &location_path) {
+void ConfigValidator::validateLocation(const Location &loc, size_t server_index,
+                                       const std::string &location_path) {
   // Validate location directives
   for (std::map<std::string, std::vector<std::string> >::const_iterator it =
            loc.directives.begin();
@@ -110,9 +111,9 @@ void ConfigValidator::validatePort(int port, size_t server_index) {
 }
 
 void ConfigValidator::validateBooleanValue(const std::string &value,
-                                            const std::string &directive,
-                                            size_t server_index,
-                                            const std::string &location_path) {
+                                           const std::string &directive,
+                                           size_t server_index,
+                                           const std::string &location_path) {
   if (value != "on" && value != "off" && value != "true" && value != "false" &&
       value != "1" && value != "0") {
     std::ostringstream oss;
@@ -127,9 +128,9 @@ void ConfigValidator::validateBooleanValue(const std::string &value,
 }
 
 void ConfigValidator::validateHttpMethod(const std::string &method,
-                                          const std::string &directive,
-                                          size_t server_index,
-                                          const std::string &location_path) {
+                                         const std::string &directive,
+                                         size_t server_index,
+                                         const std::string &location_path) {
   if (!isValidHttpMethod(method)) {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
@@ -143,7 +144,7 @@ void ConfigValidator::validateHttpMethod(const std::string &method,
 }
 
 void ConfigValidator::validateRedirectCode(int code, size_t server_index,
-                                            const std::string &location_path) {
+                                           const std::string &location_path) {
   if (!isValidRedirectCode(code)) {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
@@ -157,9 +158,9 @@ void ConfigValidator::validateRedirectCode(int code, size_t server_index,
 }
 
 void ConfigValidator::validatePositiveNumber(const std::string &value,
-                                              const std::string &directive,
-                                              size_t server_index,
-                                              const std::string &location_path) {
+                                             const std::string &directive,
+                                             size_t server_index,
+                                             const std::string &location_path) {
   if (!isPositiveNumber(value)) {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
@@ -173,9 +174,9 @@ void ConfigValidator::validatePositiveNumber(const std::string &value,
 }
 
 void ConfigValidator::validatePath(const std::string &path,
-                                    const std::string &directive,
-                                    size_t server_index,
-                                    const std::string &location_path) {
+                                   const std::string &directive,
+                                   size_t server_index,
+                                   const std::string &location_path) {
   struct stat buffer;
   if (stat(path.c_str(), &buffer) != 0) {
     std::ostringstream oss;

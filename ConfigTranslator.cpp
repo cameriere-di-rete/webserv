@@ -36,10 +36,9 @@ bool ConfigTranslator::parseBool(const std::string &value) {
   return (value == "on" || value == "true" || value == "1");
 }
 
-std::vector<Server>
-ConfigTranslator::translateConfig(const BlockNode &root,
-                                   std::map<int, std::string> &global_error_pages,
-                                   std::size_t &global_max_request_body) {
+std::vector<Server> ConfigTranslator::translateConfig(
+    const BlockNode &root, std::map<int, std::string> &global_error_pages,
+    std::size_t &global_max_request_body) {
   std::vector<Server> servers;
 
   // Parse global directives

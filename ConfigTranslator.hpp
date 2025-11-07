@@ -18,9 +18,10 @@ public:
 
   // Translates a server block into Server object
   // Populates directives map and locations map, inherits global settings
-  static Server translateServerBlock(const BlockNode &server_block,
-                                      const std::map<int, std::string> &global_error_pages,
-                                      std::size_t global_max_request_body);
+  static Server
+  translateServerBlock(const BlockNode &server_block,
+                       const std::map<int, std::string> &global_error_pages,
+                       std::size_t global_max_request_body);
 
   // Translates a location block into Location object
   // Populates directives map with location-specific settings

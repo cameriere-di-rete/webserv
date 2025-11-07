@@ -20,37 +20,37 @@ private:
 
   // Validates a single location's directives
   static void validateLocation(const Location &loc, size_t server_index,
-                                const std::string &location_path);
+                               const std::string &location_path);
 
   // Validates port is in range 1-65535
   static void validatePort(int port, size_t server_index);
 
   // Validates boolean value is one of: on/off, true/false, 1/0
   static void validateBooleanValue(const std::string &value,
-                                    const std::string &directive,
-                                    size_t server_index,
-                                    const std::string &location_path);
+                                   const std::string &directive,
+                                   size_t server_index,
+                                   const std::string &location_path);
 
   // Validates HTTP method is one of: GET, POST, DELETE, HEAD, PUT
   static void validateHttpMethod(const std::string &method,
-                                  const std::string &directive,
-                                  size_t server_index,
-                                  const std::string &location_path);
+                                 const std::string &directive,
+                                 size_t server_index,
+                                 const std::string &location_path);
 
   // Validates redirect code is one of: 301, 302, 303, 307, 308
   static void validateRedirectCode(int code, size_t server_index,
-                                    const std::string &location_path);
+                                   const std::string &location_path);
 
   // Validates value is a positive number
   static void validatePositiveNumber(const std::string &value,
-                                      const std::string &directive,
-                                      size_t server_index,
-                                      const std::string &location_path);
+                                     const std::string &directive,
+                                     size_t server_index,
+                                     const std::string &location_path);
 
   // Validates path exists and is a directory
-  static void validatePath(const std::string &path, const std::string &directive,
-                            size_t server_index,
-                            const std::string &location_path);
+  static void validatePath(const std::string &path,
+                           const std::string &directive, size_t server_index,
+                           const std::string &location_path);
 
   // Checks if method is a valid HTTP method
   static bool isValidHttpMethod(const std::string &method);

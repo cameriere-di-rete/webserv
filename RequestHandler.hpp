@@ -19,7 +19,7 @@ private:
   // Serves a static file from filesystem using server's root directive
   // Handles index files and MIME type detection
   static void serveStaticFile(Connection &conn, const Server &srv,
-                               const std::string &file_path);
+                              const std::string &file_path);
 
   // Sends HTTP error response with given status code and reason
   static void sendError(Connection &conn, int status_code,
