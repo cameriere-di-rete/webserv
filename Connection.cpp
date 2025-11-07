@@ -1,7 +1,6 @@
 #include "Connection.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
-#include "utils.hpp"
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
@@ -45,9 +44,10 @@ int Connection::handleRead() {
     ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
     if (r < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return 1;
-      error("read");
+      }
+      LOG_PERROR(ERROR, "read");
       return -1;
     }
 
@@ -78,10 +78,11 @@ int Connection::handleWrite() {
     LOG(DEBUG) << "Sent " << w << " bytes to fd=" << fd;
 
     if (w < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return 1;
+      }
       // Error occurred
-      error("write");
+      LOG_PERROR(ERROR, "write");
       return -1;
     }
 

@@ -2,7 +2,6 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
-
 #include <sstream>
 
 // Logger instance implementation used as a temporary RAII stream object

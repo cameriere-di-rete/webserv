@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cerrno>
+#include <cstring>
 #include <sstream>
 #include <string>
 
@@ -41,3 +43,9 @@ public:
 
 // Macro for convenient logging using the nested LogStream helper
 #define LOG(level) Logger(Logger::level, __FILE__, __LINE__).stream()
+
+// Convenience macro to log an errno-related error with strerror(errno).
+// It uses the normal LOG(...) temporary Logger so file/line are included
+// automatically by the Logger destructor.
+#define LOG_PERROR(level, msg)                                                 \
+  LOG(level) << msg << ": " << std::strerror(errno);

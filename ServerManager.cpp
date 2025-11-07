@@ -49,13 +49,14 @@ void ServerManager::acceptConnection(int listen_fd) {
   while (1) {
     int conn_fd = accept(listen_fd, NULL, NULL);
     if (conn_fd < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         break;
-      error("accept");
+      }
+      LOG_PERROR(ERROR, "accept");
       break;
     }
     if (set_nonblocking(conn_fd) < 0) {
-      error("set_nonblocking conn_fd");
+      LOG_PERROR(ERROR, "set_nonblocking conn_fd");
       close(conn_fd);
       continue;
     }
@@ -74,7 +75,7 @@ void ServerManager::acceptConnection(int listen_fd) {
 
 void ServerManager::updateEvents(int fd, uint32_t events) {
   if (_efd < 0) {
-    error("epoll fd not initialized");
+    LOG(ERROR) << "epoll fd not initialized";
     return;
   }
 
@@ -85,10 +86,10 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
   if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) < 0) {
     if (errno == ENOENT) {
       if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
-        error("epoll_ctl ADD");
+        LOG_PERROR(ERROR, "epoll_ctl ADD");
       }
     } else {
-      error("epoll_ctl MOD");
+      LOG_PERROR(ERROR, "epoll_ctl MOD");
     }
   }
 }
@@ -97,7 +98,8 @@ int ServerManager::run() {
   /* create epoll instance */
   _efd = epoll_create1(0);
   if (_efd < 0) {
-    return error("epoll_create1");
+    LOG_PERROR(ERROR, "epoll_create1");
+    return EXIT_FAILURE;
   }
 
   /* register listener fds */
@@ -108,7 +110,8 @@ int ServerManager::run() {
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
     if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
-      return error("epoll_ctl ADD listen_fd");
+      LOG_PERROR(ERROR, "epoll_ctl ADD listen_fd");
+      return EXIT_FAILURE;
     }
   }
 
@@ -118,9 +121,11 @@ int ServerManager::run() {
   while (1) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
     if (n < 0) {
-      if (errno == EINTR)
+      if (errno == EINTR) {
         continue; /* interrupted by signal */
-      return error("epoll_wait");
+      }
+      LOG_PERROR(ERROR, "epoll_wait");
+      return EXIT_FAILURE;
     }
 
     for (int i = 0; i < n; ++i) {
@@ -174,24 +179,28 @@ int ServerManager::run() {
       Connection &conn = it->second;
       int conn_fd = it->first;
 
-      if (!conn.read_done)
+      if (!conn.read_done) {
         continue;
+      }
 
-      if (!conn.write_buffer.empty())
+      if (!conn.write_buffer.empty()) {
         continue; /* already prepared */
+      }
 
       /* find header/body separator */
       std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
-      if (headers_pos == std::string::npos)
+      if (headers_pos == std::string::npos) {
         continue; /* wait for headers */
+      }
 
       /* split header part into lines */
       std::vector<std::string> lines;
       std::string temp;
       for (std::size_t i = 0; i < headers_pos; ++i) {
         char ch = conn.read_buffer[i];
-        if (ch == '\r')
+        if (ch == '\r') {
           continue;
+        }
         if (ch == '\n') {
           lines.push_back(temp);
           temp.clear();
@@ -200,8 +209,9 @@ int ServerManager::run() {
         }
       }
 
-      if (!temp.empty())
+      if (!temp.empty()) {
         lines.push_back(temp);
+      }
 
       if (!conn.request.parseStartAndHeaders(lines)) {
         /* malformed start line or headers -> 400 Bad Request */
@@ -221,8 +231,9 @@ int ServerManager::run() {
       /* set body to remaining bytes after header separator */
       std::size_t body_start = headers_pos + 4; /* \r\n\r\n */
       conn.request.getBody().data.clear();
-      if (conn.read_buffer.size() > body_start)
+      if (conn.read_buffer.size() > body_start) {
         conn.request.getBody().data = conn.read_buffer.substr(body_start);
+      }
 
       /* prepare 200 OK response echoing the request body */
       conn.response.status_line.version = HTTP_VERSION;
