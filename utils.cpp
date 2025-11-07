@@ -1,11 +1,11 @@
+#include "Logger.hpp"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
-#include <iostream>
 
 int error(const std::string &s) {
-  std::cerr << s << ": " << strerror(errno) << std::endl;
+  LOG(ERROR) << s << ": " << strerror(errno);
   return EXIT_FAILURE;
 }
 

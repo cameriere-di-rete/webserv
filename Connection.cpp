@@ -1,4 +1,5 @@
 #include "Connection.hpp"
+#include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 #include <cerrno>
@@ -51,8 +52,8 @@ int Connection::handleRead() {
     }
 
     if (r == 0) {
-      std::cout << "=== Client disconnected ===" << std::endl;
-      std::cout << "File descriptor: " << fd << std::endl;
+      LOG(INFO) << "=== Client disconnected ===";
+      LOG(INFO) << "File descriptor: " << fd;
       return -1;
     }
 
@@ -74,7 +75,7 @@ int Connection::handleWrite() {
         send(fd, write_buffer.c_str() + write_offset,
              static_cast<size_t>(write_buffer.size()) - write_offset, 0);
 
-    printf("Sent %zd bytes to fd=%d\n", w, fd);
+    LOG(DEBUG) << "Sent " << w << " bytes to fd=" << fd;
 
     if (w < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)

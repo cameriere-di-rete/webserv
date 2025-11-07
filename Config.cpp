@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
+#include "Logger.hpp"
 #include <cctype>
 #include <fstream>
 #include <iostream>
@@ -143,19 +144,19 @@ BlockNode Config::getRoot(void) const {
 
 static void _printBlockRec(const BlockNode &b, int indent) {
   std::string pad(indent, ' ');
-  std::cout << pad << "Block: type='" << b.type << "'";
+  LOG(DEBUG) << pad << "Block: type='" << b.type << "'";
   if (!b.param.empty())
-    std::cout << " param='" << b.param << "'";
-  std::cout << "\n";
+    LOG(DEBUG) << " param='" << b.param << "'";
+  LOG(DEBUG) << "\n";
   for (size_t i = 0; i < b.directives.size(); ++i) {
     const DirectiveNode &d = b.directives[i];
-    std::cout << pad << "  Directive: name='" << d.name << "' args=[";
+    LOG(DEBUG) << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
       if (j)
-        std::cout << ", ";
-      std::cout << "'" << d.args[j] << "'";
+        LOG(DEBUG) << ", ";
+      LOG(DEBUG) << "'" << d.args[j] << "'";
     }
-    std::cout << "]\n";
+    LOG(DEBUG) << "]\n";
   }
   for (size_t i = 0; i < b.sub_blocks.size(); ++i)
     _printBlockRec(b.sub_blocks[i], indent + 2);
