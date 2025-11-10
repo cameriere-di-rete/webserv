@@ -1,6 +1,6 @@
 #include "Config.hpp"
+#include "Logger.hpp"
 #include "ServerManager.hpp"
-#include "utils.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -33,8 +33,9 @@ int main(int argc, char **argv) {
             std::string portstr =
                 (pos == std::string::npos) ? a : a.substr(pos + 1);
             int p = std::atoi(portstr.c_str());
-            if (p > 0)
+            if (p > 0) {
               ports.push_back(p);
+            }
           }
         }
       }
@@ -42,22 +43,26 @@ int main(int argc, char **argv) {
 
     // If no valid listen directives were found, print error and exit
     if (ports.empty()) {
-      return error(
-          "Error: no valid 'listen' directives found in configuration; "
-          "please specify at least one valid 'listen <port>;'");
+      LOG(ERROR)
+          << "Error: no valid 'listen' directives found in configuration; "
+          << "please specify at least one valid 'listen <port>;";
+      return EXIT_FAILURE;
     }
   } catch (const std::exception &e) {
-    return error(std::string("Error: could not read/parse config: ") +
-                 e.what());
+    LOG(ERROR) << std::string("Error: could not read/parse config: ") +
+                      e.what();
+    return EXIT_FAILURE;
   }
 
   ServerManager sm;
   try {
     sm.initServers(ports);
   } catch (const std::exception &e) {
-    return error(e.what());
+    LOG(ERROR) << e.what();
+    return EXIT_FAILURE;
   } catch (...) {
-    return error("Unknown error while initializing Server");
+    LOG(ERROR) << "Unknown error while initializing Server";
+    return EXIT_FAILURE;
   }
 
   /* ignore SIGPIPE so a broken client won't kill the process when we write */

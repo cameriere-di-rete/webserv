@@ -1,0 +1,5 @@
+Checks: 'readability-braces-around-statements'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+CheckOptions:
+  - { key: readability-braces-around-statements.MinimumLines, value: '0' }
