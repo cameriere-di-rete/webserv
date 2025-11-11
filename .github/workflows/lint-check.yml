@@ -1,5 +1,7 @@
 name: Lint Check
 
+permissions: contents: read issues: write
+
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
