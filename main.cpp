@@ -1,8 +1,8 @@
 #include "Config.hpp"
 #include "ConfigTranslator.hpp"
 #include "ConfigValidator.hpp"
+#include "Logger.hpp"
 #include "ServerManager.hpp"
-#include "utils.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -36,13 +36,18 @@ int main(int argc, char **argv) {
     // Throws exception on invalid configuration
     ConfigValidator::validateServers(servers);
 
+    // If no valid listen directives were found, print error and exit
     if (servers.empty()) {
-      return error("Error: no valid 'server' blocks found in configuration");
+      LOG(ERROR)
+          << "Error: no valid 'listen' directives found in configuration; "
+          << "please specify at least one valid 'listen <port>;";
+      return EXIT_FAILURE;
     }
 
   } catch (const std::exception &e) {
-    return error(std::string("Error: could not read/parse config: ") +
-                 e.what());
+    LOG(ERROR) << std::string("Error: could not read/parse config: ") +
+                      e.what();
+    return EXIT_FAILURE;
   }
 
   // ===== SERVER INITIALIZATION =====
@@ -51,9 +56,11 @@ int main(int argc, char **argv) {
   try {
     sm.initServers(servers);
   } catch (const std::exception &e) {
-    return error(e.what());
+    LOG(ERROR) << e.what();
+    return EXIT_FAILURE;
   } catch (...) {
-    return error("Unknown error while initializing Server");
+    LOG(ERROR) << "Unknown error while initializing Server";
+    return EXIT_FAILURE;
   }
 
   // ===== EVENT LOOP =====

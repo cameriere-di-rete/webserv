@@ -1,6 +1,6 @@
 #include "Connection.hpp"
+#include "Logger.hpp"
 #include "constants.hpp"
-#include "utils.hpp"
 #include <cerrno>
 #include <cstdio>
 #include <iostream>
@@ -44,15 +44,15 @@ int Connection::handleRead() {
     ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
     if (r < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return 1;
-      error("read");
+      }
+      LOG_PERROR(ERROR, "read");
       return -1;
     }
 
     if (r == 0) {
-      std::cout << "=== Client disconnected ===" << std::endl;
-      std::cout << "File descriptor: " << fd << std::endl;
+      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
       return -1;
     }
 
@@ -74,13 +74,14 @@ int Connection::handleWrite() {
         send(fd, write_buffer.c_str() + write_offset,
              static_cast<size_t>(write_buffer.size()) - write_offset, 0);
 
-    printf("Sent %zd bytes to fd=%d\n", w, fd);
+    LOG(DEBUG) << "Sent " << w << " bytes to fd=" << fd;
 
     if (w < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK)
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return 1;
+      }
       // Error occurred
-      error("write");
+      LOG_PERROR(ERROR, "write");
       return -1;
     }
 

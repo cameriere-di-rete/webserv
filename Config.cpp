@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
+#include "Logger.hpp"
 #include <cctype>
 #include <fstream>
 #include <iostream>
@@ -56,8 +57,9 @@ void Config::tokenize(const std::string &content) {
       cur.push_back(c);
     }
   }
-  if (!cur.empty())
+  if (!cur.empty()) {
     tokens_.push_back(cur);
+  }
   idx_ = 0;
 }
 
@@ -71,8 +73,9 @@ const std::string &Config::peek() const {
 }
 
 std::string Config::get() {
-  if (idx_ >= tokens_.size())
+  if (idx_ >= tokens_.size()) {
     throw std::runtime_error("Unexpected end of tokens");
+  }
   return tokens_[idx_++];
 }
 
@@ -80,9 +83,10 @@ DirectiveNode Config::parseDirective() {
   DirectiveNode d;
   d.name = get();
   while (peek() != ";") {
-    if (eof())
+    if (eof()) {
       throw std::runtime_error(std::string("Directive '") + d.name +
                                "' missing ';'");
+    }
     d.args.push_back(get());
   }
   get(); // consume ;
@@ -93,15 +97,18 @@ BlockNode Config::parseBlock() {
   BlockNode b;
   b.type = get(); // server or location
   if (b.type == "location") {
-    if (peek().empty())
+    if (peek().empty()) {
       throw std::runtime_error("location missing parameter");
+    }
     b.param = get();
   }
-  if (get() != "{")
+  if (get() != "{") {
     throw std::runtime_error("Expected '{' after block type");
+  }
   while (peek() != "}") {
-    if (eof())
+    if (eof()) {
       throw std::runtime_error(std::string("Missing '}' for block ") + b.type);
+    }
     if (peek() == "location") {
       b.sub_blocks.push_back(parseBlock());
     } else if (peek() == "server") {
@@ -117,9 +124,10 @@ BlockNode Config::parseBlock() {
 void Config::parseFile(const std::string &path) {
   // read file
   std::ifstream file(path.c_str());
-  if (!file.is_open())
+  if (!file.is_open()) {
     throw std::runtime_error(std::string("Unable to open config file: ") +
                              path);
+  }
   std::stringstream buffer;
   buffer << file.rdbuf();
   std::string content = buffer.str();
@@ -143,22 +151,30 @@ BlockNode Config::getRoot(void) const {
 
 static void _printBlockRec(const BlockNode &b, int indent) {
   std::string pad(indent, ' ');
-  std::cout << pad << "Block: type='" << b.type << "'";
-  if (!b.param.empty())
-    std::cout << " param='" << b.param << "'";
-  std::cout << "\n";
+  {
+    std::ostringstream ss;
+    ss << pad << "Block: type='" << b.type << "'";
+    if (!b.param.empty()) {
+      ss << " param='" << b.param << "'";
+    }
+    LOG(DEBUG) << ss.str();
+  }
   for (size_t i = 0; i < b.directives.size(); ++i) {
     const DirectiveNode &d = b.directives[i];
-    std::cout << pad << "  Directive: name='" << d.name << "' args=[";
+    std::ostringstream ss;
+    ss << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
-      if (j)
-        std::cout << ", ";
-      std::cout << "'" << d.args[j] << "'";
+      if (j) {
+        ss << ", ";
+      }
+      ss << "'" << d.args[j] << "'";
     }
-    std::cout << "]\n";
+    ss << "]";
+    LOG(DEBUG) << ss.str();
   }
-  for (size_t i = 0; i < b.sub_blocks.size(); ++i)
+  for (size_t i = 0; i < b.sub_blocks.size(); ++i) {
     _printBlockRec(b.sub_blocks[i], indent + 2);
+  }
 }
 
 void dumpConfig(const BlockNode &b) {

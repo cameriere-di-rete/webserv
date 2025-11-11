@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 #include <cerrno>
@@ -36,6 +37,7 @@ Server &Server::operator=(const Server &other) {
 void Server::init(void) {
   fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
+    LOG_PERROR(ERROR, "socket");
     throw std::runtime_error("socket");
   }
 
@@ -43,6 +45,7 @@ void Server::init(void) {
   int opt = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
     disconnect();
+    LOG_PERROR(ERROR, "setsockopt");
     throw std::runtime_error("setsockopt");
   }
 
@@ -54,20 +57,23 @@ void Server::init(void) {
 
   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     disconnect();
+    LOG_PERROR(ERROR, "bind");
     throw std::runtime_error("bind");
   }
 
   if (listen(fd, MAX_CONNECTIONS_PER_SERVER) < 0) {
     disconnect();
+    LOG_PERROR(ERROR, "listen");
     throw std::runtime_error("listen");
   }
 
   if (set_nonblocking(fd) < 0) {
     disconnect();
+    LOG_PERROR(ERROR, "set_nonblocking");
     throw std::runtime_error("set_nonblocking");
   }
 
-  std::cout << "Listening on port " << port << "..." << std::endl;
+  LOG(INFO) << "Server initialized on port " << port;
 }
 
 void Server::disconnect(void) {

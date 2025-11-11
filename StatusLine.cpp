@@ -28,10 +28,12 @@ std::string StatusLine::toString() const {
 
 bool StatusLine::parse(const std::string &line) {
   std::istringstream in(line);
-  if (!(in >> version >> status_code))
+  if (!(in >> version >> status_code)) {
     return false;
+  }
   std::getline(in, reason);
-  if (!reason.empty() && reason[0] == ' ')
+  if (!reason.empty() && reason[0] == ' ') {
     reason.erase(0, 1);
+  }
   return true;
 }
