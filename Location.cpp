@@ -1,9 +1,8 @@
 #include "Location.hpp"
 
 Location::Location()
-    : allow_methods(), redirect_code(0),
-      redirect_location(), cgi(false), index(), autoindex(false), root(),
-      error_page() {
+    : allow_methods(), redirect_code(0), redirect_location(), cgi(false),
+      index(), autoindex(false), root(), error_page() {
   // default allowed methods
   allow_methods.insert(GET);
   allow_methods.insert(POST);
@@ -13,9 +12,8 @@ Location::Location()
 }
 
 Location::Location(const std::string &p)
-    : allow_methods(), redirect_code(0),
-      redirect_location(), cgi(false), index(), autoindex(false), root(),
-      error_page() {
+    : allow_methods(), redirect_code(0), redirect_location(), cgi(false),
+      index(), autoindex(false), root(), error_page() {
   // default allowed methods
   allow_methods.insert(GET);
   allow_methods.insert(POST);
