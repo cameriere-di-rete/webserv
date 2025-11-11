@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include "signals.hpp"
 
 ServerManager::ServerManager() : _efd(-1) {}
 
@@ -122,7 +123,11 @@ int ServerManager::run() {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
-        continue; /* interrupted by signal */
+        if (stop_requested()) {
+          LOG(INFO) << "ServerManager: stop requested by signal, exiting event loop";
+          break;
+        }
+        continue; /* interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       return EXIT_FAILURE;
