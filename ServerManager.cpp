@@ -2,6 +2,7 @@
 #include "Connection.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
+#include "signals.hpp"
 #include "utils.hpp"
 #include <arpa/inet.h>
 #include <cerrno>
@@ -17,7 +18,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include "signals.hpp"
 
 ServerManager::ServerManager() : _efd(-1) {}
 
@@ -124,7 +124,8 @@ int ServerManager::run() {
     if (n < 0) {
       if (errno == EINTR) {
         if (stop_requested()) {
-          LOG(INFO) << "ServerManager: stop requested by signal, exiting event loop";
+          LOG(INFO)
+              << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
         continue; /* interrupted by non-termination signal */

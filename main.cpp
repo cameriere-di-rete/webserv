@@ -1,12 +1,12 @@
 #include "Config.hpp"
 #include "Logger.hpp"
 #include "ServerManager.hpp"
+#include "signals.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
-#include "signals.hpp"
 
 int main(int argc, char **argv) {
   const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
