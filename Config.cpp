@@ -224,17 +224,23 @@ void Config::validateRoot_(void) {
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode &d = root_.directives[i];
 
-    // TODO throw error when there are no arguments
-    if (d.name == "error_page" && d.args.size() >= 2) {
-      std::string path = d.args[d.args.size() - 1];
-      for (size_t j = 0; j < d.args.size() - 1; ++j) {
-        // DONE validate error code
-        int code = std::atoi(d.args[j].c_str());
-        if (code > 0) {
-          validateStatusCode_(code, 0, "");
-          global_error_pages_[code] = path;
-          LOG(DEBUG) << "Global error_page: " << code << " -> " << path;
+    // DONE throw error when there are no arguments
+    if (d.name == "error_page") {
+      if (d.args.size() >= 2) {
+        std::string path = d.args[d.args.size() - 1];
+        for (size_t j = 0; j < d.args.size() - 1; ++j) {
+          // DONE validate error code
+          int code = std::atoi(d.args[j].c_str());
+          if (code > 0) {
+            validateStatusCode_(code, 0, "");
+            global_error_pages_[code] = path;
+            LOG(DEBUG) << "Global error_page: " << code << " -> " << path;
+          }
         }
+      } else {
+        LOG(ERROR) << "Directive 'error_page' requires at least two arguments";
+        throw std::runtime_error(
+            "Configuration error: 'error_page' directive requires at least two arguments");
       }
     } else if (d.name == "max_request_body" && d.args.size() >= 1) {
       // DONE parse number only once
