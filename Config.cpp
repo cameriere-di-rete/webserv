@@ -198,10 +198,21 @@ BlockNode Config::parseBlock() {
 void Config::validateRoot_(void) {
   LOG(DEBUG) << "Validating root configuration...";
 
-  // TODO check that sub blocks are `server`
+  // DONE check that sub blocks are `server`
   if (root_.sub_blocks.empty()) {
     LOG(ERROR) << "No server blocks defined in configuration";
     throw std::runtime_error("Configuration error: No server blocks defined");
+  }
+  // Ensure that all top-level sub-blocks are `server` blocks
+  for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
+    const BlockNode &b = root_.sub_blocks[i];
+    if (b.type != "server") {
+      std::ostringstream oss;
+      oss << "Configuration error: unexpected top-level block '" << b.type
+          << "' at index " << i << " (expected 'server')";
+      LOG(ERROR) << oss.str();
+      throw std::runtime_error(oss.str());
+    }
   }
 
   // Parse and validate global directives
@@ -217,9 +228,10 @@ void Config::validateRoot_(void) {
     if (d.name == "error_page" && d.args.size() >= 2) {
       std::string path = d.args[d.args.size() - 1];
       for (size_t j = 0; j < d.args.size() - 1; ++j) {
-        // TODO validate error code
+        // DONE validate error code
         int code = std::atoi(d.args[j].c_str());
         if (code > 0) {
+          validateStatusCode_(code, 0, "");
           global_error_pages_[code] = path;
           LOG(DEBUG) << "Global error_page: " << code << " -> " << path;
         }
@@ -352,6 +364,24 @@ bool Config::isValidRedirectCode_(int code) {
           code == 308);
 }
 
+bool Config::isValidStatusCode_(int code) {
+  return (code >= 100 && code <= 599);
+}
+
+void Config::validateStatusCode_(int code, size_t server_index,
+                                 const std::string &location_path) {
+  if (!isValidStatusCode_(code)) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid status code " << code;
+    LOG(ERROR) << oss.str();
+    throw std::runtime_error(oss.str());
+  }
+}
+
 bool Config::isPositiveNumber_(const std::string &value) {
   if (value.empty()) {
     return false;
@@ -378,7 +408,7 @@ void Config::buildServersFromRoot_(void) {
     if (block.type == "server") {
       LOG(DEBUG) << "Translating server block #" << i;
       Server srv;
-      translateServerBlock_(block, srv);
+      translateServerBlock_(block, srv, i);
       servers_.push_back(srv);
       LOG(INFO) << "Server #" << i << " created - Port: " << srv.port
                 << ", Locations: " << srv.locations.size();
@@ -387,15 +417,16 @@ void Config::buildServersFromRoot_(void) {
   LOG(DEBUG) << "Finished building servers";
 }
 
-void Config::translateServerBlock_(const BlockNode &server_block, Server &srv) {
-  LOG(DEBUG) << "Translating server block...";
+void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
+                                   size_t server_index) {
+  LOG(DEBUG) << "Translating server block #" << server_index << "...";
 
   // Parse listen directive first
   for (size_t i = 0; i < server_block.directives.size(); ++i) {
     const DirectiveNode &d = server_block.directives[i];
     if (d.name == "listen" && d.args.size() >= 1) {
       srv.port = parsePort_(d.args[0]);
-      validatePort_(srv.port, 0);
+      validatePort_(srv.port, server_index);
 
       std::string host_str = parseHost_(d.args[0]);
       // For now, use INADDR_ANY (0). In future, can parse host_str
@@ -454,7 +485,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv) {
         // TODO validate and populate at the same time
         int code = std::atoi(d.args[j].c_str());
         if (code > 0) {
-          validateRedirectCode_(code, 0, "");
+          validateStatusCode_(code, server_index, "");
           srv.error_page[code] = path;
           LOG(DEBUG) << "Server error_page: " << code << " -> " << path;
         }
@@ -489,7 +520,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv) {
     if (block.type == "location") {
       LOG(DEBUG) << "Translating location: " << block.param;
       Location loc(block.param);
-      translateLocationBlock_(block, loc);
+      translateLocationBlock_(block, loc, server_index);
       srv.locations[loc.path] = loc;
     }
   }
@@ -497,7 +528,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv) {
 }
 
 void Config::translateLocationBlock_(const BlockNode &location_block,
-                                     Location &loc) {
+                                     Location &loc, size_t server_index) {
   // Set path from constructor parameter (block.param)
   loc.path = location_block.param;
   LOG(DEBUG) << "Translating location block: " << loc.path;

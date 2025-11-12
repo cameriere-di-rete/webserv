@@ -63,12 +63,17 @@ private:
                      size_t server_index, const std::string &location_path);
   bool isValidHttpMethod_(const std::string &method);
   bool isValidRedirectCode_(int code);
+  void validateStatusCode_(int code, size_t server_index,
+                           const std::string &location_path);
+  bool isValidStatusCode_(int code);
   bool isPositiveNumber_(const std::string &value);
 
   // Translation/building methods
   void buildServersFromRoot_(void);
-  void translateServerBlock_(const BlockNode &server_block, Server &srv);
-  void translateLocationBlock_(const BlockNode &location_block, Location &loc);
+  void translateServerBlock_(const BlockNode &server_block, Server &srv,
+                             size_t server_index);
+  void translateLocationBlock_(const BlockNode &location_block, Location &loc,
+                               size_t server_index);
   int parsePort_(const std::string &listen_arg);
   std::string parseHost_(const std::string &listen_arg);
   bool parseBool_(const std::string &value);
