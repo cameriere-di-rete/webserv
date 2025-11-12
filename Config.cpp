@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include "Logger.hpp"
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <netinet/in.h>
@@ -8,13 +9,12 @@
 #include <stdexcept>
 #include <string>
 #include <sys/stat.h>
-#include <cstdlib>
 
 // ==================== PUBLIC METHODS ====================
 
 Config::Config()
     : tokens_(), root_(), servers_(), global_error_pages_(),
-      global_max_request_body_(0), validated_(false), idx_(0) {}
+      global_max_request_body_(0), idx_(0) {}
 
 Config::~Config() {}
 
@@ -22,7 +22,7 @@ Config::Config(const Config &other)
     : tokens_(other.tokens_), root_(other.root_), servers_(other.servers_),
       global_error_pages_(other.global_error_pages_),
       global_max_request_body_(other.global_max_request_body_),
-      validated_(other.validated_), idx_(other.idx_) {}
+      idx_(other.idx_) {}
 
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
@@ -32,7 +32,6 @@ Config &Config::operator=(const Config &other) {
     servers_ = other.servers_;
     global_error_pages_ = other.global_error_pages_;
     global_max_request_body_ = other.global_max_request_body_;
-    validated_ = other.validated_;
   }
   return *this;
 }

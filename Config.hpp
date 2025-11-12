@@ -33,7 +33,6 @@ private:
   std::vector<Server> servers_;
   std::map<int, std::string> global_error_pages_;
   std::size_t global_max_request_body_;
-  bool validated_;
   size_t idx_;
 
   // Parsing helpers
