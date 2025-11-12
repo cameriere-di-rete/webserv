@@ -1,0 +1,3 @@
+[2025-11-12 15:35:45] [INFO] (Server.cpp:70) Server initialized on port 8080
+[2025-11-12 15:35:45] [INFO] (signals.cpp:89) signals: signalfd installed and signals blocked
+[2025-11-12 15:35:46] [INFO] (signals.cpp:118) signals: SIGHUP received

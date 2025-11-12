@@ -116,6 +116,18 @@ int ServerManager::run() {
     }
   }
 
+  /* register signalfd (if available) so signals are delivered as FD events */
+  int sfd = signal_fd();
+  if (sfd >= 0) {
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = sfd;
+    if (epoll_ctl(_efd, EPOLL_CTL_ADD, sfd, &ev) < 0) {
+      LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
+      // non-fatal: continue without signalfd
+    }
+  }
+
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
 
@@ -136,6 +148,17 @@ int ServerManager::run() {
 
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
+
+      if (sfd >= 0 && fd == sfd) {
+        // process pending signals from signalfd
+        if (process_signals_from_fd()) {
+          LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
+        }
+        if (stop_requested()) {
+          break; // break out of for-loop; outer while will exit after check
+        }
+        continue;
+      }
 
       std::map<int, Server>::iterator s_it = _servers.find(fd);
       if (s_it != _servers.end()) {
@@ -256,8 +279,11 @@ int ServerManager::run() {
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
   }
-
   shutdown();
+  // close signalfd if we created one
+  if (sfd >= 0) {
+    close(sfd);
+  }
   return EXIT_SUCCESS;
 }
 
