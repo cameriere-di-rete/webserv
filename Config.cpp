@@ -345,32 +345,23 @@ void Config::validatePositiveNumber_(const std::string &value,
   }
 }
 
-// TODO don't check if path exists
+// DONE don't check if path exists
 void Config::validatePath_(const std::string &path,
                            const std::string &directive, size_t server_index,
                            const std::string &location_path) {
-  struct stat buffer;
-  if (stat(path.c_str(), &buffer) != 0) {
+  // Intentionally do not perform filesystem checks here.
+  // The configuration should be validated for syntax and semantics only;
+  // existence and permissions are environment/runtime concerns.
+  if (path.empty()) {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
     if (!location_path.empty()) {
       oss << " location '" << location_path << "'";
     }
-    oss << ": Path '" << path << "' in directive '" << directive
-        << "' does not exist";
+    oss << ": Path provided to directive '" << directive << "' is empty";
     throw std::runtime_error(oss.str());
   }
-
-  if (!S_ISDIR(buffer.st_mode)) {
-    std::ostringstream oss;
-    oss << "Configuration error in server #" << server_index;
-    if (!location_path.empty()) {
-      oss << " location '" << location_path << "'";
-    }
-    oss << ": Path '" << path << "' in directive '" << directive
-        << "' is not a directory";
-    throw std::runtime_error(oss.str());
-  }
+  // Accept the path as-is; callers will handle resolution/IO at runtime.
 }
 
 bool Config::isValidHttpMethod_(const std::string &method) {
