@@ -60,8 +60,7 @@ private:
                                size_t server_index,
                                const std::string &location_path);
   void validatePath_(const std::string &path, const std::string &directive,
-                     size_t server_index,
-                     const std::string &location_path);
+                     size_t server_index, const std::string &location_path);
   bool isValidHttpMethod_(const std::string &method);
   bool isValidRedirectCode_(int code);
   bool isPositiveNumber_(const std::string &value);

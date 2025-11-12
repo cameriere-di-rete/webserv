@@ -198,6 +198,7 @@ BlockNode Config::parseBlock() {
 void Config::validateRoot_(void) {
   LOG(DEBUG) << "Validating root configuration...";
 
+  // TODO check that sub blocks are `server`
   if (root_.sub_blocks.empty()) {
     LOG(ERROR) << "No server blocks defined in configuration";
     throw std::runtime_error("Configuration error: No server blocks defined");
@@ -207,13 +208,16 @@ void Config::validateRoot_(void) {
   global_max_request_body_ = 0;
   global_error_pages_.clear();
 
-  LOG(DEBUG) << "Processing " << root_.directives.size() << " global directive(s)";
+  LOG(DEBUG) << "Processing " << root_.directives.size()
+             << " global directive(s)";
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode &d = root_.directives[i];
 
+    // TODO throw error when there are no arguments
     if (d.name == "error_page" && d.args.size() >= 2) {
       std::string path = d.args[d.args.size() - 1];
       for (size_t j = 0; j < d.args.size() - 1; ++j) {
+        // TODO validate error code
         int code = std::atoi(d.args[j].c_str());
         if (code > 0) {
           global_error_pages_[code] = path;
@@ -221,6 +225,7 @@ void Config::validateRoot_(void) {
         }
       }
     } else if (d.name == "max_request_body" && d.args.size() >= 1) {
+      // TODO parse number only once
       if (!isPositiveNumber_(d.args[0])) {
         LOG(ERROR) << "Invalid max_request_body value: " << d.args[0];
         throw std::runtime_error(
@@ -232,6 +237,7 @@ void Config::validateRoot_(void) {
                  << global_max_request_body_;
     }
   }
+
   LOG(DEBUG) << "Root validation completed";
 }
 
@@ -248,6 +254,7 @@ void Config::validateBooleanValue_(const std::string &value,
                                    const std::string &directive,
                                    size_t server_index,
                                    const std::string &location_path) {
+  // TODO only check `on`/`off`
   if (value != "on" && value != "off" && value != "true" && value != "false" &&
       value != "1" && value != "0") {
     std::ostringstream oss;
@@ -307,6 +314,7 @@ void Config::validatePositiveNumber_(const std::string &value,
   }
 }
 
+// TODO don't check if path exists
 void Config::validatePath_(const std::string &path,
                            const std::string &directive, size_t server_index,
                            const std::string &location_path) {
@@ -345,12 +353,14 @@ bool Config::isValidRedirectCode_(int code) {
 }
 
 bool Config::isPositiveNumber_(const std::string &value) {
-  if (value.empty())
+  if (value.empty()) {
     return false;
+  }
 
   for (size_t i = 0; i < value.size(); ++i) {
-    if (value[i] < '0' || value[i] > '9')
+    if (value[i] < '0' || value[i] > '9') {
       return false;
+    }
   }
 
   long num = std::atol(value.c_str());
@@ -377,8 +387,7 @@ void Config::buildServersFromRoot_(void) {
   LOG(DEBUG) << "Finished building servers";
 }
 
-void Config::translateServerBlock_(const BlockNode &server_block,
-                                   Server &srv) {
+void Config::translateServerBlock_(const BlockNode &server_block, Server &srv) {
   LOG(DEBUG) << "Translating server block...";
 
   // Parse listen directive first
@@ -394,10 +403,12 @@ void Config::translateServerBlock_(const BlockNode &server_block,
       LOG(DEBUG) << "Server listen: " << host_str << ":" << srv.port;
       break;
     }
+    // TODO to check minimum requirements, fill and validate root as well
   }
 
   // Parse other directives
-  LOG(DEBUG) << "Processing " << server_block.directives.size() << " server directive(s)";
+  LOG(DEBUG) << "Processing " << server_block.directives.size()
+             << " server directive(s)";
   for (size_t i = 0; i < server_block.directives.size(); ++i) {
     const DirectiveNode &d = server_block.directives[i];
 
@@ -415,28 +426,32 @@ void Config::translateServerBlock_(const BlockNode &server_block,
       }
       LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
+      // TODO validate and populate at the same time
       validateBooleanValue_(d.args[0], d.name, 0, "");
       populateBool_(srv.autoindex, d.args[0]);
       LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
     } else if (d.name == "allow_methods" && !d.args.empty()) {
       srv.allow_methods.clear();
       for (size_t j = 0; j < d.args.size(); ++j) {
+        // TODO validate and populate at the same time
         validateHttpMethod_(d.args[j], d.name, 0, "");
-        if (d.args[j] == "GET")
+        if (d.args[j] == "GET") {
           srv.allow_methods.insert(Location::GET);
-        else if (d.args[j] == "POST")
+        } else if (d.args[j] == "POST") {
           srv.allow_methods.insert(Location::POST);
-        else if (d.args[j] == "PUT")
+        } else if (d.args[j] == "PUT") {
           srv.allow_methods.insert(Location::PUT);
-        else if (d.args[j] == "DELETE")
+        } else if (d.args[j] == "DELETE") {
           srv.allow_methods.insert(Location::DELETE);
-        else if (d.args[j] == "HEAD")
+        } else if (d.args[j] == "HEAD") {
           srv.allow_methods.insert(Location::HEAD);
+        }
       }
       LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
     } else if (d.name == "error_page" && d.args.size() >= 2) {
       std::string path = d.args[d.args.size() - 1];
       for (size_t j = 0; j < d.args.size() - 1; ++j) {
+        // TODO validate and populate at the same time
         int code = std::atoi(d.args[j].c_str());
         if (code > 0) {
           validateRedirectCode_(code, 0, "");
@@ -445,6 +460,7 @@ void Config::translateServerBlock_(const BlockNode &server_block,
         }
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
+      // TODO validate and populate at the same time
       validatePositiveNumber_(d.args[0], d.name, 0, "");
       srv.max_request_body =
           static_cast<std::size_t>(std::atol(d.args[0].c_str()));
@@ -461,11 +477,13 @@ void Config::translateServerBlock_(const BlockNode &server_block,
   // Apply global max_request_body if not set
   if (srv.max_request_body == 0 && global_max_request_body_ > 0) {
     srv.max_request_body = global_max_request_body_;
-    LOG(DEBUG) << "Applied global max_request_body to server: " << srv.max_request_body;
+    LOG(DEBUG) << "Applied global max_request_body to server: "
+               << srv.max_request_body;
   }
 
   // Parse location blocks
-  LOG(DEBUG) << "Processing " << server_block.sub_blocks.size() << " location block(s)";
+  LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
+             << " location block(s)";
   for (size_t i = 0; i < server_block.sub_blocks.size(); ++i) {
     const BlockNode &block = server_block.sub_blocks[i];
     if (block.type == "location") {
@@ -485,7 +503,8 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
   LOG(DEBUG) << "Translating location block: " << loc.path;
 
   // Parse directives
-  LOG(DEBUG) << "Processing " << location_block.directives.size() << " location directive(s)";
+  LOG(DEBUG) << "Processing " << location_block.directives.size()
+             << " location directive(s)";
   for (size_t i = 0; i < location_block.directives.size(); ++i) {
     const DirectiveNode &d = location_block.directives[i];
 
@@ -500,6 +519,7 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       }
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
+      // TODO validate and populate at the same time
       validateBooleanValue_(d.args[0], d.name, 0, loc.path);
       populateBool_(loc.autoindex, d.args[0]);
       LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
@@ -507,29 +527,34 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       loc.allow_methods.clear();
       for (size_t j = 0; j < d.args.size(); ++j) {
         validateHttpMethod_(d.args[j], d.name, 0, loc.path);
-        if (d.args[j] == "GET")
+        if (d.args[j] == "GET") {
           loc.allow_methods.insert(Location::GET);
-        else if (d.args[j] == "POST")
+        } else if (d.args[j] == "POST") {
           loc.allow_methods.insert(Location::POST);
-        else if (d.args[j] == "PUT")
+        } else if (d.args[j] == "PUT") {
           loc.allow_methods.insert(Location::PUT);
-        else if (d.args[j] == "DELETE")
+        } else if (d.args[j] == "DELETE") {
           loc.allow_methods.insert(Location::DELETE);
-        else if (d.args[j] == "HEAD")
+        } else if (d.args[j] == "HEAD") {
           loc.allow_methods.insert(Location::HEAD);
+        }
       }
-      LOG(DEBUG) << "  Location allowed methods: " << d.args.size() << " method(s)";
+      LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
+                 << " method(s)";
     } else if (d.name == "return" && d.args.size() >= 2) {
+      // TODO validate and populate at the same time
       int code = std::atoi(d.args[0].c_str());
       validateRedirectCode_(code, 0, loc.path);
       loc.redirect_code = code;
       loc.redirect_location = d.args[1];
-      LOG(DEBUG) << "  Location redirect: " << code << " -> " << loc.redirect_location;
+      LOG(DEBUG) << "  Location redirect: " << code << " -> "
+                 << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
       std::string path = d.args[d.args.size() - 1];
       for (size_t j = 0; j < d.args.size() - 1; ++j) {
         int code = std::atoi(d.args[j].c_str());
         if (code > 0) {
+          // TODO validate error code, not redirect
           validateRedirectCode_(code, 0, loc.path);
           loc.error_page[code] = path;
           LOG(DEBUG) << "  Location error_page: " << code << " -> " << path;
@@ -555,6 +580,7 @@ int Config::parsePort_(const std::string &listen_arg) {
   return std::atoi(portstr.c_str());
 }
 
+// TODO use address type instead of string
 std::string Config::parseHost_(const std::string &listen_arg) {
   size_t colon_pos = listen_arg.find(':');
   if (colon_pos != std::string::npos) {
