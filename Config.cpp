@@ -1,29 +1,109 @@
 #include "Config.hpp"
-#include "BlockNode.hpp"
-#include "DirectiveNode.hpp"
 #include "Logger.hpp"
 #include <cctype>
 #include <fstream>
 #include <iostream>
+#include <netinet/in.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <sys/stat.h>
+#include <cstdlib>
 
-Config::Config() : tokens_(), idx_(0) {}
+// ==================== PUBLIC METHODS ====================
+
+Config::Config()
+    : tokens_(), root_(), servers_(), global_error_pages_(),
+      global_max_request_body_(0), validated_(false), idx_(0) {}
 
 Config::~Config() {}
 
 Config::Config(const Config &other)
-    : tokens_(other.tokens_), root_(other.root_), idx_(other.idx_) {}
+    : tokens_(other.tokens_), root_(other.root_), servers_(other.servers_),
+      global_error_pages_(other.global_error_pages_),
+      global_max_request_body_(other.global_max_request_body_),
+      validated_(other.validated_), idx_(other.idx_) {}
 
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
     tokens_ = other.tokens_;
     idx_ = other.idx_;
     root_ = other.root_;
+    servers_ = other.servers_;
+    global_error_pages_ = other.global_error_pages_;
+    global_max_request_body_ = other.global_max_request_body_;
+    validated_ = other.validated_;
   }
   return *this;
 }
+
+void Config::parseFile(const std::string &path) {
+  LOG(INFO) << "Starting to parse config file: " << path;
+
+  // read file
+  std::ifstream file(path.c_str());
+  if (!file.is_open()) {
+    LOG(ERROR) << "Unable to open config file: " << path;
+    throw std::runtime_error(std::string("Unable to open config file: ") +
+                             path);
+  }
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  std::string content = buffer.str();
+
+  LOG(DEBUG) << "File content size: " << content.size() << " bytes";
+
+  removeComments(content);
+  LOG(DEBUG) << "Comments removed, tokenizing...";
+
+  tokenize(content);
+  LOG(INFO) << "Tokenization complete. Total tokens: " << tokens_.size();
+
+  root_.type = "root";
+  while (!eof()) {
+    if (peek() == "server") {
+      LOG(DEBUG) << "Found server block, parsing...";
+      root_.sub_blocks.push_back(parseBlock());
+    } else {
+      LOG(DEBUG) << "Found global directive: " << peek();
+      root_.directives.push_back(parseDirective());
+    }
+  }
+  LOG(INFO) << "Config file parsed successfully. Server blocks found: " << root_.sub_blocks.size();
+}
+
+void Config::validate(void) {
+  LOG(INFO) << "Starting configuration validation...";
+  validateRoot_();
+  validated_ = true;
+  LOG(INFO) << "Configuration validation completed successfully";
+}
+
+std::vector<Server> Config::getServers(void) {
+  if (!validated_) {
+    LOG(ERROR) << "Attempt to get servers before validation";
+    throw std::runtime_error(
+        "Configuration must be validated before getting servers");
+  }
+
+  if (servers_.empty()) {
+    LOG(INFO) << "Building server objects from configuration...";
+    buildServersFromRoot_();
+    LOG(INFO) << "Built " << servers_.size() << " server(s)";
+  }
+
+  return servers_;
+}
+
+BlockNode Config::getRoot(void) const {
+  return root_;
+}
+
+void Config::debug(void) const {
+  dumpConfig(root_);
+}
+
+// ==================== PARSING HELPERS ====================
 
 void Config::removeComments(std::string &s) {
   size_t pos = 0;
@@ -121,33 +201,410 @@ BlockNode Config::parseBlock() {
   return b;
 }
 
-void Config::parseFile(const std::string &path) {
-  // read file
-  std::ifstream file(path.c_str());
-  if (!file.is_open()) {
-    throw std::runtime_error(std::string("Unable to open config file: ") +
-                             path);
+// ==================== VALIDATION METHODS ====================
+
+void Config::validateRoot_(void) {
+  LOG(DEBUG) << "Validating root configuration...";
+
+  if (root_.sub_blocks.empty()) {
+    LOG(ERROR) << "No server blocks defined in configuration";
+    throw std::runtime_error("Configuration error: No server blocks defined");
   }
-  std::stringstream buffer;
-  buffer << file.rdbuf();
-  std::string content = buffer.str();
 
-  removeComments(content);
-  tokenize(content);
+  // Parse and validate global directives
+  global_max_request_body_ = 0;
+  global_error_pages_.clear();
 
-  root_.type = "root";
-  while (!eof()) {
-    if (peek() == "server") {
-      root_.sub_blocks.push_back(parseBlock());
-    } else {
-      root_.directives.push_back(parseDirective());
+  LOG(DEBUG) << "Processing " << root_.directives.size() << " global directive(s)";
+  for (size_t i = 0; i < root_.directives.size(); ++i) {
+    const DirectiveNode &d = root_.directives[i];
+
+    if (d.name == "error_page" && d.args.size() >= 2) {
+      std::string path = d.args[d.args.size() - 1];
+      for (size_t j = 0; j < d.args.size() - 1; ++j) {
+        int code = std::atoi(d.args[j].c_str());
+        if (code > 0) {
+          global_error_pages_[code] = path;
+          LOG(DEBUG) << "Global error_page: " << code << " -> " << path;
+        }
+      }
+    } else if (d.name == "max_request_body" && d.args.size() >= 1) {
+      if (!isPositiveNumber_(d.args[0])) {
+        LOG(ERROR) << "Invalid max_request_body value: " << d.args[0];
+        throw std::runtime_error(
+            "Configuration error: Invalid max_request_body value");
+      }
+      global_max_request_body_ =
+          static_cast<std::size_t>(std::atol(d.args[0].c_str()));
+      LOG(DEBUG) << "Global max_request_body set to: " << global_max_request_body_;
     }
   }
+
+  // Validate each server block
+  LOG(DEBUG) << "Validating " << root_.sub_blocks.size() << " server block(s)";
+  for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
+    const BlockNode &block = root_.sub_blocks[i];
+    if (block.type == "server") {
+      LOG(DEBUG) << "Validating server block #" << i;
+      // Create temporary server to validate
+      Server srv;
+      validateServer_(srv, i);
+    }
+  }
+  LOG(DEBUG) << "Root validation completed";
 }
 
-BlockNode Config::getRoot(void) const {
-  return root_;
+void Config::validateServer_(const Server &srv, size_t server_index) {
+  (void)srv;
+  (void)server_index;
+  // Validation will happen during translation
 }
+
+void Config::validateLocation_(const Location &loc, size_t server_index,
+                               const std::string &location_path) {
+  (void)loc;
+  (void)server_index;
+  (void)location_path;
+  // Validation will happen during translation
+}
+
+void Config::validatePort_(int port, size_t server_index) {
+  if (port < 1 || port > 65535) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index
+        << ": Invalid port number " << port << " (must be 1-65535)";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+void Config::validateBooleanValue_(const std::string &value,
+                                   const std::string &directive,
+                                   size_t server_index,
+                                   const std::string &location_path) {
+  if (value != "on" && value != "off" && value != "true" && value != "false" &&
+      value != "1" && value != "0") {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid boolean value '" << value << "' for directive '"
+        << directive << "' (expected: on/off, true/false, or 1/0)";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+void Config::validateHttpMethod_(const std::string &method,
+                                 const std::string &directive,
+                                 size_t server_index,
+                                 const std::string &location_path) {
+  if (!isValidHttpMethod_(method)) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid HTTP method '" << method << "' in directive '"
+        << directive << "' (valid: GET, POST, DELETE, HEAD, PUT)";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+void Config::validateRedirectCode_(int code, size_t server_index,
+                                   const std::string &location_path) {
+  if (!isValidRedirectCode_(code)) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid redirect status code " << code
+        << " (valid: 301, 302, 303, 307, 308)";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+void Config::validatePositiveNumber_(const std::string &value,
+                                     const std::string &directive,
+                                     size_t server_index,
+                                     const std::string &location_path) {
+  if (!isPositiveNumber_(value)) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid positive number '" << value << "' for directive '"
+        << directive << "'";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+void Config::validatePath_(const std::string &path,
+                           const std::string &directive, size_t server_index,
+                           const std::string &location_path) {
+  struct stat buffer;
+  if (stat(path.c_str(), &buffer) != 0) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Path '" << path << "' in directive '" << directive
+        << "' does not exist";
+    throw std::runtime_error(oss.str());
+  }
+
+  if (!S_ISDIR(buffer.st_mode)) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Path '" << path << "' in directive '" << directive
+        << "' is not a directory";
+    throw std::runtime_error(oss.str());
+  }
+}
+
+bool Config::isValidHttpMethod_(const std::string &method) {
+  return (method == "GET" || method == "POST" || method == "DELETE" ||
+          method == "HEAD" || method == "PUT");
+}
+
+bool Config::isValidRedirectCode_(int code) {
+  return (code == 301 || code == 302 || code == 303 || code == 307 ||
+          code == 308);
+}
+
+bool Config::isPositiveNumber_(const std::string &value) {
+  if (value.empty())
+    return false;
+
+  for (size_t i = 0; i < value.size(); ++i) {
+    if (value[i] < '0' || value[i] > '9')
+      return false;
+  }
+
+  long num = std::atol(value.c_str());
+  return num > 0;
+}
+
+// ==================== TRANSLATION/BUILDING METHODS ====================
+
+void Config::buildServersFromRoot_(void) {
+  LOG(DEBUG) << "Building servers from root configuration...";
+  servers_.clear();
+
+  for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
+    const BlockNode &block = root_.sub_blocks[i];
+    if (block.type == "server") {
+      LOG(DEBUG) << "Translating server block #" << i;
+      Server srv;
+      translateServerBlock_(block, srv);
+      servers_.push_back(srv);
+      LOG(INFO) << "Server #" << i << " created - Port: " << srv.port
+                << ", Locations: " << srv.locations.size();
+    }
+  }
+  LOG(DEBUG) << "Finished building servers";
+}
+
+void Config::translateServerBlock_(const BlockNode &server_block,
+                                   Server &srv) {
+  LOG(DEBUG) << "Translating server block...";
+
+  // Parse listen directive first
+  for (size_t i = 0; i < server_block.directives.size(); ++i) {
+    const DirectiveNode &d = server_block.directives[i];
+    if (d.name == "listen" && d.args.size() >= 1) {
+      srv.port = parsePort_(d.args[0]);
+      validatePort_(srv.port, 0);
+
+      std::string host_str = parseHost_(d.args[0]);
+      // For now, use INADDR_ANY (0). In future, can parse host_str
+      srv.host = 0;
+      LOG(DEBUG) << "Server listen: " << host_str << ":" << srv.port;
+      break;
+    }
+  }
+
+  // Parse other directives
+  LOG(DEBUG) << "Processing " << server_block.directives.size() << " server directive(s)";
+  for (size_t i = 0; i < server_block.directives.size(); ++i) {
+    const DirectiveNode &d = server_block.directives[i];
+
+    if (d.name == "listen") {
+      // Already handled
+      continue;
+    } else if (d.name == "root" && !d.args.empty()) {
+      validatePath_(d.args[0], d.name, 0, "");
+      srv.root = d.args[0];
+      LOG(DEBUG) << "Server root: " << srv.root;
+    } else if (d.name == "index" && !d.args.empty()) {
+      srv.index.clear();
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        srv.index.insert(d.args[j]);
+      }
+      LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
+    } else if (d.name == "autoindex" && !d.args.empty()) {
+      validateBooleanValue_(d.args[0], d.name, 0, "");
+      populateBool_(srv.autoindex, d.args[0]);
+      LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
+    } else if (d.name == "allow_methods" && !d.args.empty()) {
+      srv.allow_methods.clear();
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        validateHttpMethod_(d.args[j], d.name, 0, "");
+        if (d.args[j] == "GET")
+          srv.allow_methods.insert(Location::GET);
+        else if (d.args[j] == "POST")
+          srv.allow_methods.insert(Location::POST);
+        else if (d.args[j] == "PUT")
+          srv.allow_methods.insert(Location::PUT);
+        else if (d.args[j] == "DELETE")
+          srv.allow_methods.insert(Location::DELETE);
+        else if (d.args[j] == "HEAD")
+          srv.allow_methods.insert(Location::HEAD);
+      }
+      LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
+    } else if (d.name == "error_page" && d.args.size() >= 2) {
+      std::string path = d.args[d.args.size() - 1];
+      for (size_t j = 0; j < d.args.size() - 1; ++j) {
+        int code = std::atoi(d.args[j].c_str());
+        if (code > 0) {
+          validateRedirectCode_(code, 0, "");
+          srv.error_page[code] = path;
+          LOG(DEBUG) << "Server error_page: " << code << " -> " << path;
+        }
+      }
+    } else if (d.name == "max_request_body" && !d.args.empty()) {
+      validatePositiveNumber_(d.args[0], d.name, 0, "");
+      srv.max_request_body =
+          static_cast<std::size_t>(std::atol(d.args[0].c_str()));
+      LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
+    }
+  }
+
+  // Apply global error pages if not overridden
+  if (srv.error_page.empty()) {
+    srv.error_page = global_error_pages_;
+    LOG(DEBUG) << "Applied global error pages to server";
+  }
+
+  // Apply global max_request_body if not set
+  if (srv.max_request_body == 0 && global_max_request_body_ > 0) {
+    srv.max_request_body = global_max_request_body_;
+    LOG(DEBUG) << "Applied global max_request_body to server: " << srv.max_request_body;
+  }
+
+  // Parse location blocks
+  LOG(DEBUG) << "Processing " << server_block.sub_blocks.size() << " location block(s)";
+  for (size_t i = 0; i < server_block.sub_blocks.size(); ++i) {
+    const BlockNode &block = server_block.sub_blocks[i];
+    if (block.type == "location") {
+      LOG(DEBUG) << "Translating location: " << block.param;
+      Location loc(block.param);
+      translateLocationBlock_(block, loc);
+      srv.locations[loc.path] = loc;
+    }
+  }
+  LOG(DEBUG) << "Server block translation completed";
+}
+
+void Config::translateLocationBlock_(const BlockNode &location_block,
+                                     Location &loc) {
+  // Set path from constructor parameter (block.param)
+  loc.path = location_block.param;
+  LOG(DEBUG) << "Translating location block: " << loc.path;
+
+  // Parse directives
+  LOG(DEBUG) << "Processing " << location_block.directives.size() << " location directive(s)";
+  for (size_t i = 0; i < location_block.directives.size(); ++i) {
+    const DirectiveNode &d = location_block.directives[i];
+
+    if (d.name == "root" && !d.args.empty()) {
+      validatePath_(d.args[0], d.name, 0, loc.path);
+      loc.root = d.args[0];
+      LOG(DEBUG) << "  Location root: " << loc.root;
+    } else if (d.name == "index" && !d.args.empty()) {
+      loc.index.clear();
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        loc.index.insert(d.args[j]);
+      }
+      LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
+    } else if (d.name == "autoindex" && !d.args.empty()) {
+      validateBooleanValue_(d.args[0], d.name, 0, loc.path);
+      populateBool_(loc.autoindex, d.args[0]);
+      LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
+    } else if (d.name == "allow_methods" && !d.args.empty()) {
+      loc.allow_methods.clear();
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        validateHttpMethod_(d.args[j], d.name, 0, loc.path);
+        if (d.args[j] == "GET")
+          loc.allow_methods.insert(Location::GET);
+        else if (d.args[j] == "POST")
+          loc.allow_methods.insert(Location::POST);
+        else if (d.args[j] == "PUT")
+          loc.allow_methods.insert(Location::PUT);
+        else if (d.args[j] == "DELETE")
+          loc.allow_methods.insert(Location::DELETE);
+        else if (d.args[j] == "HEAD")
+          loc.allow_methods.insert(Location::HEAD);
+      }
+      LOG(DEBUG) << "  Location allowed methods: " << d.args.size() << " method(s)";
+    } else if (d.name == "return" && d.args.size() >= 2) {
+      int code = std::atoi(d.args[0].c_str());
+      validateRedirectCode_(code, 0, loc.path);
+      loc.redirect_code = code;
+      loc.redirect_location = d.args[1];
+      LOG(DEBUG) << "  Location redirect: " << code << " -> " << loc.redirect_location;
+    } else if (d.name == "error_page" && d.args.size() >= 2) {
+      std::string path = d.args[d.args.size() - 1];
+      for (size_t j = 0; j < d.args.size() - 1; ++j) {
+        int code = std::atoi(d.args[j].c_str());
+        if (code > 0) {
+          validateRedirectCode_(code, 0, loc.path);
+          loc.error_page[code] = path;
+          LOG(DEBUG) << "  Location error_page: " << code << " -> " << path;
+        }
+      }
+    } else if (d.name == "cgi" && !d.args.empty()) {
+      validateBooleanValue_(d.args[0], d.name, 0, loc.path);
+      populateBool_(loc.cgi, d.args[0]);
+      LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    }
+  }
+  LOG(DEBUG) << "Location block translation completed: " << loc.path;
+}
+
+int Config::parsePort_(const std::string &listen_arg) {
+  std::string portstr;
+  size_t colon_pos = listen_arg.find(':');
+  if (colon_pos != std::string::npos) {
+    portstr = listen_arg.substr(colon_pos + 1);
+  } else {
+    portstr = listen_arg;
+  }
+  return std::atoi(portstr.c_str());
+}
+
+std::string Config::parseHost_(const std::string &listen_arg) {
+  size_t colon_pos = listen_arg.find(':');
+  if (colon_pos != std::string::npos) {
+    return listen_arg.substr(0, colon_pos);
+  }
+  return "0.0.0.0";
+}
+
+bool Config::parseBool_(const std::string &value) {
+  return (value == "on" || value == "true" || value == "1");
+}
+
+void Config::populateBool_(bool &dest, const std::string &value) {
+  dest = parseBool_(value);
+}
+
+// ==================== DEBUG OUTPUT ====================
 
 static void _printBlockRec(const BlockNode &b, int indent) {
   std::string pad(indent, ' ');

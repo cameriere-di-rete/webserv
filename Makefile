@@ -6,8 +6,6 @@ SOURCES	:=	main.cpp			\
 			BlockNode.cpp		\
 			Body.cpp			\
 			Config.cpp			\
-			ConfigTranslator.cpp	\
-			ConfigValidator.cpp	\
 			Connection.cpp		\
 			DirectiveNode.cpp	\
 			Header.cpp			\
@@ -15,7 +13,6 @@ SOURCES	:=	main.cpp			\
 			Logger.cpp			\
 			Message.cpp			\
 			Request.cpp			\
-			RequestHandler.cpp	\
 			RequestLine.cpp		\
 			Response.cpp		\
 			Server.cpp			\

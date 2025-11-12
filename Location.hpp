@@ -15,6 +15,9 @@ public:
   // Types
   enum Method { GET, POST, PUT, DELETE, HEAD };
 
+  // Location path identifier
+  std::string path;
+
   // Location-specific configuration
   std::set<Method>
       allow_methods; // allowed methods (default: GET, POST, PUT, DELETE, HEAD)

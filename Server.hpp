@@ -2,6 +2,8 @@
 
 #include "Location.hpp"
 #include <map>
+#include <netinet/in.h>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -14,12 +16,21 @@ public:
 
   Server &operator=(const Server &other);
 
+  // Socket and network configuration
   int fd;           // Server socket file descriptor
   int port;         // Port number to listen on
-  unsigned int host; // Host address to bind to
-  std::map<std::string, std::vector<std::string> >
-      directives; // Server directives (root, index, autoindex, etc.)
-  std::map<std::string, Location> locations; // Location blocks mapped by path
+  in_addr_t host;   // Host address to bind to
+
+  // Server-level configuration (inherited by locations unless overridden)
+  std::set<Location::Method> allow_methods; // allowed methods
+  std::set<std::string> index;              // index files
+  bool autoindex;                           // enable directory listing
+  std::string root;                         // filesystem root
+  std::map<int, std::string> error_page;    // custom error page mapping
+  std::size_t max_request_body;             // max request body size
+
+  // Location blocks mapped by path
+  std::map<std::string, Location> locations;
 
   // Initializes server socket, binds to port, and starts listening
   void init(void);
