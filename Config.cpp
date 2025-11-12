@@ -526,7 +526,8 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
   if (srv.root.empty()) {
     // Fill default root and validate (validatePath_ will only check non-empty)
     srv.root = "./";
-    LOG(DEBUG) << "Server #" << server_index << " root not set; defaulting to './'";
+    LOG(DEBUG) << "Server #" << server_index
+               << " root not set; defaulting to './'";
     validatePath_(srv.root, "root", server_index, "");
   }
 
