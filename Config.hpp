@@ -17,12 +17,10 @@ public:
   // Throws std::runtime_error on syntax errors.
   void parseFile(const std::string &path);
 
-  // Phase 2: Validate the parsed configuration
+  // Phase 2+3: Validate the parsed configuration (if needed) and build
+  // Server objects. This method will perform validation automatically if
+  // it hasn't been run yet.
   // Throws std::runtime_error on validation errors.
-  void validate(void);
-
-  // Phase 3: Build Server objects from validated config
-  // Throws std::runtime_error if validation hasn't been done.
   std::vector<Server> getServers(void);
 
   // Debug output
@@ -49,13 +47,9 @@ private:
 
   // Validation methods
   void validateRoot_(void);
-  void validateServer_(const Server &srv, size_t server_index);
-  void validateLocation_(const Location &loc, size_t server_index,
-                         const std::string &location_path);
   void validatePort_(int port, size_t server_index);
   void validateBooleanValue_(const std::string &value,
-                             const std::string &directive,
-                             size_t server_index,
+                             const std::string &directive, size_t server_index,
                              const std::string &location_path);
   void validateHttpMethod_(const std::string &method,
                            const std::string &directive, size_t server_index,

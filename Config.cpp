@@ -69,22 +69,15 @@ void Config::parseFile(const std::string &path) {
       root_.directives.push_back(parseDirective());
     }
   }
-  LOG(INFO) << "Config file parsed successfully. Server blocks found: " << root_.sub_blocks.size();
-}
-
-void Config::validate(void) {
-  LOG(INFO) << "Starting configuration validation...";
-  validateRoot_();
-  validated_ = true;
-  LOG(INFO) << "Configuration validation completed successfully";
+  LOG(INFO) << "Config file parsed successfully. Server blocks found: "
+            << root_.sub_blocks.size();
 }
 
 std::vector<Server> Config::getServers(void) {
-  if (!validated_) {
-    LOG(ERROR) << "Attempt to get servers before validation";
-    throw std::runtime_error(
-        "Configuration must be validated before getting servers");
-  }
+  // Always perform root validation before building servers.
+  LOG(INFO) << "Validating configuration before building servers";
+  validateRoot_();
+  LOG(INFO) << "Configuration validated successfully";
 
   if (servers_.empty()) {
     LOG(INFO) << "Building server objects from configuration...";
@@ -236,36 +229,11 @@ void Config::validateRoot_(void) {
       }
       global_max_request_body_ =
           static_cast<std::size_t>(std::atol(d.args[0].c_str()));
-      LOG(DEBUG) << "Global max_request_body set to: " << global_max_request_body_;
-    }
-  }
-
-  // Validate each server block
-  LOG(DEBUG) << "Validating " << root_.sub_blocks.size() << " server block(s)";
-  for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
-    const BlockNode &block = root_.sub_blocks[i];
-    if (block.type == "server") {
-      LOG(DEBUG) << "Validating server block #" << i;
-      // Create temporary server to validate
-      Server srv;
-      validateServer_(srv, i);
+      LOG(DEBUG) << "Global max_request_body set to: "
+                 << global_max_request_body_;
     }
   }
   LOG(DEBUG) << "Root validation completed";
-}
-
-void Config::validateServer_(const Server &srv, size_t server_index) {
-  (void)srv;
-  (void)server_index;
-  // Validation will happen during translation
-}
-
-void Config::validateLocation_(const Location &loc, size_t server_index,
-                               const std::string &location_path) {
-  (void)loc;
-  (void)server_index;
-  (void)location_path;
-  // Validation will happen during translation
 }
 
 void Config::validatePort_(int port, size_t server_index) {
