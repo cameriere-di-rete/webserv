@@ -239,8 +239,8 @@ void Config::validateRoot_(void) {
         }
       } else {
         LOG(ERROR) << "Directive 'error_page' requires at least two arguments";
-        throw std::runtime_error(
-            "Configuration error: 'error_page' directive requires at least two arguments");
+        throw std::runtime_error("Configuration error: 'error_page' directive "
+                                 "requires at least two arguments");
       }
     } else if (d.name == "max_request_body" && d.args.size() >= 1) {
       // DONE parse number only once
@@ -286,16 +286,15 @@ void Config::validateBooleanValue_(const std::string &value,
                                    const std::string &directive,
                                    size_t server_index,
                                    const std::string &location_path) {
-  // TODO only check `on`/`off`
-  if (value != "on" && value != "off" && value != "true" && value != "false" &&
-      value != "1" && value != "0") {
+  // DONE only check `on`/`off`
+  if (value != "on" && value != "off") {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
     if (!location_path.empty()) {
       oss << " location '" << location_path << "'";
     }
     oss << ": Invalid boolean value '" << value << "' for directive '"
-        << directive << "' (expected: on/off, true/false, or 1/0)";
+        << directive << "' (expected: on/off)";
     throw std::runtime_error(oss.str());
   }
 }
