@@ -237,14 +237,28 @@ void Config::validateRoot_(void) {
         }
       }
     } else if (d.name == "max_request_body" && d.args.size() >= 1) {
-      // TODO parse number only once
-      if (!isPositiveNumber_(d.args[0])) {
-        LOG(ERROR) << "Invalid max_request_body value: " << d.args[0];
+      // DONE parse number only once
+      const std::string &val_str = d.args[0];
+      if (val_str.empty()) {
+        LOG(ERROR) << "Invalid max_request_body value: " << val_str;
         throw std::runtime_error(
             "Configuration error: Invalid max_request_body value");
       }
-      global_max_request_body_ =
-          static_cast<std::size_t>(std::atol(d.args[0].c_str()));
+      // ensure string contains only digits
+      for (size_t k = 0; k < val_str.size(); ++k) {
+        if (val_str[k] < '0' || val_str[k] > '9') {
+          LOG(ERROR) << "Invalid max_request_body value: " << val_str;
+          throw std::runtime_error(
+              "Configuration error: Invalid max_request_body value");
+        }
+      }
+      long parsed = std::atol(val_str.c_str());
+      if (parsed <= 0) {
+        LOG(ERROR) << "Invalid max_request_body value: " << val_str;
+        throw std::runtime_error(
+            "Configuration error: Invalid max_request_body value");
+      }
+      global_max_request_body_ = static_cast<std::size_t>(parsed);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
     }
@@ -532,6 +546,7 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
   // Set path from constructor parameter (block.param)
   loc.path = location_block.param;
   LOG(DEBUG) << "Translating location block: " << loc.path;
+  (void)server_index;
 
   // Parse directives
   LOG(DEBUG) << "Processing " << location_block.directives.size()
