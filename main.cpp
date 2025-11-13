@@ -7,7 +7,7 @@
 #include <string>
 
 int main(int argc, char **argv) {
-  const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
+  const char *path = (argc > 1) ? argv[1] : "./conf/default.conf";
   LOG(INFO) << "Using configuration file: " << path;
 
   ServerManager sm;
