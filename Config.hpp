@@ -88,6 +88,12 @@ private:
                                       const std::string &directive,
                                       size_t server_index,
                                       const std::string &location_path);
+  // Validate a redirect (return) directive and populate code + location
+  void validateAndPopulateRedirect_(int &dest_code, std::string &dest_location,
+                                    const std::vector<std::string> &args,
+                                    const std::string &directive,
+                                    size_t server_index,
+                                    const std::string &location_path);
   bool isValidHttpMethod_(const std::string &method);
   bool isValidRedirectCode_(int code);
   void validateStatusCode_(int code, size_t server_index,

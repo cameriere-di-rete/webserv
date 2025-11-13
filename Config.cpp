@@ -425,6 +425,29 @@ void Config::validateAndPopulateErrorPages_(
   }
 }
 
+// Validate and populate a redirect (return) directive. Expects at least
+// two args: [code, location]. Populates dest_code and dest_location.
+void Config::validateAndPopulateRedirect_(int &dest_code,
+                                          std::string &dest_location,
+                                          const std::vector<std::string> &args,
+                                          const std::string &directive,
+                                          size_t server_index,
+                                          const std::string &location_path) {
+  if (args.size() < 2) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Directive '" << directive << "' requires at least two args";
+    throw std::runtime_error(oss.str());
+  }
+  int code = std::atoi(args[0].c_str());
+  validateRedirectCode_(code, server_index, location_path);
+  dest_code = code;
+  dest_location = args[1];
+}
+
 // Validate and populate a positive numeric directive (e.g. max_request_body)
 void Config::validateAndPopulatePositiveNumber_(
     std::size_t &dest, const std::string &value, const std::string &directive,
@@ -655,12 +678,10 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
                  << " method(s)";
     } else if (d.name == "return" && d.args.size() >= 2) {
-      // TODO validate and populate at the same time
-      int code = std::atoi(d.args[0].c_str());
-      validateRedirectCode_(code, server_index, loc.path);
-      loc.redirect_code = code;
-      loc.redirect_location = d.args[1];
-      LOG(DEBUG) << "  Location redirect: " << code << " -> "
+      // DONE validate and populate at the same time
+      validateAndPopulateRedirect_(loc.redirect_code, loc.redirect_location,
+                                   d.args, d.name, server_index, loc.path);
+      LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
       // DONE validate and populate at the same time
