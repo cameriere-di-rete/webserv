@@ -644,9 +644,9 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       }
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
-      // TODO validate and populate at the same time
-      validateBooleanValue_(d.args[0], d.name, server_index, loc.path);
-      populateBool_(loc.autoindex, d.args[0]);
+      // DONE validate and populate at the same time
+      validateAndPopulateBool_(loc.autoindex, d.args[0], d.name, server_index,
+                               loc.path);
       LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
     } else if (d.name == "allow_methods" && !d.args.empty()) {
       // DONE validate and populate at the same time
