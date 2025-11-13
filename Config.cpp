@@ -1,5 +1,6 @@
 #include "Config.hpp"
 #include "Logger.hpp"
+#include <arpa/inet.h>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
@@ -542,14 +543,25 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       srv.port = parsePort_(d.args[0]);
       validatePort_(srv.port, server_index);
 
-      std::string host_str = parseHost_(d.args[0]);
-      // For now, use INADDR_ANY (0). In future, can parse host_str
-      srv.host = 0;
-      LOG(DEBUG) << "Server listen: " << host_str << ":" << srv.port;
+      size_t colon_pos = d.args[0].find(':');
+      if (colon_pos == std::string::npos) {
+        srv.host = INADDR_ANY;
+        break;
+      }
+      srv.host = inet_addr(d.args[0].substr(0, colon_pos).c_str());
+      if (srv.host == INADDR_NONE) {
+        std::ostringstream oss;
+        oss << "Configuration error in server #" << server_index
+            << ": Invalid IP address in listen directive: " << d.args[0];
+        LOG(ERROR) << oss.str();
+        throw std::runtime_error(oss.str());
+      }
       break;
     }
     // DONE to check minimum requirements, fill and validate root as well
   }
+  LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr *)&srv.host) << ":"
+             << srv.port;
 
   // Parse other directives
   LOG(DEBUG) << "Processing " << server_block.directives.size()
@@ -711,15 +723,6 @@ int Config::parsePort_(const std::string &listen_arg) {
     portstr = listen_arg;
   }
   return std::atoi(portstr.c_str());
-}
-
-// TODO use address type instead of string
-std::string Config::parseHost_(const std::string &listen_arg) {
-  size_t colon_pos = listen_arg.find(':');
-  if (colon_pos != std::string::npos) {
-    return listen_arg.substr(0, colon_pos);
-  }
-  return "0.0.0.0";
 }
 
 bool Config::parseBool_(const std::string &value) {

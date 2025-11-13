@@ -108,7 +108,6 @@ private:
   void translateLocationBlock_(const BlockNode &location_block, Location &loc,
                                size_t server_index);
   int parsePort_(const std::string &listen_arg);
-  std::string parseHost_(const std::string &listen_arg);
   bool parseBool_(const std::string &value);
   void populateBool_(bool &dest, const std::string &value);
 };
