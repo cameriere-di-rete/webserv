@@ -425,6 +425,26 @@ void Config::validateAndPopulateErrorPages_(
   }
 }
 
+// Validate and populate a positive numeric directive (e.g. max_request_body)
+void Config::validateAndPopulatePositiveNumber_(
+    std::size_t &dest, const std::string &value, const std::string &directive,
+    size_t server_index, const std::string &location_path) {
+  // Reuse existing validation which throws on invalid values
+  validatePositiveNumber_(value, directive, server_index, location_path);
+  long parsed = std::atol(value.c_str());
+  if (parsed <= 0) {
+    std::ostringstream oss;
+    oss << "Configuration error in server #" << server_index;
+    if (!location_path.empty()) {
+      oss << " location '" << location_path << "'";
+    }
+    oss << ": Invalid positive number '" << value << "' for directive '"
+        << directive << "'";
+    throw std::runtime_error(oss.str());
+  }
+  dest = static_cast<std::size_t>(parsed);
+}
+
 bool Config::isValidHttpMethod_(const std::string &method) {
   return (method == "GET" || method == "POST" || method == "DELETE" ||
           method == "HEAD" || method == "PUT");
@@ -549,10 +569,9 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
                    << it->second;
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
-      // TODO validate and populate at the same time
-      validatePositiveNumber_(d.args[0], d.name, server_index, "");
-      srv.max_request_body =
-          static_cast<std::size_t>(std::atol(d.args[0].c_str()));
+      // DONE validate and populate at the same time
+      validateAndPopulatePositiveNumber_(srv.max_request_body, d.args[0],
+                                         d.name, server_index, "");
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
     }
   }

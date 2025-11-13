@@ -74,6 +74,13 @@ private:
                                    const std::string &directive,
                                    size_t server_index,
                                    const std::string &location_path);
+  // Validate a positive numeric directive and populate the destination
+  // (e.g., max_request_body). Keeps validation and parsing in one place.
+  void validateAndPopulatePositiveNumber_(std::size_t &dest,
+                                          const std::string &value,
+                                          const std::string &directive,
+                                          size_t server_index,
+                                          const std::string &location_path);
   // Validate error_page arguments and populate the destination map.
   // Expects last arg to be the path and previous args to be status codes.
   void validateAndPopulateErrorPages_(std::map<int, std::string> &dest,
