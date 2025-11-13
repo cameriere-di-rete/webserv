@@ -61,6 +61,27 @@ private:
                                const std::string &location_path);
   void validatePath_(const std::string &path, const std::string &directive,
                      size_t server_index, const std::string &location_path);
+  // Validate a boolean directive value and populate 'dest' in one call.
+  // Keeps validation and population together to avoid duplication.
+  void validateAndPopulateBool_(bool &dest, const std::string &value,
+                                const std::string &directive,
+                                size_t server_index,
+                                const std::string &location_path);
+  // Validate a list of HTTP methods and populate the destination set
+  // (Location::Method enum). Keeps validation and population together.
+  void validateAndPopulateMethods_(std::set<Location::Method> &dest,
+                                   const std::vector<std::string> &args,
+                                   const std::string &directive,
+                                   size_t server_index,
+                                   const std::string &location_path);
+  // Validate error_page arguments and populate the destination map.
+  // Expects last arg to be the path and previous args to be status codes.
+  void validateAndPopulateErrorPages_(std::map<int, std::string> &dest,
+                                      const std::vector<std::string>
+                                          &args,
+                                      const std::string &directive,
+                                      size_t server_index,
+                                      const std::string &location_path);
   bool isValidHttpMethod_(const std::string &method);
   bool isValidRedirectCode_(int code);
   void validateStatusCode_(int code, size_t server_index,
