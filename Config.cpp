@@ -377,11 +377,10 @@ void Config::validateAndPopulateBool_(bool &dest, const std::string &value,
 // Validate a list of HTTP methods and populate the destination set with
 // Location::Method entries.
 void Config::validateAndPopulateMethods_(std::set<Location::Method> &dest,
-                                        const std::vector<std::string>
-                                            &args,
-                                        const std::string &directive,
-                                        size_t server_index,
-                                        const std::string &location_path) {
+                                         const std::vector<std::string> &args,
+                                         const std::string &directive,
+                                         size_t server_index,
+                                         const std::string &location_path) {
   dest.clear();
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string &m = args[i];
@@ -403,12 +402,10 @@ void Config::validateAndPopulateMethods_(std::set<Location::Method> &dest,
 // Validate and populate error_page mappings. The args vector is expected
 // to have one or more status codes followed by a final path. For example:
 // ["500","502","/50x.html"]
-void Config::validateAndPopulateErrorPages_(std::map<int, std::string> &dest,
-                                           const std::vector<std::string>
-                                               &args,
-                                           const std::string &directive,
-                                           size_t server_index,
-                                           const std::string &location_path) {
+void Config::validateAndPopulateErrorPages_(
+    std::map<int, std::string> &dest, const std::vector<std::string> &args,
+    const std::string &directive, size_t server_index,
+    const std::string &location_path) {
   if (args.size() < 2) {
     std::ostringstream oss;
     oss << "Configuration error in server #" << server_index;
@@ -532,8 +529,8 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
       // DONE validate and populate at the same time
-      validateAndPopulateBool_(srv.autoindex, d.args[0], d.name,
-                               server_index, "");
+      validateAndPopulateBool_(srv.autoindex, d.args[0], d.name, server_index,
+                               "");
       LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
     } else if (d.name == "allow_methods" && !d.args.empty()) {
       // DONE validate and populate at the same time
@@ -545,9 +542,11 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       validateAndPopulateErrorPages_(srv.error_page, d.args, d.name,
                                      server_index, "");
       // Log current server error_page mappings for visibility
-      for (std::map<int, std::string>::const_iterator it = srv.error_page.begin();
+      for (std::map<int, std::string>::const_iterator it =
+               srv.error_page.begin();
            it != srv.error_page.end(); ++it) {
-        LOG(DEBUG) << "Server error_page: " << it->first << " -> " << it->second;
+        LOG(DEBUG) << "Server error_page: " << it->first << " -> "
+                   << it->second;
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
       // TODO validate and populate at the same time
@@ -648,9 +647,11 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       // DONE validate and populate at the same time
       validateAndPopulateErrorPages_(loc.error_page, d.args, d.name,
                                      server_index, loc.path);
-      for (std::map<int, std::string>::const_iterator it = loc.error_page.begin();
+      for (std::map<int, std::string>::const_iterator it =
+               loc.error_page.begin();
            it != loc.error_page.end(); ++it) {
-        LOG(DEBUG) << "  Location error_page: " << it->first << " -> " << it->second;
+        LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
+                   << it->second;
       }
     } else if (d.name == "cgi" && !d.args.empty()) {
       validateBooleanValue_(d.args[0], d.name, server_index, loc.path);

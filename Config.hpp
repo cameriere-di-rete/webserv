@@ -77,8 +77,7 @@ private:
   // Validate error_page arguments and populate the destination map.
   // Expects last arg to be the path and previous args to be status codes.
   void validateAndPopulateErrorPages_(std::map<int, std::string> &dest,
-                                      const std::vector<std::string>
-                                          &args,
+                                      const std::vector<std::string> &args,
                                       const std::string &directive,
                                       size_t server_index,
                                       const std::string &location_path);
