@@ -34,6 +34,12 @@ private:
   std::map<int, std::string> global_error_pages_;
   std::size_t global_max_request_body_;
   size_t idx_;
+  // Current validation context (used to avoid passing server_index +
+  // location_path to every helper). kGlobalContext indicates top-level
+  // (no server) context.
+  static const size_t kGlobalContext = static_cast<size_t>(-1);
+  size_t current_server_index_;
+  std::string current_location_path_;
 
   // Parsing helpers
   void removeComments(std::string &s);
@@ -45,71 +51,38 @@ private:
   DirectiveNode parseDirective();
 
   // Validation methods
-  void validateRoot_(void);
-  void validatePort_(int port, size_t server_index);
-  void validateBooleanValue_(const std::string &value,
-                             const std::string &directive, size_t server_index,
-                             const std::string &location_path);
-  void validateHttpMethod_(const std::string &method,
-                           const std::string &directive, size_t server_index,
-                           const std::string &location_path);
-  void validateRedirectCode_(int code, size_t server_index,
-                             const std::string &location_path);
-  void validatePositiveNumber_(const std::string &value,
-                               const std::string &directive,
-                               size_t server_index,
-                               const std::string &location_path);
-  void validatePath_(const std::string &path, const std::string &directive,
-                     size_t server_index, const std::string &location_path);
-  // Validate a boolean directive value and populate 'dest' in one call.
-  // Keeps validation and population together to avoid duplication.
-  void validateAndPopulateBool_(bool &dest, const std::string &value,
-                                const std::string &directive,
-                                size_t server_index,
-                                const std::string &location_path);
-  // Validate a list of HTTP methods and populate the destination set
-  // (Location::Method enum). Keeps validation and population together.
-  void validateAndPopulateMethods_(std::set<Location::Method> &dest,
-                                   const std::vector<std::string> &args,
-                                   const std::string &directive,
-                                   size_t server_index,
-                                   const std::string &location_path);
-  // Validate a positive numeric directive and populate the destination
-  // (e.g., max_request_body). Keeps validation and parsing in one place.
-  void validateAndPopulatePositiveNumber_(std::size_t &dest,
-                                          const std::string &value,
-                                          const std::string &directive,
-                                          size_t server_index,
-                                          const std::string &location_path);
-  // Validate error_page arguments and populate the destination map.
-  // Expects last arg to be the path and previous args to be status codes.
-  void validateAndPopulateErrorPages_(std::map<int, std::string> &dest,
-                                      const std::vector<std::string> &args,
-                                      const std::string &directive,
-                                      size_t server_index,
-                                      const std::string &location_path);
-  // Validate a redirect (return) directive and populate code + location
-  void validateAndPopulateRedirect_(int &dest_code, std::string &dest_location,
-                                    const std::vector<std::string> &args,
-                                    const std::string &directive,
-                                    size_t server_index,
-                                    const std::string &location_path);
+  // Convert+validate helpers: convert an input string (or primitive) to
+  // a typed value, validating along the way and returning it. They throw
+  // std::runtime_error on invalid values.
+  int parsePortValue_(int port);
+  bool parseBooleanValue_(const std::string &value);
+  Location::Method parseHttpMethod_(const std::string &method);
+  int parseRedirectCode_(const std::string &value);
+  std::size_t parsePositiveNumberValue_(const std::string &value);
+  std::string parsePath_(const std::string &path);
+  // Return-style parse helpers (convert+validate and return the value)
+  std::set<Location::Method> parseMethods(const std::vector<std::string> &args);
+  std::map<int, std::string>
+  parseErrorPages(const std::vector<std::string> &args);
+  std::pair<int, std::string>
+  parseRedirect(const std::vector<std::string> &args);
   bool isValidHttpMethod_(const std::string &method);
   bool isValidRedirectCode_(int code);
-  void validateStatusCode_(int code, size_t server_index,
-                           const std::string &location_path);
+  int parseStatusCode_(const std::string &value);
   bool isValidStatusCode_(int code);
   bool isPositiveNumber_(const std::string &value);
 
   // Translation/building methods
-  void buildServersFromRoot_(void);
   void translateServerBlock_(const BlockNode &server_block, Server &srv,
                              size_t server_index);
-  void translateLocationBlock_(const BlockNode &location_block, Location &loc,
-                               size_t server_index);
+  void translateLocationBlock_(const BlockNode &location_block, Location &loc);
   int parsePort_(const std::string &listen_arg);
-  bool parseBool_(const std::string &value);
-  void populateBool_(bool &dest, const std::string &value);
+  // Directive-specific parsers (validate and convert to typed values)
+  struct ListenInfo {
+    in_addr_t host;
+    int port;
+  };
+  ListenInfo parseListen(const std::string &listen_arg);
 };
 
 void dumpConfig(const BlockNode &b);
