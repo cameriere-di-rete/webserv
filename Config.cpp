@@ -470,7 +470,6 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
     } else if (d.name == "root" && !d.args.empty()) {
       srv.root = parsePath_(d.args[0]);
       LOG(DEBUG) << "Server root: " << srv.root;
-      LOG(DEBUG) << "Server root: " << srv.root;
     } else if (d.name == "index" && !d.args.empty()) {
       {
         std::set<std::string> idx;
