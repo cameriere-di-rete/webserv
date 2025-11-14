@@ -1,16 +1,12 @@
 #include "Location.hpp"
 #include "Logger.hpp"
+#include "utils.hpp"
 
 Location::Location()
     : path(), allow_methods(), redirect_code(0), redirect_location(),
       cgi(false), index(), autoindex(false), root(), error_page() {
   LOG(DEBUG) << "Location() default constructor called";
-  // default allowed methods
-  allow_methods.insert(http::GET);
-  allow_methods.insert(http::POST);
-  allow_methods.insert(http::PUT);
-  allow_methods.insert(http::DELETE);
-  allow_methods.insert(http::HEAD);
+  initDefaultHttpMethods(allow_methods);
   LOG(DEBUG)
       << "Location initialized with default allowed methods (GET, POST, PUT, "
          "DELETE, HEAD)";
@@ -20,12 +16,7 @@ Location::Location(const std::string &p)
     : path(p), allow_methods(), redirect_code(0), redirect_location(),
       cgi(false), index(), autoindex(false), root(), error_page() {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
-  // default allowed methods
-  allow_methods.insert(http::GET);
-  allow_methods.insert(http::POST);
-  allow_methods.insert(http::PUT);
-  allow_methods.insert(http::DELETE);
-  allow_methods.insert(http::HEAD);
+  initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Location '" << path
              << "' initialized with default allowed methods";
 }
