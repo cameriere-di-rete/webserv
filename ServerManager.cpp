@@ -2,7 +2,6 @@
 #include "Connection.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
-#include "signals.hpp"
 #include "utils.hpp"
 #include <arpa/inet.h>
 #include <cerrno>
@@ -18,10 +17,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include <sys/signalfd.h>
+#include <csignal>
 
-ServerManager::ServerManager() : _efd(-1) {}
+ServerManager::ServerManager() : _efd(-1), _sfd(-1), _stop_requested(false) {
+}
 
-ServerManager::ServerManager(const ServerManager &other) : _efd(-1) {
+ServerManager::ServerManager(const ServerManager &other)
+    : _efd(-1), _sfd(-1), _stop_requested(false) {
   (void)other;
 }
 
@@ -33,6 +36,9 @@ ServerManager &ServerManager::operator=(const ServerManager &other) {
 ServerManager::~ServerManager() {
   LOG(DEBUG) << "Shutting down ServerManager...";
   shutdown();
+  if (_sfd >= 0) {
+    close(_sfd);
+  }
 }
 
 void ServerManager::initServers(const std::vector<int> &ports) {
@@ -118,12 +124,11 @@ int ServerManager::run() {
   }
 
   /* register signalfd (if available) so signals are delivered as FD events */
-  int sfd = signal_fd();
-  if (sfd >= 0) {
+  if (_sfd >= 0) {
     struct epoll_event ev;
     ev.events = EPOLLIN;
-    ev.data.fd = sfd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, sfd, &ev) < 0) {
+    ev.data.fd = _sfd;
+    if (epoll_ctl(_efd, EPOLL_CTL_ADD, _sfd, &ev) < 0) {
       LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
       // non-fatal: continue without signalfd
     }
@@ -132,11 +137,11 @@ int ServerManager::run() {
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
 
-  while (!stop_requested()) {
+  while (!shouldStop()) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
-        if (stop_requested()) {
+        if (shouldStop()) {
           LOG(INFO)
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
@@ -150,12 +155,12 @@ int ServerManager::run() {
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
 
-      if (sfd >= 0 && fd == sfd) {
+      if (_sfd >= 0 && fd == _sfd) {
         // process pending signals from signalfd
-        if (process_signals_from_fd()) {
+        if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
-        if (stop_requested()) {
+        if (shouldStop()) {
           break; // break out of for-loop; outer while will exit after check
         }
         continue;
@@ -282,16 +287,88 @@ int ServerManager::run() {
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   // close signalfd if we created one
-  if (sfd >= 0) {
-    close(sfd);
-  }
+
   return EXIT_SUCCESS;
+}
+
+void ServerManager::setupSignalHandlers() {
+    // Blocca i segnali che vogliamo gestire
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGTERM);
+    sigaddset(&mask, SIGHUP);
+
+    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
+        LOG_PERROR(ERROR, "sigprocmask");
+        return;
+    }
+
+    // Crea signalfd
+    _sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+    if (_sfd < 0) {
+        LOG_PERROR(ERROR, "signalfd");
+        return;
+    }
+
+    // Ignora SIGPIPE
+    struct sigaction sa_pipe;
+    std::memset(&sa_pipe, 0, sizeof(sa_pipe));
+    sa_pipe.sa_handler = SIG_IGN;
+    sigemptyset(&sa_pipe.sa_mask);
+    if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
+        LOG_PERROR(ERROR, "sigaction(SIGPIPE)");
+    }
+
+    LOG(INFO) << "signals: signalfd installed and signals blocked";
+}
+
+bool ServerManager::processSignalsFromFd() {
+    if (_sfd < 0)
+    {
+      return _stop_requested;
+    }
+
+    struct signalfd_siginfo fdsi;
+    while (1) {
+        ssize_t s = read(_sfd, &fdsi, sizeof(fdsi));
+        if (s < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+              return _stop_requested;
+            }
+            LOG_PERROR(ERROR, "read(signalfd)");
+            return _stop_requested;
+        }
+        if (s != sizeof(fdsi)) {
+            continue;
+        }
+
+        // Gestisci il segnale
+        if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+            _stop_requested = true;
+            return true;
+        }
+        if (fdsi.ssi_signo == SIGHUP) {
+            LOG(INFO) << "signals: SIGHUP received";
+            continue;
+        }
+        LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
+    }
+}
+
+bool ServerManager::shouldStop() const {
+    return _stop_requested;
 }
 
 void ServerManager::shutdown() {
   if (_efd >= 0) {
     close(_efd);
     _efd = -1;
+  }
+  if (_sfd >= 0) {
+    close(_sfd);
+    _sfd = -1;
   }
   // close all connection fds
   for (std::map<int, Connection>::iterator it = _connections.begin();

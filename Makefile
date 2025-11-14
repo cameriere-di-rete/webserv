@@ -18,7 +18,6 @@ SOURCES	:=	main.cpp			\
 			ServerManager.cpp	\
 			StatusLine.cpp		\
 			utils.cpp		\
-			signals.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))

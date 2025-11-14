@@ -1,7 +1,6 @@
 #include "Config.hpp"
 #include "Logger.hpp"
 #include "ServerManager.hpp"
-#include "signals.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -56,6 +55,10 @@ int main(int argc, char **argv) {
   }
 
   ServerManager sm;
+  
+  /* install signal handlers for graceful shutdown and ignore SIGPIPE */
+  sm.setupSignalHandlers();
+
   try {
     sm.initServers(ports);
   } catch (const std::exception &e) {
@@ -65,10 +68,6 @@ int main(int argc, char **argv) {
     LOG(ERROR) << "Unknown error while initializing Server";
     return EXIT_FAILURE;
   }
-
-  /* install signal handlers for graceful shutdown and ignore SIGPIPE */
-  setup_signal_handlers();
-
 
   return sm.run();
 }
