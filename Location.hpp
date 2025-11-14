@@ -25,7 +25,4 @@ public:
   bool autoindex;
   std::string root;
   std::map<int, std::string> error_page;
-
-private:
-  void initDefaultMethods(void);
 };

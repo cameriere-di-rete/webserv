@@ -1,3 +1,4 @@
+#include "utils.hpp"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -30,4 +31,12 @@ std::string trim_copy(const std::string &s) {
     res.erase(j);
   }
   return res;
+}
+
+void initDefaultHttpMethods(std::set<http::Method> &methods) {
+  methods.insert(http::GET);
+  methods.insert(http::POST);
+  methods.insert(http::PUT);
+  methods.insert(http::DELETE);
+  methods.insert(http::HEAD);
 }

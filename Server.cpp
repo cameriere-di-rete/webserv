@@ -15,7 +15,7 @@ Server::Server(void)
     : fd(-1), port(-1), host(INADDR_ANY), allow_methods(), index(),
       autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server() default constructor called";
-  initDefaultMethods();
+  initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Server initialized with default allowed methods";
 }
 
@@ -23,7 +23,7 @@ Server::Server(int port)
     : fd(-1), port(port), host(INADDR_ANY), allow_methods(), index(),
       autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server(port) constructor called with port: " << port;
-  initDefaultMethods();
+  initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Server on port " << port
              << " initialized with default allowed methods";
 }
@@ -114,12 +114,4 @@ void Server::disconnect(void) {
     close(fd);
     fd = -1;
   }
-}
-
-void Server::initDefaultMethods(void) {
-  allow_methods.insert(http::GET);
-  allow_methods.insert(http::POST);
-  allow_methods.insert(http::PUT);
-  allow_methods.insert(http::DELETE);
-  allow_methods.insert(http::HEAD);
 }

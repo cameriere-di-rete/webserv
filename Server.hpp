@@ -30,7 +30,4 @@ public:
 
   void init(void);
   void disconnect(void);
-
-private:
-  void initDefaultMethods(void);
 };
