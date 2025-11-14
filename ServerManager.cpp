@@ -67,7 +67,8 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    LOG(INFO) << "New connection accepted (fd: " << conn_fd << ") from server fd: " << listen_fd;
+    LOG(INFO) << "New connection accepted (fd: " << conn_fd
+              << ") from server fd: " << listen_fd;
 
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */
@@ -113,7 +114,8 @@ int ServerManager::run() {
   LOG(DEBUG) << "Epoll instance created with fd: " << _efd;
 
   /* register listener fds */
-  LOG(DEBUG) << "Registering " << _servers.size() << " server socket(s) with epoll";
+  LOG(DEBUG) << "Registering " << _servers.size()
+             << " server socket(s) with epoll";
   for (std::map<int, Server>::const_iterator it = _servers.begin();
        it != _servers.end(); ++it) {
     int listen_fd = it->first;
@@ -144,14 +146,14 @@ int ServerManager::run() {
 
     LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
 
-
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << fd;
 
       std::map<int, Server>::iterator s_it = _servers.find(fd);
       if (s_it != _servers.end()) {
-        LOG(DEBUG) << "Event is on server listen socket, accepting connections...";
+        LOG(DEBUG)
+            << "Event is on server listen socket, accepting connections...";
         acceptConnection(fd);
         continue;
       }
@@ -190,7 +192,9 @@ int ServerManager::run() {
         int status = c.handleWrite();
 
         if (status <= 0) {
-          LOG(DEBUG) << "handleWrite complete or failed, closing connection fd: " << fd;
+          LOG(DEBUG)
+              << "handleWrite complete or failed, closing connection fd: "
+              << fd;
           close(fd);
           _connections.erase(fd);
         }
@@ -199,7 +203,8 @@ int ServerManager::run() {
 
     /* After processing events, iterate connections to prepare responses
        for those that completed reading but don't yet have a write buffer. */
-    LOG(DEBUG) << "Checking " << _connections.size() << " connection(s) for response preparation";
+    LOG(DEBUG) << "Checking " << _connections.size()
+               << " connection(s) for response preparation";
     for (std::map<int, Connection>::iterator it = _connections.begin();
          it != _connections.end(); ++it) {
       Connection &conn = it->second;
@@ -244,7 +249,8 @@ int ServerManager::run() {
 
       if (!conn.request.parseStartAndHeaders(lines)) {
         /* malformed start line or headers -> 400 Bad Request */
-        LOG(INFO) << "Malformed request on fd " << conn_fd << ", sending 400 Bad Request";
+        LOG(INFO) << "Malformed request on fd " << conn_fd
+                  << ", sending 400 Bad Request";
         conn.response.status_line.version = HTTP_VERSION;
         conn.response.status_line.status_code = 400;
         conn.response.status_line.reason = "Bad Request";
@@ -257,8 +263,8 @@ int ServerManager::run() {
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
-      LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method << " "
-                 << conn.request.request_line.uri;
+      LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
+                 << " " << conn.request.request_line.uri;
 
       /* set body to remaining bytes after header separator */
       std::size_t body_start = headers_pos + 4; /* \r\n\r\n */

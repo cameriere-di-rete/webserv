@@ -11,7 +11,9 @@ Location::Location()
   allow_methods.insert(PUT);
   allow_methods.insert(DELETE);
   allow_methods.insert(HEAD);
-  LOG(DEBUG) << "Location initialized with default allowed methods (GET, POST, PUT, DELETE, HEAD)";
+  LOG(DEBUG)
+      << "Location initialized with default allowed methods (GET, POST, PUT, "
+         "DELETE, HEAD)";
 }
 
 Location::Location(const std::string &p)
@@ -24,7 +26,8 @@ Location::Location(const std::string &p)
   allow_methods.insert(PUT);
   allow_methods.insert(DELETE);
   allow_methods.insert(HEAD);
-  LOG(DEBUG) << "Location '" << path << "' initialized with default allowed methods";
+  LOG(DEBUG) << "Location '" << path
+             << "' initialized with default allowed methods";
 }
 
 Location::Location(const Location &other)

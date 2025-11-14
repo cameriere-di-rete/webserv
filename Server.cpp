@@ -33,7 +33,8 @@ Server::Server(int port)
   allow_methods.insert(Location::PUT);
   allow_methods.insert(Location::DELETE);
   allow_methods.insert(Location::HEAD);
-  LOG(DEBUG) << "Server on port " << port << " initialized with default allowed methods";
+  LOG(DEBUG) << "Server on port " << port
+             << " initialized with default allowed methods";
 }
 
 Server::Server(const Server &other)
@@ -109,7 +110,8 @@ void Server::init(void) {
   }
   LOG(DEBUG) << "Socket set to non-blocking mode";
 
-  LOG(INFO) << "Server successfully initialized on port " << port << " (fd: " << fd << ")";
+  LOG(INFO) << "Server successfully initialized on port " << port
+            << " (fd: " << fd << ")";
 }
 
 void Server::disconnect(void) {
