@@ -37,11 +37,13 @@ void ServerManager::initServers(std::vector<Server> &servers) {
   LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    LOG(DEBUG) << "Initializing server on port " << it->port;
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr *)&it->host)
+               << ":" << it->port;
     it->init();
     /* store by listening fd */
     _servers[it->fd] = *it;
-    LOG(DEBUG) << "Server registered with fd: " << it->fd;
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(*(in_addr *)&it->host)
+               << ":" << it->port << ") with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
   }

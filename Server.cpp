@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
+#include <arpa/inet.h>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -11,8 +12,8 @@
 #include <unistd.h>
 
 Server::Server(void)
-    : fd(-1), port(-1), host(0), allow_methods(), index(), autoindex(false),
-      root(), error_page(), max_request_body(0), locations() {
+    : fd(-1), port(-1), host(INADDR_ANY), allow_methods(), index(),
+      autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server() default constructor called";
   // Default allowed methods
   allow_methods.insert(Location::GET);
@@ -24,8 +25,8 @@ Server::Server(void)
 }
 
 Server::Server(int port)
-    : fd(-1), port(port), host(0), allow_methods(), index(), autoindex(false),
-      root(), error_page(), max_request_body(0), locations() {
+    : fd(-1), port(port), host(INADDR_ANY), allow_methods(), index(),
+      autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server(port) constructor called with port: " << port;
   // Default allowed methods
   allow_methods.insert(Location::GET);
@@ -65,7 +66,8 @@ Server &Server::operator=(const Server &other) {
 }
 
 void Server::init(void) {
-  LOG(INFO) << "Initializing server on port " << port << "...";
+  LOG(INFO) << "Initializing server on " << inet_ntoa(*(in_addr *)&host) << ":"
+            << port << "...";
 
   fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
@@ -86,7 +88,8 @@ void Server::init(void) {
   struct sockaddr_in addr;
   std::memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
+  /* bind to configured host (INADDR_ANY if not set) */
+  addr.sin_addr.s_addr = host;
   addr.sin_port = htons(port);
 
   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
@@ -94,7 +97,8 @@ void Server::init(void) {
     LOG_PERROR(ERROR, "bind");
     throw std::runtime_error("bind");
   }
-  LOG(DEBUG) << "Socket bound to 0.0.0.0:" << port;
+  LOG(DEBUG) << "Socket bound to " << inet_ntoa(*(in_addr *)&host) << ":"
+             << port;
 
   if (listen(fd, MAX_CONNECTIONS_PER_SERVER) < 0) {
     disconnect();
