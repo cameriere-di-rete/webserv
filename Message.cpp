@@ -1,12 +1,8 @@
 #include "Message.hpp"
 #include "constants.hpp"
-
+#include "utils.hpp"
 #include <cctype>
 #include <sstream>
-
-/* helper functions in anonymous namespace (C++98-safe) */
-// ci_equal_copy remains local; reuse shared trim_copy from utils
-#include "utils.hpp"
 
 namespace {
 bool ci_equal_copy(const std::string &a, const std::string &b) {
