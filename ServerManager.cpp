@@ -31,6 +31,7 @@ ServerManager &ServerManager::operator=(const ServerManager &other) {
 }
 
 ServerManager::~ServerManager() {
+  LOG(DEBUG) << "Shutting down ServerManager...";
   shutdown();
 }
 
@@ -131,7 +132,7 @@ int ServerManager::run() {
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
 
-  while (1) {
+  while (!stop_requested()) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
@@ -143,7 +144,7 @@ int ServerManager::run() {
         continue; /* interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
-      return EXIT_FAILURE;
+      break;
     }
 
     for (int i = 0; i < n; ++i) {
@@ -279,7 +280,7 @@ int ServerManager::run() {
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
   }
-  shutdown();
+  LOG(DEBUG) << "ServerManager: exiting event loop";
   // close signalfd if we created one
   if (sfd >= 0) {
     close(sfd);
