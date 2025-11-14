@@ -241,7 +241,7 @@ std::string Config::configErrorPrefix() const {
 
 std::string Config::configError(const std::string &detail) const {
   std::ostringstream oss;
-  oss << configErrorPrefix() << "" << detail;
+  oss << configErrorPrefix() << detail;
   return oss.str();
 }
 
