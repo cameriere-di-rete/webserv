@@ -362,11 +362,7 @@ std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
   return static_cast<std::size_t>(std::atol(value.c_str()));
 }
 
-// DONE don't check if path exists
 std::string Config::parsePath_(const std::string &path) {
-  // Intentionally do not perform filesystem checks here.
-  // The configuration should be validated for syntax and semantics only;
-  // existence and permissions are environment/runtime concerns.
   if (path.empty()) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Path provided is empty";
@@ -485,15 +481,12 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       }
       LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
-      // DONE validate and populate at the same time
       srv.autoindex = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
     } else if (d.name == "allow_methods" && !d.args.empty()) {
-      // DONE validate and populate at the same time
       srv.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      // DONE validate and populate at the same time
       {
         std::map<int, std::string> parsed = parseErrorPages(d.args);
         for (std::map<int, std::string>::const_iterator it = parsed.begin();
@@ -504,7 +497,6 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
         }
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
-      // DONE validate and populate at the same time
       srv.max_request_body = parsePositiveNumberValue_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
     }
@@ -586,16 +578,13 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       }
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
-      // DONE validate and populate at the same time
       loc.autoindex = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
     } else if (d.name == "allow_methods" && !d.args.empty()) {
-      // DONE validate and populate at the same time
       loc.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
                  << " method(s)";
     } else if (d.name == "return" && d.args.size() >= 2) {
-      // DONE validate and populate at the same time
       {
         std::pair<int, std::string> ret = parseRedirect(d.args);
         loc.redirect_code = ret.first;
@@ -604,7 +593,6 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      // DONE validate and populate at the same time
       {
         std::map<int, std::string> parsed = parseErrorPages(d.args);
         for (std::map<int, std::string>::const_iterator it = parsed.begin();
