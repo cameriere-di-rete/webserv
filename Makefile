@@ -9,6 +9,9 @@ SOURCES	:=	main.cpp			\
 			Connection.cpp		\
 			DirectiveNode.cpp	\
 			Header.cpp			\
+			HttpMethod.cpp		\
+			HttpStatus.cpp		\
+			Location.cpp		\
 			Logger.cpp			\
 			Message.cpp			\
 			Request.cpp			\

@@ -12,5 +12,5 @@ public:
   ~DirectiveNode();
 
   std::string name;
-  std::vector<std::string> args; // raw argument tokens
+  std::vector<std::string> args;
 };

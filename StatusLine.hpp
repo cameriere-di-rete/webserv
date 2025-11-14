@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HttpStatus.hpp"
 #include <string>
 
 class StatusLine {
@@ -10,7 +11,7 @@ public:
   ~StatusLine();
 
   std::string version;
-  int status_code;
+  http::Status status_code;
   std::string reason;
 
   std::string toString() const;
