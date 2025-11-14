@@ -343,17 +343,17 @@ http::Method Config::parseHttpMethod_(const std::string &method) {
 }
 
 int Config::parseRedirectCode_(const std::string &value) {
-  int code = std::atoi(value.c_str());
-  if (http::isRedirect(code)) {
-    return code;
-  }
+  std::size_t code_sz = parsePositiveNumberValue_(value);
+  int code = static_cast<int>(code_sz);
 
-  {
+  if (code_sz > static_cast<std::size_t>(INT_MAX) || !http::isRedirect(code)) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid redirect status code " << code
         << " (valid: 301, 302, 303, 307, 308)";
     throw std::runtime_error(oss.str());
   }
+
+  return code;
 }
 
 std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
@@ -425,14 +425,18 @@ Config::parseRedirect(const std::vector<std::string> &args) {
 }
 
 int Config::parseStatusCode_(const std::string &value) {
-  int code = std::atoi(value.c_str());
-  if (!http::isValidStatusCode(code)) {
+  std::size_t code_sz = parsePositiveNumberValue_(value);
+  int code = static_cast<int>(code_sz);
+
+  if (code_sz > static_cast<std::size_t>(INT_MAX) ||
+      !http::isValidStatusCode(code)) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "Invalid status code " << code;
+    oss << configErrorPrefix() << "Invalid status code " << code_sz;
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
   }
+
   return code;
 }
 
