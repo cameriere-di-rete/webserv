@@ -82,8 +82,11 @@ std::vector<Server> Config::getServers(void) {
 
   // Ensure there is at least one server block
   if (root_.sub_blocks.empty()) {
-    LOG(ERROR) << "No server blocks defined in configuration";
-    throw std::runtime_error("Configuration error: No server blocks defined");
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "No server blocks defined ";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
   }
 
   // Ensure that all top-level sub-blocks are `server` blocks
@@ -91,10 +94,11 @@ std::vector<Server> Config::getServers(void) {
     const BlockNode &b = root_.sub_blocks[i];
     if (b.type != "server") {
       std::ostringstream oss;
-      oss << "Configuration error: unexpected top-level block '" << b.type
+      oss << configErrorPrefix() << "unexpected top-level block '" << b.type
           << "' at index " << i << " (expected 'server')";
-      LOG(ERROR) << oss.str();
-      throw std::runtime_error(oss.str());
+      std::string msg = oss.str();
+      LOG(ERROR) << msg;
+      throw std::runtime_error(msg);
     }
   }
 
@@ -220,6 +224,27 @@ void Config::tokenize(const std::string &content) {
   idx_ = 0;
 }
 
+// Return the appropriate configuration error prefix depending on context.
+std::string Config::configErrorPrefix() const {
+  std::ostringstream oss;
+  if (current_server_index_ != kGlobalContext) {
+    oss << "Configuration error in server #" << current_server_index_;
+    if (!current_location_path_.empty()) {
+      oss << " location '" << current_location_path_ << "'";
+    }
+  } else {
+    oss << "Configuration error";
+  }
+  oss << ": ";
+  return oss.str();
+}
+
+std::string Config::configError(const std::string &detail) const {
+  std::ostringstream oss;
+  oss << configErrorPrefix() << "" << detail;
+  return oss.str();
+}
+
 bool Config::eof() const {
   return idx_ >= tokens_.size();
 }
@@ -281,20 +306,17 @@ BlockNode Config::parseBlock() {
 // ==================== VALIDATION METHODS ====================
 
 int Config::parsePortValue_(int port) {
-  if (port < 1 || port > 65535) {
-    std::ostringstream oss;
-    oss << "Configuration error";
-    if (current_server_index_ != kGlobalContext) {
-      oss << " in server #" << current_server_index_;
-    }
-    oss << ": Invalid port number " << port << " (must be 1-65535)";
-    throw std::runtime_error(oss.str());
+  if (port >= 1 && port <= 65535) {
+    return port;
   }
-  return port;
+
+  std::ostringstream oss;
+  oss << configErrorPrefix() << "Invalid port number " << port
+      << " (must be 1-65535)";
+  throw std::runtime_error(oss.str());
 }
 
 bool Config::parseBooleanValue_(const std::string &value) {
-  // Accept only 'on'/'off' for configuration boolean values.
   if (value == "on") {
     return true;
   }
@@ -302,15 +324,8 @@ bool Config::parseBooleanValue_(const std::string &value) {
     return false;
   }
   std::ostringstream oss;
-  if (current_server_index_ != kGlobalContext) {
-    oss << "Configuration error in server #" << current_server_index_;
-    if (!current_location_path_.empty()) {
-      oss << " location '" << current_location_path_ << "'";
-    }
-  } else {
-    oss << "Configuration error";
-  }
-  oss << ": Invalid boolean value '" << value << "' (expected: on/off)";
+  oss << configErrorPrefix() << ": Invalid boolean value '" << value
+      << "' (expected: on/off)";
   throw std::runtime_error(oss.str());
 }
 
@@ -318,11 +333,9 @@ http::Method Config::parseHttpMethod_(const std::string &method) {
   try {
     return http::stringToMethod(method);
   } catch (const std::invalid_argument &e) {
-    {
-      std::ostringstream oss;
-      oss << configErrorPrefix() << ": " << e.what();
-      throw std::runtime_error(oss.str());
-    }
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "" << e.what();
+    throw std::runtime_error(oss.str());
   }
 }
 
@@ -334,15 +347,7 @@ int Config::parseRedirectCode_(const std::string &value) {
 
   {
     std::ostringstream oss;
-    if (current_server_index_ != kGlobalContext) {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-    } else {
-      oss << "Configuration error";
-    }
-    oss << ": Invalid redirect status code " << code
+    oss << configErrorPrefix() << "Invalid redirect status code " << code
         << " (valid: 301, 302, 303, 307, 308)";
     throw std::runtime_error(oss.str());
   }
@@ -351,15 +356,7 @@ int Config::parseRedirectCode_(const std::string &value) {
 std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
   if (!isPositiveNumber_(value)) {
     std::ostringstream oss;
-    if (current_server_index_ != kGlobalContext) {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-    } else {
-      oss << "Configuration error";
-    }
-    oss << ": Invalid positive number '" << value << "'";
+    oss << configErrorPrefix() << "Invalid positive number '" << value << "'";
     throw std::runtime_error(oss.str());
   }
   return static_cast<std::size_t>(std::atol(value.c_str()));
@@ -372,18 +369,9 @@ std::string Config::parsePath_(const std::string &path) {
   // existence and permissions are environment/runtime concerns.
   if (path.empty()) {
     std::ostringstream oss;
-    if (current_server_index_ != kGlobalContext) {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-    } else {
-      oss << "Configuration error";
-    }
-    oss << ": Path provided is empty";
+    oss << configErrorPrefix() << "Path provided is empty";
     throw std::runtime_error(oss.str());
   }
-  // Accept the path as-is; callers will handle resolution/IO at runtime.
   return path;
 }
 
@@ -407,15 +395,7 @@ std::map<int, std::string>
 Config::parseErrorPages(const std::vector<std::string> &args) {
   if (args.size() < 2) {
     std::ostringstream oss;
-    if (current_server_index_ == kGlobalContext) {
-      oss << "Configuration error: Directive requires at least two args";
-    } else {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-      oss << ": Directive requires at least two args";
-    }
+    oss << configErrorPrefix() << "Directive requires at least two args";
     throw std::runtime_error(oss.str());
   }
   const std::string &path = args[args.size() - 1];
@@ -433,15 +413,7 @@ std::pair<int, std::string>
 Config::parseRedirect(const std::vector<std::string> &args) {
   if (args.size() < 2) {
     std::ostringstream oss;
-    if (current_server_index_ != kGlobalContext) {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-    } else {
-      oss << "Configuration error";
-    }
-    oss << ": Directive requires at least two args";
+    oss << configErrorPrefix() << "Directive requires at least two args";
     throw std::runtime_error(oss.str());
   }
   int code = parseRedirectCode_(args[0]);
@@ -453,17 +425,10 @@ int Config::parseStatusCode_(const std::string &value) {
   int code = std::atoi(value.c_str());
   if (!http::isValidStatusCode(code)) {
     std::ostringstream oss;
-    if (current_server_index_ == kGlobalContext) {
-      oss << "Configuration error: Invalid status code " << code;
-    } else {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-      oss << ": Invalid status code " << code;
-    }
-    LOG(ERROR) << oss.str();
-    throw std::runtime_error(oss.str());
+    oss << configErrorPrefix() << "Invalid status code " << code;
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
   }
   return code;
 }
@@ -557,10 +522,11 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
   // Minimum requirements: ensure listen was specified and root is set
   if (srv.port <= 0) {
     std::ostringstream oss;
-    oss << "Configuration error: server #" << server_index
+    oss << configErrorPrefix() << "server #" << server_index
         << " missing 'listen' directive or invalid port";
-    LOG(ERROR) << oss.str();
-    throw std::runtime_error(oss.str());
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
   }
   if (srv.root.empty()) {
     // Fill default root and validate (validatePath_ will only check non-empty)
@@ -570,14 +536,12 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
     srv.root = parsePath_(srv.root);
   }
 
-  // Apply global max_request_body if not set
   if (srv.max_request_body == 0 && global_max_request_body_ > 0) {
     srv.max_request_body = global_max_request_body_;
     LOG(DEBUG) << "Applied global max_request_body to server: "
                << srv.max_request_body;
   }
 
-  // Parse location blocks
   LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
              << " location block(s)";
   for (size_t i = 0; i < server_block.sub_blocks.size(); ++i) {
@@ -678,21 +642,23 @@ Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
   li.port = parsePort_(listen_arg);
   li.port = parsePortValue_(li.port);
   size_t colon_pos = listen_arg.find(':');
+
+  // no host
   if (colon_pos == std::string::npos) {
     li.host = INADDR_ANY;
-  } else {
-    li.host = inet_addr(listen_arg.substr(0, colon_pos).c_str());
-    if (li.host == INADDR_NONE) {
-      std::ostringstream oss;
-      if (current_server_index_ != kGlobalContext) {
-        oss << "Configuration error in server #" << current_server_index_;
-      } else {
-        oss << "Configuration error";
-      }
-      oss << ": Invalid IP address in listen directive: " << listen_arg;
-      LOG(ERROR) << oss.str();
-      throw std::runtime_error(oss.str());
-    }
+    return li;
   }
+
+  li.host = inet_addr(listen_arg.substr(0, colon_pos).c_str());
+
+  // invalid host
+  if (li.host == INADDR_NONE) {
+    std::ostringstream oss;
+    oss << configErrorPrefix()
+        << ": Invalid IP address in listen directive: " << listen_arg;
+    LOG(ERROR) << oss.str();
+    throw std::runtime_error(oss.str());
+  }
+
   return li;
 }
