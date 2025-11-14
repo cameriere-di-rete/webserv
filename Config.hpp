@@ -84,5 +84,3 @@ private:
   };
   ListenInfo parseListen(const std::string &listen_arg);
 };
-
-void dumpConfig(const BlockNode &b);

@@ -148,8 +148,38 @@ BlockNode Config::getRoot(void) const {
   return root_;
 }
 
+// ==================== DEBUG OUTPUT ====================
+
+static void _printBlockRec(const BlockNode &b, int indent) {
+  std::string pad(indent, ' ');
+  {
+    std::ostringstream ss;
+    ss << pad << "Block: type='" << b.type << "'";
+    if (!b.param.empty()) {
+      ss << " param='" << b.param << "'";
+    }
+    LOG(DEBUG) << ss.str();
+  }
+  for (size_t i = 0; i < b.directives.size(); ++i) {
+    const DirectiveNode &d = b.directives[i];
+    std::ostringstream ss;
+    ss << pad << "  Directive: name='" << d.name << "' args=[";
+    for (size_t j = 0; j < d.args.size(); ++j) {
+      if (j) {
+        ss << ", ";
+      }
+      ss << "'" << d.args[j] << "'";
+    }
+    ss << "]";
+    LOG(DEBUG) << ss.str();
+  }
+  for (size_t i = 0; i < b.sub_blocks.size(); ++i) {
+    _printBlockRec(b.sub_blocks[i], indent + 2);
+  }
+}
+
 void Config::debug(void) const {
-  dumpConfig(root_);
+  _printBlockRec(root_, 0);
 }
 
 // ==================== PARSING HELPERS ====================
@@ -697,40 +727,4 @@ Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
     }
   }
   return li;
-}
-
-// parseIndex inlined at call sites; removed thin wrapper.
-
-// ==================== DEBUG OUTPUT ====================
-
-static void _printBlockRec(const BlockNode &b, int indent) {
-  std::string pad(indent, ' ');
-  {
-    std::ostringstream ss;
-    ss << pad << "Block: type='" << b.type << "'";
-    if (!b.param.empty()) {
-      ss << " param='" << b.param << "'";
-    }
-    LOG(DEBUG) << ss.str();
-  }
-  for (size_t i = 0; i < b.directives.size(); ++i) {
-    const DirectiveNode &d = b.directives[i];
-    std::ostringstream ss;
-    ss << pad << "  Directive: name='" << d.name << "' args=[";
-    for (size_t j = 0; j < d.args.size(); ++j) {
-      if (j) {
-        ss << ", ";
-      }
-      ss << "'" << d.args[j] << "'";
-    }
-    ss << "]";
-    LOG(DEBUG) << ss.str();
-  }
-  for (size_t i = 0; i < b.sub_blocks.size(); ++i) {
-    _printBlockRec(b.sub_blocks[i], indent + 2);
-  }
-}
-
-void dumpConfig(const BlockNode &b) {
-  _printBlockRec(b, 0);
 }
