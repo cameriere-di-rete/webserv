@@ -146,10 +146,6 @@ std::vector<Server> Config::getServers(void) {
   return servers_;
 }
 
-BlockNode Config::getRoot(void) const {
-  return root_;
-}
-
 // ==================== DEBUG OUTPUT ====================
 
 static void _printBlockRec(const BlockNode &b, int indent) {

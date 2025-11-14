@@ -23,8 +23,6 @@ public:
   // Throws std::runtime_error on validation errors.
   std::vector<Server> getServers(void);
 
-  // Debug output
-  BlockNode getRoot(void) const;
   void debug(void) const;
 
 private:
