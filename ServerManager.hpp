@@ -19,7 +19,7 @@ public:
   ServerManager();
   ~ServerManager();
 
-  // Initializes all servers from configuration and registers them with epoll
+  // Initializes all servers from configuration
   void initServers(std::vector<Server> &servers);
 
   // Accepts new client connection on given listening socket
