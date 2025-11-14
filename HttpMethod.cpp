@@ -15,8 +15,9 @@ std::string methodToString(Method m) {
     return "DELETE";
   case HEAD:
     return "HEAD";
+  default:
+    return "UNKNOWN";
   }
-  return "UNKNOWN";
 }
 
 Method stringToMethod(const std::string &s) {
