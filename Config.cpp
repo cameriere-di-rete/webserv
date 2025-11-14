@@ -334,7 +334,7 @@ http::Method Config::parseHttpMethod_(const std::string &method) {
     return http::stringToMethod(method);
   } catch (const std::invalid_argument &e) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "" << e.what();
+    oss << configErrorPrefix() << e.what();
     throw std::runtime_error(oss.str());
   }
 }
