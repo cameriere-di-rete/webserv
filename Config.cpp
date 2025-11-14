@@ -5,6 +5,8 @@
 #include "utils.hpp"
 #include <arpa/inet.h>
 #include <cctype>
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -359,7 +361,11 @@ std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
     oss << configErrorPrefix() << "Invalid positive number '" << value << "'";
     throw std::runtime_error(oss.str());
   }
-  return static_cast<std::size_t>(std::atol(value.c_str()));
+  // Safe to use strtol here since isPositiveNumber_ already validated it
+  errno = 0;
+  char *endptr;
+  long num = std::strtol(value.c_str(), &endptr, 10);
+  return static_cast<std::size_t>(num);
 }
 
 std::string Config::parsePath_(const std::string &path) {
@@ -440,8 +446,20 @@ bool Config::isPositiveNumber_(const std::string &value) {
     }
   }
 
-  long num = std::atol(value.c_str());
-  return num > 0;
+  // Use strtol with error checking to detect overflow
+  errno = 0;
+  char *endptr;
+  long num = std::strtol(value.c_str(), &endptr, 10);
+
+  // Check for conversion errors:
+  // - errno is set to ERANGE if overflow/underflow occurred
+  // - endptr should point to the end of the string (all characters consumed)
+  // - num must be positive
+  if (errno == ERANGE || *endptr != '\0' || num <= 0 || num == LONG_MAX) {
+    return false;
+  }
+
+  return true;
 }
 
 // ==================== TRANSLATION/BUILDING METHODS ====================
