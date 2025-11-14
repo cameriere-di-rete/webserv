@@ -307,15 +307,16 @@ BlockNode Config::parseBlock() {
 
 // ==================== VALIDATION METHODS ====================
 
-int Config::parsePortValue_(int port) {
-  if (port >= 1 && port <= 65535) {
-    return port;
+int Config::parsePortValue_(const std::string &portstr) {
+  std::size_t n = parsePositiveNumberValue_(portstr);
+  if (n < 1 || n > 65535) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Invalid port number " << n
+        << " (must be 1-65535)";
+    LOG(ERROR) << oss.str();
+    throw std::runtime_error(oss.str());
   }
-
-  std::ostringstream oss;
-  oss << configErrorPrefix() << "Invalid port number " << port
-      << " (must be 1-65535)";
-  throw std::runtime_error(oss.str());
+  return static_cast<int>(n);
 }
 
 bool Config::parseBooleanValue_(const std::string &value) {
@@ -642,8 +643,7 @@ Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
   } else {
     portstr = listen_arg;
   }
-  li.port = std::atoi(portstr.c_str());
-  li.port = parsePortValue_(li.port);
+  li.port = parsePortValue_(portstr);
 
   // no host
   if (colon_pos == std::string::npos) {

@@ -38,7 +38,7 @@ private:
   DirectiveNode parseDirective();
 
   // Argument parsers
-  int parsePortValue_(int port);
+  int parsePortValue_(const std::string &portstr);
   bool parseBooleanValue_(const std::string &value);
   http::Method parseHttpMethod_(const std::string &method);
   int parseRedirectCode_(const std::string &value);
