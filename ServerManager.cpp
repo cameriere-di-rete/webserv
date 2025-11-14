@@ -11,12 +11,14 @@
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 ServerManager::ServerManager() : _efd(-1) {}
@@ -36,6 +38,20 @@ ServerManager::~ServerManager() {
 
 void ServerManager::initServers(std::vector<Server> &servers) {
   LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
+
+  /* Check for duplicate listen addresses before initializing */
+  std::set<std::pair<in_addr_t, int> > listen_addresses;
+  for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
+       ++it) {
+    std::pair<in_addr_t, int> addr(it->host, it->port);
+    if (listen_addresses.find(addr) != listen_addresses.end()) {
+      LOG(ERROR) << "Duplicate listen address found: "
+                 << inet_ntoa(*(in_addr *)&it->host) << ":" << it->port;
+      throw std::runtime_error("Duplicate listen address in configuration");
+    }
+    listen_addresses.insert(addr);
+  }
+
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
     LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr *)&it->host)
