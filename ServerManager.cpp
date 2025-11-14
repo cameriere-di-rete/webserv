@@ -33,19 +33,19 @@ ServerManager::~ServerManager() {
   shutdown();
 }
 
-void ServerManager::initServers(const std::vector<Server> &servers) {
+void ServerManager::initServers(std::vector<Server> &servers) {
   LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
-  for (std::vector<Server>::const_iterator it = servers.begin();
-       it != servers.end(); ++it) {
-    Server server = *it;
-    LOG(DEBUG) << "Initializing server on port " << server.port;
-    server.init();
+  for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
+       ++it) {
+    LOG(DEBUG) << "Initializing server on port " << it->port;
+    it->init();
     /* store by listening fd */
-    _servers[server.fd] = server;
-    LOG(DEBUG) << "Server registered with fd: " << server.fd;
+    _servers[it->fd] = *it;
+    LOG(DEBUG) << "Server registered with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
-    server.fd = -1;
+    it->fd = -1;
   }
+  servers.clear();
   LOG(INFO) << "All servers initialized successfully";
 }
 

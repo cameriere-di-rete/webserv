@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 int main(int argc, char **argv) {
   const char *path = (argc > 1) ? argv[1] : "./conf/default.conf";
@@ -19,7 +20,8 @@ int main(int argc, char **argv) {
 
     cfg.debug();
 
-    sm.initServers(cfg.getServers());
+    std::vector<Server> servers = cfg.getServers();
+    sm.initServers(servers);
     LOG(INFO) << "All servers initialized and ready to accept connections";
   } catch (const std::exception &e) {
     LOG(ERROR) << std::string("Error in config or server initialization: ") +
