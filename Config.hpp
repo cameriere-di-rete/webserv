@@ -51,7 +51,6 @@ private:
   std::pair<int, std::string>
   parseRedirect(const std::vector<std::string> &args);
   int parseStatusCode_(const std::string &value);
-  int parsePort_(const std::string &listen_arg);
   struct ListenInfo {
     in_addr_t host;
     int port;

@@ -629,24 +629,21 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
   LOG(DEBUG) << "Location block translation completed: " << loc.path;
 }
 
-int Config::parsePort_(const std::string &listen_arg) {
-  std::string portstr;
+// ==================== DIRECTIVE PARSERS ====================
+
+Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
+  Config::ListenInfo li;
   size_t colon_pos = listen_arg.find(':');
+
+  // Extract port string
+  std::string portstr;
   if (colon_pos != std::string::npos) {
     portstr = listen_arg.substr(colon_pos + 1);
   } else {
     portstr = listen_arg;
   }
-  return std::atoi(portstr.c_str());
-}
-
-// ==================== DIRECTIVE PARSERS ====================
-
-Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
-  Config::ListenInfo li;
-  li.port = parsePort_(listen_arg);
+  li.port = std::atoi(portstr.c_str());
   li.port = parsePortValue_(li.port);
-  size_t colon_pos = listen_arg.find(':');
 
   // no host
   if (colon_pos == std::string::npos) {
