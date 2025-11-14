@@ -405,6 +405,14 @@ Config::parseErrorPages(const std::vector<std::string> &args) {
   std::map<int, std::string> dest;
   for (size_t i = 0; i + 1 < args.size(); ++i) {
     int code = parseStatusCode_(args[i]);
+    if (!(http::isClientError(code) || http::isServerError(code))) {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Invalid error_page status code " << code
+          << " (must be 4xx or 5xx)";
+      std::string msg = oss.str();
+      LOG(ERROR) << msg;
+      throw std::runtime_error(msg);
+    }
     dest[code] = path;
   }
   return dest;
