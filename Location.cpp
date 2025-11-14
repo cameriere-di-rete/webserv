@@ -6,11 +6,11 @@ Location::Location()
       cgi(false), index(), autoindex(false), root(), error_page() {
   LOG(DEBUG) << "Location() default constructor called";
   // default allowed methods
-  allow_methods.insert(GET);
-  allow_methods.insert(POST);
-  allow_methods.insert(PUT);
-  allow_methods.insert(DELETE);
-  allow_methods.insert(HEAD);
+  allow_methods.insert(http::GET);
+  allow_methods.insert(http::POST);
+  allow_methods.insert(http::PUT);
+  allow_methods.insert(http::DELETE);
+  allow_methods.insert(http::HEAD);
   LOG(DEBUG)
       << "Location initialized with default allowed methods (GET, POST, PUT, "
          "DELETE, HEAD)";
@@ -21,11 +21,11 @@ Location::Location(const std::string &p)
       cgi(false), index(), autoindex(false), root(), error_page() {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
   // default allowed methods
-  allow_methods.insert(GET);
-  allow_methods.insert(POST);
-  allow_methods.insert(PUT);
-  allow_methods.insert(DELETE);
-  allow_methods.insert(HEAD);
+  allow_methods.insert(http::GET);
+  allow_methods.insert(http::POST);
+  allow_methods.insert(http::PUT);
+  allow_methods.insert(http::DELETE);
+  allow_methods.insert(http::HEAD);
   LOG(DEBUG) << "Location '" << path
              << "' initialized with default allowed methods";
 }

@@ -1,4 +1,6 @@
 #include "Config.hpp"
+#include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
 #include "Logger.hpp"
 #include "utils.hpp"
 #include <arpa/inet.h>
@@ -316,35 +318,25 @@ bool Config::parseBooleanValue_(const std::string &value) {
   throw std::runtime_error(oss.str());
 }
 
-Location::Method Config::parseHttpMethod_(const std::string &method) {
-  if (!isValidHttpMethod_(method)) {
-    std::ostringstream oss;
-    if (current_server_index_ != kGlobalContext) {
-      oss << "Configuration error in server #" << current_server_index_;
-      if (!current_location_path_.empty()) {
-        oss << " location '" << current_location_path_ << "'";
-      }
-    } else {
-      oss << "Configuration error";
+http::Method Config::parseHttpMethod_(const std::string &method) {
+  try {
+    return http::stringToMethod(method);
+  } catch (const std::invalid_argument &e) {
+    {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << ": " << e.what();
+      throw std::runtime_error(oss.str());
     }
-    oss << ": Invalid HTTP method '" << method
-        << "' (valid: GET, POST, DELETE, HEAD, PUT)";
-    throw std::runtime_error(oss.str());
   }
-  if (method == "GET")
-    return Location::GET;
-  if (method == "POST")
-    return Location::POST;
-  if (method == "PUT")
-    return Location::PUT;
-  if (method == "DELETE")
-    return Location::DELETE;
-  return Location::HEAD;
 }
 
 int Config::parseRedirectCode_(const std::string &value) {
   int code = std::atoi(value.c_str());
-  if (!isValidRedirectCode_(code)) {
+  if (http::isRedirect(code)) {
+    return code;
+  }
+
+  {
     std::ostringstream oss;
     if (current_server_index_ != kGlobalContext) {
       oss << "Configuration error in server #" << current_server_index_;
@@ -358,7 +350,6 @@ int Config::parseRedirectCode_(const std::string &value) {
         << " (valid: 301, 302, 303, 307, 308)";
     throw std::runtime_error(oss.str());
   }
-  return code;
 }
 
 std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
@@ -401,13 +392,13 @@ std::string Config::parsePath_(const std::string &path) {
 }
 
 // Validate a list of HTTP methods and populate the destination set with
-// Location::Method entries.
-std::set<Location::Method>
+// http::Method entries.
+std::set<http::Method>
 Config::parseMethods(const std::vector<std::string> &args) {
-  std::set<Location::Method> dest;
+  std::set<http::Method> dest;
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string &m = args[i];
-    Location::Method mm = parseHttpMethod_(m);
+    http::Method mm = parseHttpMethod_(m);
     dest.insert(mm);
   }
   return dest;
@@ -462,26 +453,9 @@ Config::parseRedirect(const std::vector<std::string> &args) {
   return std::make_pair(code, location);
 }
 
-// Out-param variant parsePositiveNumber_ removed; use
-// parsePositiveNumberValue_(...) which returns the parsed size_t.
-
-bool Config::isValidHttpMethod_(const std::string &method) {
-  return (method == "GET" || method == "POST" || method == "DELETE" ||
-          method == "HEAD" || method == "PUT");
-}
-
-bool Config::isValidRedirectCode_(int code) {
-  return (code == 301 || code == 302 || code == 303 || code == 307 ||
-          code == 308);
-}
-
-bool Config::isValidStatusCode_(int code) {
-  return (code >= 100 && code <= 599);
-}
-
 int Config::parseStatusCode_(const std::string &value) {
   int code = std::atoi(value.c_str());
-  if (!isValidStatusCode_(code)) {
+  if (!http::isValidStatusCode(code)) {
     std::ostringstream oss;
     if (current_server_index_ == kGlobalContext) {
       oss << "Configuration error: Invalid status code " << code;
@@ -514,8 +488,6 @@ bool Config::isPositiveNumber_(const std::string &value) {
 }
 
 // ==================== TRANSLATION/BUILDING METHODS ====================
-
-// buildServersFromRoot_ was inlined into getServers()
 
 void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
                                    size_t server_index) {

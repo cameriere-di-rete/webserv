@@ -1,5 +1,6 @@
 #include "ServerManager.hpp"
 #include "Connection.hpp"
+#include "HttpStatus.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
@@ -254,9 +255,11 @@ int ServerManager::run() {
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
         conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = 400;
-        conn.response.status_line.reason = "Bad Request";
-        conn.response.getBody().data = "400 Bad Request";
+        conn.response.status_line.status_code = http::BAD_REQUEST;
+        conn.response.status_line.reason =
+            http::reasonPhrase(http::BAD_REQUEST);
+        conn.response.getBody().data =
+            http::statusWithReason(conn.response.status_line.status_code);
         std::ostringstream oss;
         oss << conn.response.getBody().size();
         conn.response.addHeader("Content-Length", oss.str());
@@ -282,9 +285,11 @@ int ServerManager::run() {
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
         conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = 500;
-        conn.response.status_line.reason = "Internal Server Error";
-        conn.response.getBody().data = "500 Internal Server Error";
+        conn.response.status_line.status_code = http::INTERNAL_SERVER_ERROR;
+        conn.response.status_line.reason =
+            http::reasonPhrase(http::INTERNAL_SERVER_ERROR);
+        conn.response.getBody().data =
+            http::statusWithReason(conn.response.status_line.status_code);
         std::ostringstream oss_err;
         oss_err << conn.response.getBody().size();
         conn.response.addHeader("Content-Length", oss_err.str());
@@ -300,8 +305,8 @@ int ServerManager::run() {
       /* prepare 200 OK response echoing the request */
       LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
       conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = 200;
-      conn.response.status_line.reason = "OK";
+      conn.response.status_line.status_code = http::OK;
+      conn.response.status_line.reason = http::reasonPhrase(http::OK);
       conn.response.setBody(Body(conn.read_buffer));
       std::ostringstream oss2;
       oss2 << conn.response.getBody().size();

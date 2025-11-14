@@ -16,11 +16,11 @@ Server::Server(void)
       autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server() default constructor called";
   // Default allowed methods
-  allow_methods.insert(Location::GET);
-  allow_methods.insert(Location::POST);
-  allow_methods.insert(Location::PUT);
-  allow_methods.insert(Location::DELETE);
-  allow_methods.insert(Location::HEAD);
+  allow_methods.insert(http::GET);
+  allow_methods.insert(http::POST);
+  allow_methods.insert(http::PUT);
+  allow_methods.insert(http::DELETE);
+  allow_methods.insert(http::HEAD);
   LOG(DEBUG) << "Server initialized with default allowed methods";
 }
 
@@ -29,11 +29,11 @@ Server::Server(int port)
       autoindex(false), root(), error_page(), max_request_body(0), locations() {
   LOG(DEBUG) << "Server(port) constructor called with port: " << port;
   // Default allowed methods
-  allow_methods.insert(Location::GET);
-  allow_methods.insert(Location::POST);
-  allow_methods.insert(Location::PUT);
-  allow_methods.insert(Location::DELETE);
-  allow_methods.insert(Location::HEAD);
+  allow_methods.insert(http::GET);
+  allow_methods.insert(http::POST);
+  allow_methods.insert(http::PUT);
+  allow_methods.insert(http::DELETE);
+  allow_methods.insert(http::HEAD);
   LOG(DEBUG) << "Server on port " << port
              << " initialized with default allowed methods";
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "HttpMethod.hpp"
 #include <map>
 #include <set>
 #include <string>
@@ -12,14 +13,11 @@ public:
   Location &operator=(const Location &other);
   ~Location();
 
-  // Types
-  enum Method { GET, POST, PUT, DELETE, HEAD };
-
   // Location path identifier
   std::string path;
 
   // Location-specific configuration
-  std::set<Method> allow_methods;
+  std::set<http::Method> allow_methods;
   int redirect_code;
   std::string redirect_location;
   bool cgi;

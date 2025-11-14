@@ -56,20 +56,18 @@ private:
   // std::runtime_error on invalid values.
   int parsePortValue_(int port);
   bool parseBooleanValue_(const std::string &value);
-  Location::Method parseHttpMethod_(const std::string &method);
+  http::Method parseHttpMethod_(const std::string &method);
   int parseRedirectCode_(const std::string &value);
   std::size_t parsePositiveNumberValue_(const std::string &value);
   std::string parsePath_(const std::string &path);
   // Return-style parse helpers (convert+validate and return the value)
-  std::set<Location::Method> parseMethods(const std::vector<std::string> &args);
+  std::set<http::Method> parseMethods(const std::vector<std::string> &args);
   std::map<int, std::string>
   parseErrorPages(const std::vector<std::string> &args);
   std::pair<int, std::string>
   parseRedirect(const std::vector<std::string> &args);
-  bool isValidHttpMethod_(const std::string &method);
-  bool isValidRedirectCode_(int code);
   int parseStatusCode_(const std::string &value);
-  bool isValidStatusCode_(int code);
+
   bool isPositiveNumber_(const std::string &value);
 
   // Translation/building methods

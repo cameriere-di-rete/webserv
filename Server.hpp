@@ -19,7 +19,7 @@ public:
   int port;
   in_addr_t host;
 
-  std::set<Location::Method> allow_methods;
+  std::set<http::Method> allow_methods;
   std::set<std::string> index;
   bool autoindex;
   std::string root;
