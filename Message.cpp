@@ -6,15 +6,17 @@
 
 namespace {
 bool ci_equal_copy(const std::string &a, const std::string &b) {
-  if (a.size() != b.size())
+  if (a.size() != b.size()) {
     return false;
+  }
   for (std::string::size_type i = 0; i < a.size(); ++i) {
     char ca = a[i];
     char cb = b[i];
     ca = static_cast<char>(std::tolower(static_cast<unsigned char>(ca)));
     cb = static_cast<char>(std::tolower(static_cast<unsigned char>(cb)));
-    if (ca != cb)
+    if (ca != cb) {
       return false;
+    }
   }
   return true;
 }
@@ -55,8 +57,9 @@ std::vector<std::string> Message::getHeaders(const std::string &name) const {
   std::vector<std::string> res;
   for (std::vector<Header>::const_iterator it = headers.begin();
        it != headers.end(); ++it) {
-    if (ci_equal_copy(it->name, name))
+    if (ci_equal_copy(it->name, name)) {
       res.push_back(it->value);
+    }
   }
   return res;
 }
@@ -84,8 +87,9 @@ std::string Message::serializeHeaders() const {
 
 bool Message::parseHeaderLine(const std::string &line, Header &out) {
   std::string::size_type pos = line.find(':');
-  if (pos == std::string::npos)
+  if (pos == std::string::npos) {
     return false;
+  }
   out.name = trim_copy(line.substr(0, pos));
   out.value = trim_copy(line.substr(pos + 1));
   return true;
@@ -105,8 +109,9 @@ std::size_t Message::parseHeaders(const std::vector<std::string> &lines,
   std::size_t count = 0;
   for (std::vector<std::string>::size_type i = start; i < lines.size(); ++i) {
     const std::string &ln = lines[i];
-    if (ln.empty())
+    if (ln.empty()) {
       continue;
+    }
     Header h;
     if (parseHeaderLine(ln, h)) {
       headers.push_back(h);
