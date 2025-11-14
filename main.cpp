@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include "Logger.hpp"
 #include "ServerManager.hpp"
+#include "signals.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -65,8 +66,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  /* ignore SIGPIPE so a broken client won't kill the process when we write */
-  signal(SIGPIPE, SIG_IGN);
+  /* install signal handlers for graceful shutdown and ignore SIGPIPE */
+  setup_signal_handlers();
+
 
   return sm.run();
 }
