@@ -39,13 +39,13 @@ void setup_signal_handlers() {
   sigaddset(&mask, SIGHUP);
 
   // Block signals in the process; they'll be consumed via signalfd.
-  if (pthread_sigmask(SIG_BLOCK, &mask, NULL) == -1) {
+  if (pthread_sigmask(SIG_BLOCK, &mask, NULL) < 0) {
     LOG_PERROR(ERROR, "signals: pthread_sigmask");
     // fallback to traditional handlers below
   } else {
     // Try to create signalfd
     g_sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
-    if (g_sfd == -1) {
+    if (g_sfd < 0) {
       LOG_PERROR(ERROR, "signals: signalfd");
       // clear g_sfd so fallback will install handlers
       g_sfd = -1;
@@ -54,7 +54,7 @@ void setup_signal_handlers() {
     }
   }
 
-  if (g_sfd == -1) {
+  if (g_sfd < 0) {
     // fallback: install simple handlers and ignore SIGPIPE
     struct sigaction sa;
     sa.sa_handler = handle_signal;
@@ -106,7 +106,7 @@ bool process_signals_from_fd() {
   struct signalfd_siginfo fdsi;
   while (1) {
     ssize_t s = read(g_sfd, &fdsi, sizeof(fdsi));
-    if (s == -1) {
+    if (s < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         return stop_requested();
       LOG_PERROR(ERROR, "signals: read(signalfd)");
