@@ -7,8 +7,48 @@
 #include <string>
 #include <vector>
 
+int parseLogLevelFlag(const std::string &arg) {
+  // Guard 1: Lunghezza sbagliata
+  if (arg.length() != 4) {
+    return -1;
+  }
+
+  // Guard 2: Prefisso sbagliato
+  if (arg.compare(0, 3, "-l:") != 0) {
+    return -1;
+  }
+
+  // Guard 3: Valore invalido
+  char level = arg[3];
+  if (level < '0' || level > '2') {
+    return -1;
+  }
+
+  // Tutto ok
+  return level - '0';
+}
+
 int main(int argc, char **argv) {
-  const char *path = (argc > 1) ? argv[1] : "./webserv.conf";
+
+  // 0 = DEBUG, 1 = INFO, 2 = ERROR
+  // run `./webserv -l:N` to choose the log level
+
+  std::string path = "./webserv.conf";
+  int logLevel = 0;                           // Default: INFO
+
+  // Parse arguments
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    int level = parseLogLevelFlag(arg);
+
+    if (level >= 0) {
+      logLevel = level;
+    } else {
+      path = arg; // Sovrascrive se passato
+    }
+  }
+
+  Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
   std::vector<int> ports;
 
