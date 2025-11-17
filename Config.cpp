@@ -617,14 +617,12 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      {
-        std::map<int, std::string> parsed = parseErrorPages(d.args);
-        for (std::map<int, std::string>::const_iterator it = parsed.begin();
-             it != parsed.end(); ++it) {
-          loc.error_page[it->first] = it->second;
-          LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
-                     << it->second;
-        }
+      std::map<int, std::string> parsed = parseErrorPages(d.args);
+      for (std::map<int, std::string>::const_iterator it = parsed.begin();
+           it != parsed.end(); ++it) {
+        loc.error_page[it->first] = it->second;
+        LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
+                   << it->second;
       }
     } else if (d.name == "cgi" && !d.args.empty()) {
       loc.cgi = parseBooleanValue_(d.args[0]);
