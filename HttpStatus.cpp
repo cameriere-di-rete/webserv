@@ -108,44 +108,20 @@ std::string statusWithReason(Status s) {
   return oss.str();
 }
 
-bool isSuccess(int status) {
-  try {
-    Status s = intToStatus(status);
-    int code = static_cast<int>(s);
-    return code >= 200 && code <= 299;
-  } catch (const std::invalid_argument &) {
-    return false;
-  }
+bool isSuccess(Status s) {
+  return s >= 200 && s <= 299;
 }
 
-bool isRedirect(int status) {
-  try {
-    Status s = intToStatus(status);
-    int code = static_cast<int>(s);
-    return code >= 300 && code <= 399;
-  } catch (const std::invalid_argument &) {
-    return false;
-  }
+bool isRedirect(Status s) {
+  return s >= 300 && s <= 399;
 }
 
-bool isClientError(int status) {
-  try {
-    Status s = intToStatus(status);
-    int code = static_cast<int>(s);
-    return code >= 400 && code <= 499;
-  } catch (const std::invalid_argument &) {
-    return false;
-  }
+bool isClientError(Status s) {
+  return s >= 400 && s <= 499;
 }
 
-bool isServerError(int status) {
-  try {
-    Status s = intToStatus(status);
-    int code = static_cast<int>(s);
-    return code >= 500 && code <= 599;
-  } catch (const std::invalid_argument &) {
-    return false;
-  }
+bool isServerError(Status s) {
+  return s >= 500 && s <= 504;
 }
 
 bool isValidStatusCode(int status) {

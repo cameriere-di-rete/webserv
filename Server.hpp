@@ -23,7 +23,7 @@ public:
   std::set<std::string> index;
   bool autoindex;
   std::string root;
-  std::map<int, std::string> error_page;
+  std::map<http::Status, std::string> error_page;
   std::size_t max_request_body;
 
   std::map<std::string, Location> locations;

@@ -2,6 +2,7 @@
 
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
+#include "HttpStatus.hpp"
 #include "Server.hpp"
 #include <string>
 #include <vector>
@@ -21,7 +22,7 @@ private:
   std::vector<std::string> tokens_;
   BlockNode root_;
   std::vector<Server> servers_;
-  std::map<int, std::string> global_error_pages_;
+  std::map<http::Status, std::string> global_error_pages_;
   std::size_t global_max_request_body_;
   size_t idx_;
   static const size_t kGlobalContext = static_cast<size_t>(-1);
@@ -41,16 +42,16 @@ private:
   int parsePortValue_(const std::string &portstr);
   bool parseBooleanValue_(const std::string &value);
   http::Method parseHttpMethod_(const std::string &method);
-  int parseRedirectCode_(const std::string &value);
+  http::Status parseRedirectCode_(const std::string &value);
   std::size_t parsePositiveNumberValue_(const std::string &value);
   std::string parsePath_(const std::string &path);
   // Return-style parse helpers (convert+validate and return the value)
   std::set<http::Method> parseMethods(const std::vector<std::string> &args);
-  std::map<int, std::string>
+  std::map<http::Status, std::string>
   parseErrorPages(const std::vector<std::string> &args);
-  std::pair<int, std::string>
+  std::pair<http::Status, std::string>
   parseRedirect(const std::vector<std::string> &args);
-  int parseStatusCode_(const std::string &value);
+  http::Status parseStatusCode_(const std::string &value);
   struct ListenInfo {
     in_addr_t host;
     int port;
@@ -58,6 +59,16 @@ private:
   ListenInfo parseListen(const std::string &listen_arg);
 
   bool isPositiveNumber_(const std::string &value);
+
+  // Validate that an integer status code is a 4xx or 5xx error; throws on
+  // invalid
+  // Construct, log and throw the standardized invalid error_page status code
+  // message. Kept separate to avoid duplicate message construction.
+  // Validate that a status enum is a 4xx or 5xx error; throws on invalid
+  void validateErrorPageCode_(http::Status code) const;
+  // Construct, log and throw the standardized invalid error_page status code
+  // message. Kept separate to avoid duplicate message construction.
+  void throwInvalidErrorPageCode_(http::Status code) const;
 
   std::string configError(const std::string &detail) const;
   std::string configErrorPrefix() const;

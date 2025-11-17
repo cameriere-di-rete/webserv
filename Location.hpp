@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
 #include <map>
 #include <set>
 #include <string>
@@ -18,11 +19,11 @@ public:
 
   // Location-specific configuration
   std::set<http::Method> allow_methods;
-  int redirect_code;
+  http::Status redirect_code;
   std::string redirect_location;
   bool cgi;
   std::set<std::string> index;
   bool autoindex;
   std::string root;
-  std::map<int, std::string> error_page;
+  std::map<http::Status, std::string> error_page;
 };

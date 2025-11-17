@@ -113,12 +113,13 @@ std::vector<Server> Config::getServers(void) {
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode &d = root_.directives[i];
     if (d.name == "error_page") {
-      std::map<int, std::string> parsed = parseErrorPages(d.args);
-      for (std::map<int, std::string>::const_iterator it = parsed.begin();
+      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
+      for (std::map<http::Status, std::string>::const_iterator it =
+               parsed.begin();
            it != parsed.end(); ++it) {
         global_error_pages_[it->first] = it->second;
       }
-      for (std::map<int, std::string>::const_iterator it =
+      for (std::map<http::Status, std::string>::const_iterator it =
                global_error_pages_.begin();
            it != global_error_pages_.end(); ++it) {
         LOG(DEBUG) << "Global error_page: " << it->first << " -> "
@@ -342,18 +343,31 @@ http::Method Config::parseHttpMethod_(const std::string &method) {
   }
 }
 
-int Config::parseRedirectCode_(const std::string &value) {
+http::Status Config::parseRedirectCode_(const std::string &value) {
   std::size_t code_sz = parsePositiveNumberValue_(value);
   int code = static_cast<int>(code_sz);
-
-  if (code_sz > static_cast<std::size_t>(INT_MAX) || !http::isRedirect(code)) {
+  if (code_sz > static_cast<std::size_t>(INT_MAX)) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid redirect status code " << code
         << " (valid: 301, 302, 303, 307, 308)";
     throw std::runtime_error(oss.str());
   }
 
-  return code;
+  try {
+    http::Status s = http::intToStatus(code);
+    if (!http::isRedirect(s)) {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Invalid redirect status code " << code
+          << " (valid: 301, 302, 303, 307, 308)";
+      throw std::runtime_error(oss.str());
+    }
+    return s;
+  } catch (const std::invalid_argument &) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Invalid redirect status code " << code
+        << " (valid: 301, 302, 303, 307, 308)";
+    throw std::runtime_error(oss.str());
+  }
 }
 
 std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
@@ -394,7 +408,7 @@ Config::parseMethods(const std::vector<std::string> &args) {
 // Validate and populate error_page mappings. The args vector is expected
 // to have one or more status codes followed by a final path. For example:
 // ["500","502","/50x.html"]
-std::map<int, std::string>
+std::map<http::Status, std::string>
 Config::parseErrorPages(const std::vector<std::string> &args) {
   if (args.size() < 2) {
     std::ostringstream oss;
@@ -402,37 +416,46 @@ Config::parseErrorPages(const std::vector<std::string> &args) {
     throw std::runtime_error(oss.str());
   }
   const std::string &path = args[args.size() - 1];
-  std::map<int, std::string> dest;
+  std::map<http::Status, std::string> dest;
   for (size_t i = 0; i + 1 < args.size(); ++i) {
-    int code = parseStatusCode_(args[i]);
-    if (!(http::isClientError(code) || http::isServerError(code))) {
-      std::ostringstream oss;
-      oss << configErrorPrefix() << "Invalid error_page status code " << code
-          << " (must be 4xx or 5xx)";
-      std::string msg = oss.str();
-      LOG(ERROR) << msg;
-      throw std::runtime_error(msg);
-    }
+    http::Status code = parseStatusCode_(args[i]);
+    // centralised validation (now accepts enum)
+    validateErrorPageCode_(code);
     dest[code] = path;
   }
   return dest;
 }
 
+void Config::validateErrorPageCode_(http::Status code) const {
+  if (!(http::isClientError(code) || http::isServerError(code))) {
+    throwInvalidErrorPageCode_(code);
+  }
+}
+
+void Config::throwInvalidErrorPageCode_(http::Status code) const {
+  std::ostringstream oss;
+  oss << configErrorPrefix() << "Invalid error_page status code "
+      << static_cast<int>(code) << " (must be 4xx or 5xx)";
+  std::string msg = oss.str();
+  LOG(ERROR) << msg;
+  throw std::runtime_error(msg);
+}
+
 // Parse a redirect (return) directive. Expects at least two args:
 // [code, location]. Returns pair<code, location>.
-std::pair<int, std::string>
+std::pair<http::Status, std::string>
 Config::parseRedirect(const std::vector<std::string> &args) {
   if (args.size() < 2) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Directive requires at least two args";
     throw std::runtime_error(oss.str());
   }
-  int code = parseRedirectCode_(args[0]);
+  http::Status code = parseRedirectCode_(args[0]);
   std::string location = args[1];
   return std::make_pair(code, location);
 }
 
-int Config::parseStatusCode_(const std::string &value) {
+http::Status Config::parseStatusCode_(const std::string &value) {
   std::size_t code_sz = parsePositiveNumberValue_(value);
   int code = static_cast<int>(code_sz);
 
@@ -445,7 +468,7 @@ int Config::parseStatusCode_(const std::string &value) {
     throw std::runtime_error(msg);
   }
 
-  return code;
+  return http::intToStatus(code);
 }
 
 bool Config::isPositiveNumber_(const std::string &value) {
@@ -515,8 +538,9 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       srv.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      std::map<int, std::string> parsed = parseErrorPages(d.args);
-      for (std::map<int, std::string>::const_iterator it = parsed.begin();
+      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
+      for (std::map<http::Status, std::string>::const_iterator it =
+               parsed.begin();
            it != parsed.end(); ++it) {
         srv.error_page[it->first] = it->second;
         LOG(DEBUG) << "Server error_page: " << it->first << " -> "
@@ -610,15 +634,16 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
                  << " method(s)";
     } else if (d.name == "return" && d.args.size() >= 2) {
       {
-        std::pair<int, std::string> ret = parseRedirect(d.args);
+        std::pair<http::Status, std::string> ret = parseRedirect(d.args);
         loc.redirect_code = ret.first;
         loc.redirect_location = ret.second;
       }
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      std::map<int, std::string> parsed = parseErrorPages(d.args);
-      for (std::map<int, std::string>::const_iterator it = parsed.begin();
+      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
+      for (std::map<http::Status, std::string>::const_iterator it =
+               parsed.begin();
            it != parsed.end(); ++it) {
         loc.error_page[it->first] = it->second;
         LOG(DEBUG) << "  Location error_page: " << it->first << " -> "

@@ -3,8 +3,9 @@
 #include "utils.hpp"
 
 Location::Location()
-    : path(), allow_methods(), redirect_code(0), redirect_location(),
-      cgi(false), index(), autoindex(false), root(), error_page() {
+    : path(), allow_methods(), redirect_code(http::UNKNOWN),
+      redirect_location(), cgi(false), index(), autoindex(false), root(),
+      error_page() {
   LOG(DEBUG) << "Location() default constructor called";
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG)
@@ -13,8 +14,9 @@ Location::Location()
 }
 
 Location::Location(const std::string &p)
-    : path(p), allow_methods(), redirect_code(0), redirect_location(),
-      cgi(false), index(), autoindex(false), root(), error_page() {
+    : path(p), allow_methods(), redirect_code(http::UNKNOWN),
+      redirect_location(), cgi(false), index(), autoindex(false), root(),
+      error_page() {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Location '" << path
