@@ -88,7 +88,7 @@ std::vector<Server> Config::getServers(void) {
   // Ensure there is at least one server block
   if (root_.sub_blocks.empty()) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "No server blocks defined ";
+    oss << configErrorPrefix() << "No server blocks defined";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
@@ -130,9 +130,7 @@ std::vector<Server> Config::getServers(void) {
     }
   }
 
-  LOG(INFO) << "Configuration validated successfully";
-
-  LOG(INFO) << "Building server objects from configuration...";
+  LOG(DEBUG) << "Building server objects from configuration...";
   servers_.clear();
 
   for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
@@ -142,11 +140,11 @@ std::vector<Server> Config::getServers(void) {
       Server srv;
       translateServerBlock_(block, srv, i);
       servers_.push_back(srv);
-      LOG(INFO) << "Server #" << i << " created - Port: " << srv.port
-                << ", Locations: " << srv.locations.size();
+      LOG(DEBUG) << "Server #" << i << " created - Port: " << srv.port
+                 << ", Locations: " << srv.locations.size();
     }
   }
-  LOG(INFO) << "Built " << servers_.size() << " server(s)";
+  LOG(DEBUG) << "Built " << servers_.size() << " server(s)";
 
   return servers_;
 }
