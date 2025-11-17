@@ -31,7 +31,6 @@ enum Status {
 Status intToStatus(int status);
 
 std::string reasonPhrase(Status s);
-std::string statusToString(Status s);
 
 // Return a single string containing the numeric status and reason phrase,
 // e.g. "404 Not Found". Accept only the enum to avoid casts.
