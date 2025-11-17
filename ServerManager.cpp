@@ -134,16 +134,16 @@ int ServerManager::run() {
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
 
-  while (!shouldStop()) {
+  while (!_stop_requested) {
     int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
-        if (shouldStop()) {
+        if (_stop_requested) {
           LOG(INFO)
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
-        continue; /*r::shouldStop() const { interrupted by non-termination signal */
+        continue; /*r::_stop_requested const { interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       break;
@@ -157,7 +157,7 @@ int ServerManager::run() {
         if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
-        if (shouldStop()) {
+        if (_stop_requested) {
           break; // break out of for-loop; outer while will exit after check
         }
         continue;
@@ -348,10 +348,6 @@ bool ServerManager::processSignalsFromFd() {
     }
     LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
   }
-}
-
-bool ServerManager::shouldStop() const {
-  return _stop_requested;
 }
 
 void ServerManager::shutdown() {

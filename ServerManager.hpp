@@ -12,8 +12,8 @@ private:
   ServerManager &operator=(const ServerManager &other);
 
   int _efd;
-  int _sfd;  // fd per signalfd
-  bool _stop_requested;  // flag di stop
+  int _sfd;  // fd for signalfd
+  bool _stop_requested;  // stop flag
   std::map<int, Server> _servers;
   std::map<int, Connection> _connections;
 
@@ -30,8 +30,6 @@ public:
   void updateEvents(int fd, u_int32_t events);
 
   void setupSignalHandlers();
-
-  bool shouldStop() const;
 
   bool processSignalsFromFd();
 
