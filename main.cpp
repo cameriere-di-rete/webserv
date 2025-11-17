@@ -8,23 +8,23 @@
 #include <vector>
 
 int parseLogLevelFlag(const std::string &arg) {
-  // Guard 1: Lunghezza sbagliata
+  // Guard 1: Wrong length
   if (arg.length() != 4) {
     return -1;
   }
 
-  // Guard 2: Prefisso sbagliato
+  // Guard 2: Wrong prefix
   if (arg.compare(0, 3, "-l:") != 0) {
     return -1;
   }
 
-  // Guard 3: Valore invalido
+  // Guard 3: Invalid value
   char level = arg[3];
   if (level < '0' || level > '2') {
     return -1;
   }
 
-  // Tutto ok
+  // All good
   return level - '0';
 }
 
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   // run `./webserv -l:N` to choose the log level
 
   std::string path = "./webserv.conf";
-  int logLevel = 0;                           // Default: INFO
+  int logLevel = 1; // Default: INFO
 
   // Parse arguments
   for (int i = 1; i < argc; ++i) {
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     if (level >= 0) {
       logLevel = level;
     } else {
-      path = arg; // Sovrascrive se passato
+      path = arg; // Overwrite if passed
     }
   }
 
