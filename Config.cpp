@@ -665,7 +665,7 @@ Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
   if (li.host == INADDR_NONE) {
     std::ostringstream oss;
     oss << configErrorPrefix()
-        << ": Invalid IP address in listen directive: " << listen_arg;
+        << "Invalid IP address in listen directive: " << listen_arg;
     LOG(ERROR) << oss.str();
     throw std::runtime_error(oss.str());
   }
