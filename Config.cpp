@@ -500,7 +500,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
                  << srv.port;
       continue; // continue processing other directives
     } else if (d.name == "root" && !d.args.empty()) {
-      srv.root = parsePath_(d.args[0]);
+      srv.root = d.args[0];
       LOG(DEBUG) << "Server root: " << srv.root;
     } else if (d.name == "index" && !d.args.empty()) {
       std::set<std::string> idx;
@@ -594,7 +594,7 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
     const DirectiveNode &d = location_block.directives[i];
 
     if (d.name == "root" && !d.args.empty()) {
-      loc.root = parsePath_(d.args[0]);
+      loc.root = d.args[0];
       LOG(DEBUG) << "  Location root: " << loc.root;
     } else if (d.name == "index" && !d.args.empty()) {
       std::set<std::string> idx;

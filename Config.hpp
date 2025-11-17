@@ -43,7 +43,6 @@ private:
   bool parseBooleanValue_(const std::string &value);
   http::Method parseHttpMethod_(const std::string &method);
   http::Status parseRedirectCode_(const std::string &value);
-  std::string parsePath_(const std::string &path);
   std::size_t parsePositiveNumber_(const std::string &value);
   // Return-style parse helpers (convert+validate and return the value)
   std::set<http::Method> parseMethods(const std::vector<std::string> &args);
