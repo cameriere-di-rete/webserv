@@ -39,6 +39,8 @@ Config &Config::operator=(const Config &other) {
     servers_ = other.servers_;
     global_error_pages_ = other.global_error_pages_;
     global_max_request_body_ = other.global_max_request_body_;
+    current_server_index_ = other.current_server_index_;
+    current_location_path_ = other.current_location_path_;
   }
   return *this;
 }
