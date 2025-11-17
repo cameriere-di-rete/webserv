@@ -29,7 +29,8 @@ Config::Config(const Config &other)
     : tokens_(other.tokens_), root_(other.root_), servers_(other.servers_),
       global_error_pages_(other.global_error_pages_),
       global_max_request_body_(other.global_max_request_body_),
-      idx_(other.idx_) {}
+      idx_(other.idx_), current_server_index_(other.current_server_index_),
+      current_location_path_(other.current_location_path_) {}
 
 Config &Config::operator=(const Config &other) {
   if (this != &other) {
