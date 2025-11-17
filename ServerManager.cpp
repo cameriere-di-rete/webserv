@@ -36,9 +36,6 @@ ServerManager &ServerManager::operator=(const ServerManager &other) {
 ServerManager::~ServerManager() {
   LOG(DEBUG) << "Shutting down ServerManager...";
   shutdown();
-  if (_sfd >= 0) {
-    close(_sfd);
-  }
 }
 
 void ServerManager::initServers(const std::vector<int> &ports) {
@@ -146,7 +143,7 @@ int ServerManager::run() {
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
-        continue; /* interrupted by non-termination signal */
+        continue; /*r::shouldStop() const { interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       break;
@@ -286,13 +283,11 @@ int ServerManager::run() {
     }
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
-  // close signalfd if we created one
-
   return EXIT_SUCCESS;
 }
 
 void ServerManager::setupSignalHandlers() {
-    // Blocca i segnali che vogliamo gestire
+    // Block the signals we want to handle
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
@@ -304,14 +299,14 @@ void ServerManager::setupSignalHandlers() {
         return;
     }
 
-    // Crea signalfd
+    // Create signalfd
     _sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
     if (_sfd < 0) {
         LOG_PERROR(ERROR, "signalfd");
         return;
     }
 
-    // Ignora SIGPIPE
+    // Ignore SIGPIPE
     struct sigaction sa_pipe;
     std::memset(&sa_pipe, 0, sizeof(sa_pipe));
     sa_pipe.sa_handler = SIG_IGN;
@@ -324,41 +319,39 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-    if (_sfd < 0)
-    {
-      return _stop_requested;
+  if (_sfd < 0){
+    return _stop_requested;
+  }
+
+  struct signalfd_siginfo fdsi;
+  while (1) {
+    ssize_t s = read(_sfd, &fdsi, sizeof(fdsi));
+    if (s < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+          return _stop_requested;
+        }
+        LOG_PERROR(ERROR, "read(signalfd)");
+        return _stop_requested;
+    }
+    if (s != sizeof(fdsi)) {
+        continue;
     }
 
-    struct signalfd_siginfo fdsi;
-    while (1) {
-        ssize_t s = read(_sfd, &fdsi, sizeof(fdsi));
-        if (s < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-              return _stop_requested;
-            }
-            LOG_PERROR(ERROR, "read(signalfd)");
-            return _stop_requested;
-        }
-        if (s != sizeof(fdsi)) {
-            continue;
-        }
-
-        // Gestisci il segnale
-        if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
-            _stop_requested = true;
-            return true;
-        }
-        if (fdsi.ssi_signo == SIGHUP) {
-            LOG(INFO) << "signals: SIGHUP received";
-            continue;
-        }
-        LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
+    // Handle the signal
+    if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+        _stop_requested = true;
+        return true;
     }
+    if (fdsi.ssi_signo == SIGHUP) {
+        LOG(INFO) << "signals: SIGHUP received";
+        continue;
+    }
+    LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
+  }
 }
 
 bool ServerManager::shouldStop() const {
-    return _stop_requested;
+  return _stop_requested;
 }
 
 void ServerManager::shutdown() {
