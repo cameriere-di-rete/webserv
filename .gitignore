@@ -8,3 +8,6 @@ webserv
 
 # editors
 .swp
+
+.pid
+.log
