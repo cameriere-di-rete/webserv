@@ -549,11 +549,12 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
     throw std::runtime_error(msg);
   }
   if (srv.root.empty()) {
-    // Fill default root and validate (validatePath_ will only check non-empty)
-    srv.root = "./";
-    LOG(DEBUG) << "Server #" << server_index
-               << " root not set; defaulting to './'";
-    srv.root = parsePath_(srv.root);
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "server #" << server_index
+        << " missing 'root' directive";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
   }
 
   if (srv.max_request_body == 0 && global_max_request_body_ > 0) {
