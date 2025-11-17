@@ -272,9 +272,9 @@ int ServerManager::run() {
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
         conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = http::BAD_REQUEST;
+        conn.response.status_line.status_code = http::S_400_BAD_REQUEST;
         conn.response.status_line.reason =
-            http::reasonPhrase(http::BAD_REQUEST);
+            http::reasonPhrase(http::S_400_BAD_REQUEST);
         conn.response.getBody().data =
             http::statusWithReason(conn.response.status_line.status_code);
         std::ostringstream oss;
@@ -302,9 +302,10 @@ int ServerManager::run() {
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
         conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = http::INTERNAL_SERVER_ERROR;
+        conn.response.status_line.status_code =
+            http::S_500_INTERNAL_SERVER_ERROR;
         conn.response.status_line.reason =
-            http::reasonPhrase(http::INTERNAL_SERVER_ERROR);
+            http::reasonPhrase(http::S_500_INTERNAL_SERVER_ERROR);
         conn.response.getBody().data =
             http::statusWithReason(conn.response.status_line.status_code);
         std::ostringstream oss_err;
@@ -322,8 +323,8 @@ int ServerManager::run() {
       /* prepare 200 OK response echoing the request */
       LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
       conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = http::OK;
-      conn.response.status_line.reason = http::reasonPhrase(http::OK);
+      conn.response.status_line.status_code = http::S_200_OK;
+      conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
       conn.response.setBody(Body(conn.read_buffer));
       std::ostringstream oss2;
       oss2 << conn.response.getBody().size();

@@ -6,45 +6,45 @@ namespace http {
 
 std::string reasonPhrase(Status status) {
   switch (status) {
-  case 200:
+  case S_200_OK:
     return "OK";
-  case 400:
+  case S_400_BAD_REQUEST:
     return "Bad Request";
-  case 404:
+  case S_404_NOT_FOUND:
     return "Not Found";
-  case 500:
+  case S_500_INTERNAL_SERVER_ERROR:
     return "Internal Server Error";
-  case 201:
+  case S_201_CREATED:
     return "Created";
-  case 204:
+  case S_204_NO_CONTENT:
     return "No Content";
-  case 301:
+  case S_301_MOVED_PERMANENTLY:
     return "Moved Permanently";
-  case 302:
+  case S_302_FOUND:
     return "Found";
-  case 303:
+  case S_303_SEE_OTHER:
     return "See Other";
-  case 307:
+  case S_307_TEMPORARY_REDIRECT:
     return "Temporary Redirect";
-  case 308:
+  case S_308_PERMANENT_REDIRECT:
     return "Permanent Redirect";
-  case 401:
+  case S_401_UNAUTHORIZED:
     return "Unauthorized";
-  case 403:
+  case S_403_FORBIDDEN:
     return "Forbidden";
-  case 405:
+  case S_405_METHOD_NOT_ALLOWED:
     return "Method Not Allowed";
-  case 413:
+  case S_413_PAYLOAD_TOO_LARGE:
     return "Payload Too Large";
-  case 414:
+  case S_414_URI_TOO_LONG:
     return "URI Too Long";
-  case 501:
+  case S_501_NOT_IMPLEMENTED:
     return "Not Implemented";
-  case 502:
+  case S_502_BAD_GATEWAY:
     return "Bad Gateway";
-  case 503:
+  case S_503_SERVICE_UNAVAILABLE:
     return "Service Unavailable";
-  case 504:
+  case S_504_GATEWAY_TIMEOUT:
     return "Gateway Timeout";
   default:
     return "";
@@ -54,45 +54,45 @@ std::string reasonPhrase(Status status) {
 Status intToStatus(int status) {
   switch (status) {
   case 200:
-    return OK;
+    return S_200_OK;
   case 201:
-    return CREATED;
+    return S_201_CREATED;
   case 204:
-    return NO_CONTENT;
+    return S_204_NO_CONTENT;
   case 301:
-    return MOVED_PERMANENTLY;
+    return S_301_MOVED_PERMANENTLY;
   case 302:
-    return FOUND;
+    return S_302_FOUND;
   case 303:
-    return SEE_OTHER;
+    return S_303_SEE_OTHER;
   case 307:
-    return TEMPORARY_REDIRECT;
+    return S_307_TEMPORARY_REDIRECT;
   case 308:
-    return PERMANENT_REDIRECT;
+    return S_308_PERMANENT_REDIRECT;
   case 400:
-    return BAD_REQUEST;
+    return S_400_BAD_REQUEST;
   case 401:
-    return UNAUTHORIZED;
+    return S_401_UNAUTHORIZED;
   case 403:
-    return FORBIDDEN;
+    return S_403_FORBIDDEN;
   case 404:
-    return NOT_FOUND;
+    return S_404_NOT_FOUND;
   case 405:
-    return METHOD_NOT_ALLOWED;
+    return S_405_METHOD_NOT_ALLOWED;
   case 413:
-    return PAYLOAD_TOO_LARGE;
+    return S_413_PAYLOAD_TOO_LARGE;
   case 414:
-    return URI_TOO_LONG;
+    return S_414_URI_TOO_LONG;
   case 500:
-    return INTERNAL_SERVER_ERROR;
+    return S_500_INTERNAL_SERVER_ERROR;
   case 501:
-    return NOT_IMPLEMENTED;
+    return S_501_NOT_IMPLEMENTED;
   case 502:
-    return BAD_GATEWAY;
+    return S_502_BAD_GATEWAY;
   case 503:
-    return SERVICE_UNAVAILABLE;
+    return S_503_SERVICE_UNAVAILABLE;
   case 504:
-    return GATEWAY_TIMEOUT;
+    return S_504_GATEWAY_TIMEOUT;
   default:
     throw std::invalid_argument("Unknown HTTP status code");
   }

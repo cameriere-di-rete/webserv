@@ -4,8 +4,8 @@
 #include <sstream>
 
 StatusLine::StatusLine()
-    : version(HTTP_VERSION), status_code(http::OK),
-      reason(http::reasonPhrase(http::OK)) {}
+    : version(HTTP_VERSION), status_code(http::S_200_OK),
+      reason(http::reasonPhrase(http::S_200_OK)) {}
 
 StatusLine::StatusLine(const StatusLine &other)
     : version(other.version), status_code(other.status_code),
