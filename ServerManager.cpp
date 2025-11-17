@@ -64,6 +64,7 @@ void ServerManager::initServers(std::vector<Server> &servers) {
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
   }
+  /* clear servers after moving them to ServerManager */
   servers.clear();
   LOG(INFO) << "All servers initialized successfully";
 }
