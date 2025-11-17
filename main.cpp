@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   }
 
   ServerManager sm;
-  
+
   /* install signal handlers for graceful shutdown and ignore SIGPIPE */
   sm.setupSignalHandlers();
 

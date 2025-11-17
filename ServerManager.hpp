@@ -12,8 +12,8 @@ private:
   ServerManager &operator=(const ServerManager &other);
 
   int _efd;
-  int _sfd;  // fd for signalfd
-  bool _stop_requested;  // stop flag
+  int _sfd;             // fd for signalfd
+  bool _stop_requested; // stop flag
   std::map<int, Server> _servers;
   std::map<int, Connection> _connections;
 

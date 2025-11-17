@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include <arpa/inet.h>
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,15 +14,13 @@
 #include <sstream>
 #include <string>
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
-#include <sys/signalfd.h>
-#include <csignal>
 
-ServerManager::ServerManager() : _efd(-1), _sfd(-1), _stop_requested(false) {
-}
+ServerManager::ServerManager() : _efd(-1), _sfd(-1), _stop_requested(false) {}
 
 ServerManager::ServerManager(const ServerManager &other)
     : _efd(-1), _sfd(-1), _stop_requested(false) {
@@ -143,7 +142,8 @@ int ServerManager::run() {
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
-        continue; /*r::_stop_requested const { interrupted by non-termination signal */
+        continue; /*r::_stop_requested const { interrupted by non-termination
+                     signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       break;
@@ -287,39 +287,39 @@ int ServerManager::run() {
 }
 
 void ServerManager::setupSignalHandlers() {
-    // Block the signals we want to handle
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGTERM);
-    sigaddset(&mask, SIGHUP);
+  // Block the signals we want to handle
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGTERM);
+  sigaddset(&mask, SIGHUP);
 
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
-        LOG_PERROR(ERROR, "sigprocmask");
-        return;
-    }
+  if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
+    LOG_PERROR(ERROR, "sigprocmask");
+    return;
+  }
 
-    // Create signalfd
-    _sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
-    if (_sfd < 0) {
-        LOG_PERROR(ERROR, "signalfd");
-        return;
-    }
+  // Create signalfd
+  _sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+  if (_sfd < 0) {
+    LOG_PERROR(ERROR, "signalfd");
+    return;
+  }
 
-    // Ignore SIGPIPE
-    struct sigaction sa_pipe;
-    std::memset(&sa_pipe, 0, sizeof(sa_pipe));
-    sa_pipe.sa_handler = SIG_IGN;
-    sigemptyset(&sa_pipe.sa_mask);
-    if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
-        LOG_PERROR(ERROR, "sigaction(SIGPIPE)");
-    }
+  // Ignore SIGPIPE
+  struct sigaction sa_pipe;
+  std::memset(&sa_pipe, 0, sizeof(sa_pipe));
+  sa_pipe.sa_handler = SIG_IGN;
+  sigemptyset(&sa_pipe.sa_mask);
+  if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
+    LOG_PERROR(ERROR, "sigaction(SIGPIPE)");
+  }
 
-    LOG(INFO) << "signals: signalfd installed and signals blocked";
+  LOG(INFO) << "signals: signalfd installed and signals blocked";
 }
 
 bool ServerManager::processSignalsFromFd() {
-  if (_sfd < 0){
+  if (_sfd < 0) {
     return _stop_requested;
   }
 
@@ -327,24 +327,24 @@ bool ServerManager::processSignalsFromFd() {
   while (1) {
     ssize_t s = read(_sfd, &fdsi, sizeof(fdsi));
     if (s < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-          return _stop_requested;
-        }
-        LOG_PERROR(ERROR, "read(signalfd)");
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return _stop_requested;
+      }
+      LOG_PERROR(ERROR, "read(signalfd)");
+      return _stop_requested;
     }
     if (s != sizeof(fdsi)) {
-        continue;
+      continue;
     }
 
     // Handle the signal
     if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
-        _stop_requested = true;
-        return true;
+      _stop_requested = true;
+      return true;
     }
     if (fdsi.ssi_signo == SIGHUP) {
-        LOG(INFO) << "signals: SIGHUP received";
-        continue;
+      LOG(INFO) << "signals: SIGHUP received";
+      continue;
     }
     LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
   }
