@@ -1,181 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>webserv</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        h1 {
-            color: #333;
-            font-size: 24px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .stat-card h3 {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-card .value {
-            color: #333;
-            font-size: 32px;
-            font-weight: bold;
-        }
-
-        .content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-
-        .panel {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .panel h2 {
-            color: #333;
-            font-size: 18px;
-            margin-bottom: 15px;
-        }
-
-        .list-item {
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .list-item:last-child {
-            border-bottom: none;
-        }
-
-        .list-item .title {
-            color: #333;
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-
-        .list-item .subtitle {
-            color: #999;
-            font-size: 14px;
-        }
-
-        @media (max-width: 768px) {
-            .content {
-                grid-template-columns: 1fr;
-            }
-        }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0b0f12;
+        color: #e6eef6;
+        font-family: ui-monospace, monospace;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .box {
+        text-align: center;
+        padding: 2rem;
+      }
+      .title {
+        font-size: 3rem;
+        margin: 0;
+        letter-spacing: 0.02em;
+      }
+      .by {
+        margin-top: 0.5rem;
+        font-size: 1rem;
+        color: #9fb0c8;
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Dashboard</h1>
-        </header>
-
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Total Users</h3>
-                <div class="value">1,234</div>
-            </div>
-            <div class="stat-card">
-                <h3>Revenue</h3>
-                <div class="value">$12,345</div>
-            </div>
-            <div class="stat-card">
-                <h3>Active Sessions</h3>
-                <div class="value">89</div>
-            </div>
-
-        </div>
-
-        <div class="content">
-            <div class="panel">
-                <h2>Recent Activity</h2>
-                <div class="list-item">
-                    <div class="title">New user registration</div>
-                    <div class="subtitle">2 minutes ago</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Order completed</div>
-                    <div class="subtitle">15 minutes ago</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Payment received</div>
-                    <div class="subtitle">1 hour ago</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">New comment posted</div>
-                    <div class="subtitle">2 hours ago</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Product updated</div>
-                    <div class="subtitle">3 hours ago</div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h2>Quick Stats</h2>
-                <div class="list-item">
-                    <div class="title">New Users Today</div>
-                    <div class="subtitle">47 users</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Pending Orders</div>
-                    <div class="subtitle">12 orders</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Support Tickets</div>
-                    <div class="subtitle">5 open</div>
-                </div>
-                <div class="list-item">
-                    <div class="title">Server Status</div>
-                    <div class="subtitle">All systems operational</div>
-                </div>
-            </div>
-        </div>
+  </head>
+  <body>
+    <div class="box">
+      <h1 class="title">webserv</h1>
+      <div class="by">by fmartusc, edforte, lrocca</div>
     </div>
-</body>
+  </body>
 </html>
