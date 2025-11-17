@@ -595,13 +595,11 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       loc.root = parsePath_(d.args[0]);
       LOG(DEBUG) << "  Location root: " << loc.root;
     } else if (d.name == "index" && !d.args.empty()) {
-      {
-        std::set<std::string> idx;
-        for (size_t j = 0; j < d.args.size(); ++j) {
-          idx.insert(trim_copy(d.args[j]));
-        }
-        loc.index = idx;
+      std::set<std::string> idx;
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        idx.insert(trim_copy(d.args[j]));
       }
+      loc.index = idx;
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
       loc.autoindex = parseBooleanValue_(d.args[0]);
