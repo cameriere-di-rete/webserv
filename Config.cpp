@@ -245,12 +245,6 @@ std::string Config::configErrorPrefix() const {
   return oss.str();
 }
 
-std::string Config::configError(const std::string &detail) const {
-  std::ostringstream oss;
-  oss << configErrorPrefix() << detail;
-  return oss.str();
-}
-
 bool Config::eof() const {
   return idx_ >= tokens_.size();
 }

@@ -70,7 +70,6 @@ private:
   // message. Kept separate to avoid duplicate message construction.
   void throwInvalidErrorPageCode_(http::Status code) const;
 
-  std::string configError(const std::string &detail) const;
   std::string configErrorPrefix() const;
 
   // Translation/building methods
