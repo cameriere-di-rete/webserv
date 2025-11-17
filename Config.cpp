@@ -151,6 +151,23 @@ std::vector<Server> Config::getServers(void) {
   return servers_;
 }
 
+// ==================== ERROR HELPER ====================
+
+// Return the appropriate configuration error prefix depending on context.
+std::string Config::configErrorPrefix() const {
+  std::ostringstream oss;
+  if (current_server_index_ != kGlobalContext) {
+    oss << "Configuration error in server #" << current_server_index_;
+    if (!current_location_path_.empty()) {
+      oss << " location '" << current_location_path_ << "'";
+    }
+  } else {
+    oss << "Configuration error";
+  }
+  oss << ": ";
+  return oss.str();
+}
+
 // ==================== DEBUG OUTPUT ====================
 
 static void _printBlockRec(const BlockNode &b, int indent) {
@@ -223,21 +240,6 @@ void Config::tokenize(const std::string &content) {
     tokens_.push_back(cur);
   }
   idx_ = 0;
-}
-
-// Return the appropriate configuration error prefix depending on context.
-std::string Config::configErrorPrefix() const {
-  std::ostringstream oss;
-  if (current_server_index_ != kGlobalContext) {
-    oss << "Configuration error in server #" << current_server_index_;
-    if (!current_location_path_.empty()) {
-      oss << " location '" << current_location_path_ << "'";
-    }
-  } else {
-    oss << "Configuration error";
-  }
-  oss << ": ";
-  return oss.str();
 }
 
 bool Config::eof() const {
