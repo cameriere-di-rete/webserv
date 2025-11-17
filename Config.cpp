@@ -327,7 +327,7 @@ bool Config::parseBooleanValue_(const std::string &value) {
     return false;
   }
   std::ostringstream oss;
-  oss << configErrorPrefix() << ": Invalid boolean value '" << value
+  oss << configErrorPrefix() << "Invalid boolean value '" << value
       << "' (expected: on/off)";
   throw std::runtime_error(oss.str());
 }
