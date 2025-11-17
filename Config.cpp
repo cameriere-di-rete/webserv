@@ -636,11 +636,9 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
       LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
                  << " method(s)";
     } else if (d.name == "return" && d.args.size() >= 2) {
-      {
-        std::pair<http::Status, std::string> ret = parseRedirect(d.args);
-        loc.redirect_code = ret.first;
-        loc.redirect_location = ret.second;
-      }
+      std::pair<http::Status, std::string> ret = parseRedirect(d.args);
+      loc.redirect_code = ret.first;
+      loc.redirect_location = ret.second;
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
     } else if (d.name == "error_page" && d.args.size() >= 2) {
