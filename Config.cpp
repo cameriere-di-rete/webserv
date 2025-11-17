@@ -124,7 +124,7 @@ std::vector<Server> Config::getServers(void) {
                    << it->second;
       }
     } else if (d.name == "max_request_body" && d.args.size() >= 1) {
-      global_max_request_body_ = parsePositiveNumberValue_(d.args[0]);
+      global_max_request_body_ = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
     }
@@ -303,7 +303,7 @@ BlockNode Config::parseBlock() {
 // ==================== VALIDATION METHODS ====================
 
 int Config::parsePortValue_(const std::string &portstr) {
-  std::size_t n = parsePositiveNumberValue_(portstr);
+  std::size_t n = parsePositiveNumber_(portstr);
   if (n < 1 || n > 65535) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid port number " << n
@@ -338,7 +338,7 @@ http::Method Config::parseHttpMethod_(const std::string &method) {
 }
 
 http::Status Config::parseRedirectCode_(const std::string &value) {
-  std::size_t code_sz = parsePositiveNumberValue_(value);
+  std::size_t code_sz = parsePositiveNumber_(value);
   int code = static_cast<int>(code_sz);
   if (code_sz > static_cast<std::size_t>(INT_MAX)) {
     std::ostringstream oss;
@@ -364,26 +364,37 @@ http::Status Config::parseRedirectCode_(const std::string &value) {
   }
 }
 
-std::size_t Config::parsePositiveNumberValue_(const std::string &value) {
-  if (!isPositiveNumber_(value)) {
+std::size_t Config::parsePositiveNumber_(const std::string &value) {
+  for (size_t i = 0; i < value.size(); ++i) {
+    if (value[i] < '0' || value[i] > '9') {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Invalid positive number '" << value << "'";
+      throw std::runtime_error(oss.str());
+    }
+  }
+
+  errno = 0;
+  char *endptr = NULL;
+  long num = std::strtol(value.c_str(), &endptr, 10);
+
+  if (errno == ERANGE) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Numeric value out of range: '" << value
+        << "'";
+    throw std::runtime_error(oss.str());
+  }
+  if (endptr == NULL || *endptr != '\0') {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Invalid numeric value '" << value << "'";
+    throw std::runtime_error(oss.str());
+  }
+  if (num <= 0) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid positive number '" << value << "'";
     throw std::runtime_error(oss.str());
   }
-  // Safe to use strtol here since isPositiveNumber_ already validated it
-  errno = 0;
-  char *endptr;
-  long num = std::strtol(value.c_str(), &endptr, 10);
-  return static_cast<std::size_t>(num);
-}
 
-std::string Config::parsePath_(const std::string &path) {
-  if (path.empty()) {
-    std::ostringstream oss;
-    oss << configErrorPrefix() << "Path provided is empty";
-    throw std::runtime_error(oss.str());
-  }
-  return path;
+  return static_cast<std::size_t>(num);
 }
 
 // Validate a list of HTTP methods and populate the destination set with
@@ -450,7 +461,7 @@ Config::parseRedirect(const std::vector<std::string> &args) {
 }
 
 http::Status Config::parseStatusCode_(const std::string &value) {
-  std::size_t code_sz = parsePositiveNumberValue_(value);
+  std::size_t code_sz = parsePositiveNumber_(value);
   int code = static_cast<int>(code_sz);
 
   if (code_sz > static_cast<std::size_t>(INT_MAX) ||
@@ -463,33 +474,6 @@ http::Status Config::parseStatusCode_(const std::string &value) {
   }
 
   return http::intToStatus(code);
-}
-
-bool Config::isPositiveNumber_(const std::string &value) {
-  if (value.empty()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < value.size(); ++i) {
-    if (value[i] < '0' || value[i] > '9') {
-      return false;
-    }
-  }
-
-  // Use strtol with error checking to detect overflow
-  errno = 0;
-  char *endptr;
-  long num = std::strtol(value.c_str(), &endptr, 10);
-
-  // Check for conversion errors:
-  // - errno is set to ERANGE if overflow/underflow occurred
-  // - endptr should point to the end of the string (all characters consumed)
-  // - num must be positive
-  if (errno == ERANGE || *endptr != '\0' || num <= 0 || num == LONG_MAX) {
-    return false;
-  }
-
-  return true;
 }
 
 // ==================== TRANSLATION/BUILDING METHODS ====================
@@ -541,7 +525,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
                    << it->second;
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
-      srv.max_request_body = parsePositiveNumberValue_(d.args[0]);
+      srv.max_request_body = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
     }
   }

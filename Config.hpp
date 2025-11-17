@@ -43,8 +43,8 @@ private:
   bool parseBooleanValue_(const std::string &value);
   http::Method parseHttpMethod_(const std::string &method);
   http::Status parseRedirectCode_(const std::string &value);
-  std::size_t parsePositiveNumberValue_(const std::string &value);
   std::string parsePath_(const std::string &path);
+  std::size_t parsePositiveNumber_(const std::string &value);
   // Return-style parse helpers (convert+validate and return the value)
   std::set<http::Method> parseMethods(const std::vector<std::string> &args);
   std::map<http::Status, std::string>
@@ -57,8 +57,6 @@ private:
     int port;
   };
   ListenInfo parseListen(const std::string &listen_arg);
-
-  bool isPositiveNumber_(const std::string &value);
 
   // Validate that an integer status code is a 4xx or 5xx error; throws on
   // invalid
