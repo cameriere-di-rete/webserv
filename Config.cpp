@@ -434,8 +434,8 @@ void Config::validateErrorPageCode_(http::Status code) const {
 
 void Config::throwInvalidErrorPageCode_(http::Status code) const {
   std::ostringstream oss;
-  oss << configErrorPrefix() << "Invalid error_page status code "
-      << static_cast<int>(code) << " (must be 4xx or 5xx)";
+  oss << configErrorPrefix() << "Invalid error_page status code " << code
+      << " (must be 4xx or 5xx)";
   std::string msg = oss.str();
   LOG(ERROR) << msg;
   throw std::runtime_error(msg);
