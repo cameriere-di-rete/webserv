@@ -116,12 +116,7 @@ std::vector<Server> Config::getServers(void) {
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode &d = root_.directives[i];
     if (d.name == "error_page") {
-      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
-      for (std::map<http::Status, std::string>::const_iterator it =
-               parsed.begin();
-           it != parsed.end(); ++it) {
-        global_error_pages_[it->first] = it->second;
-      }
+      global_error_pages_ = parseErrorPages(d.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                global_error_pages_.begin();
            it != global_error_pages_.end(); ++it) {
