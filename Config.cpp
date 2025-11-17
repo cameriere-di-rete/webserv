@@ -502,13 +502,11 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       srv.root = parsePath_(d.args[0]);
       LOG(DEBUG) << "Server root: " << srv.root;
     } else if (d.name == "index" && !d.args.empty()) {
-      {
-        std::set<std::string> idx;
-        for (size_t j = 0; j < d.args.size(); ++j) {
-          idx.insert(trim_copy(d.args[j]));
-        }
-        srv.index = idx;
+      std::set<std::string> idx;
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        idx.insert(trim_copy(d.args[j]));
       }
+      srv.index = idx;
       LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex" && !d.args.empty()) {
       srv.autoindex = parseBooleanValue_(d.args[0]);
@@ -517,14 +515,12 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
       srv.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
     } else if (d.name == "error_page" && d.args.size() >= 2) {
-      {
-        std::map<int, std::string> parsed = parseErrorPages(d.args);
-        for (std::map<int, std::string>::const_iterator it = parsed.begin();
-             it != parsed.end(); ++it) {
-          srv.error_page[it->first] = it->second;
-          LOG(DEBUG) << "Server error_page: " << it->first << " -> "
-                     << it->second;
-        }
+      std::map<int, std::string> parsed = parseErrorPages(d.args);
+      for (std::map<int, std::string>::const_iterator it = parsed.begin();
+           it != parsed.end(); ++it) {
+        srv.error_page[it->first] = it->second;
+        LOG(DEBUG) << "Server error_page: " << it->first << " -> "
+                   << it->second;
       }
     } else if (d.name == "max_request_body" && !d.args.empty()) {
       srv.max_request_body = parsePositiveNumberValue_(d.args[0]);
