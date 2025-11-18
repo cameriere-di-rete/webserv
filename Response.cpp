@@ -21,10 +21,12 @@ std::string Response::startLine() const {
 }
 
 bool Response::parseStartAndHeaders(const std::vector<std::string> &lines) {
-  if (lines.empty())
+  if (lines.empty()) {
     return false;
-  if (!status_line.parse(lines[0]))
+  }
+  if (!status_line.parse(lines[0])) {
     return false;
+  }
   parseHeaders(lines, 1);
   return true;
 }

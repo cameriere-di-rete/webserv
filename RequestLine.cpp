@@ -25,7 +25,8 @@ std::string RequestLine::toString() const {
 
 bool RequestLine::parse(const std::string &line) {
   std::istringstream in(line);
-  if (!(in >> method >> uri >> version))
+  if (!(in >> method >> uri >> version)) {
     return false;
+  }
   return true;
 }

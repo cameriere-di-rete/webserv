@@ -20,10 +20,12 @@ std::string Request::startLine() const {
 }
 
 bool Request::parseStartAndHeaders(const std::vector<std::string> &lines) {
-  if (lines.empty())
+  if (lines.empty()) {
     return false;
-  if (!request_line.parse(lines[0]))
+  }
+  if (!request_line.parse(lines[0])) {
     return false;
+  }
   parseHeaders(lines, 1);
   return true;
 }
