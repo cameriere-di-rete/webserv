@@ -8,16 +8,16 @@
 // constructed by the LOG(...) macro.
 
 Logger::Logger(LogLevel level, const char *file, int line)
-    : _msgLevel(level), _file(file), _line(line) {}
+    : msgLevel_(level), file_(file), line_(line) {}
 
 Logger::~Logger() {
   std::ostringstream o;
-  o << "(" << _file << ":" << _line << ") " << _stream.str();
-  Logger::log(_msgLevel, o.str());
+  o << "(" << file_ << ":" << line_ << ") " << stream_.str();
+  Logger::log(msgLevel_, o.str());
 }
 
 std::ostringstream &Logger::stream() {
-  return _stream;
+  return stream_;
 }
 
 // Map numeric LOG_LEVEL macro to the LogLevel enum. Define LOG_LEVEL in
@@ -27,12 +27,12 @@ std::ostringstream &Logger::stream() {
 #define LOG_LEVEL Logger::INFO
 #endif
 
-Logger::LogLevel Logger::_level = static_cast<Logger::LogLevel>(
+Logger::LogLevel Logger::level_ = static_cast<Logger::LogLevel>(
     (LOG_LEVEL >= Logger::DEBUG && LOG_LEVEL <= Logger::ERROR) ? LOG_LEVEL
                                                                : Logger::INFO);
 
 void Logger::setLevel(LogLevel level) {
-  _level = level;
+  level_ = level;
 }
 
 std::string Logger::getCurrentTime() {
@@ -57,7 +57,7 @@ std::string Logger::levelToString(LogLevel level) {
 }
 
 void Logger::log(LogLevel level, const std::string &message) {
-  if (level < _level) {
+  if (level < level_) {
     return;
   }
 
@@ -78,5 +78,5 @@ void Logger::error(const std::string &message) {
 }
 
 void Logger::printStartupLevel() {
-  std::cout << "Effective log level: " << levelToString(_level) << std::endl;
+  std::cout << "Effective log level: " << levelToString(level_) << std::endl;
 }

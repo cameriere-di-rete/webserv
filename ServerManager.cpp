@@ -18,9 +18,9 @@
 #include <unistd.h>
 #include <vector>
 
-ServerManager::ServerManager() : _efd(-1) {}
+ServerManager::ServerManager() : efd_(-1) {}
 
-ServerManager::ServerManager(const ServerManager &other) : _efd(-1) {
+ServerManager::ServerManager(const ServerManager &other) : efd_(-1) {
   (void)other;
 }
 
@@ -39,7 +39,7 @@ void ServerManager::initServers(const std::vector<int> &ports) {
     Server server(*it);
     server.init();
     /* store by listening fd */
-    _servers[server.fd] = server;
+    servers_[server.fd] = server;
     /* prevent server destructor from closing the fd of the temporary */
     server.fd = -1;
   }
@@ -66,7 +66,7 @@ void ServerManager::acceptConnection(int listen_fd) {
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */
     connection.server_fd = listen_fd;
-    _connections[conn_fd] = connection;
+    connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
     updateEvents(conn_fd, EPOLLIN | EPOLLET);
@@ -74,7 +74,7 @@ void ServerManager::acceptConnection(int listen_fd) {
 }
 
 void ServerManager::updateEvents(int fd, uint32_t events) {
-  if (_efd < 0) {
+  if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
   }
@@ -83,9 +83,9 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
   ev.events = events;
   ev.data.fd = fd;
 
-  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+      if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
       }
     } else {
@@ -96,20 +96,20 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
 
 int ServerManager::run() {
   /* create epoll instance */
-  _efd = epoll_create1(0);
-  if (_efd < 0) {
+  efd_ = epoll_create1(0);
+  if (efd_ < 0) {
     LOG_PERROR(ERROR, "epoll_create1");
     return EXIT_FAILURE;
   }
 
   /* register listener fds */
-  for (std::map<int, Server>::const_iterator it = _servers.begin();
-       it != _servers.end(); ++it) {
+  for (std::map<int, Server>::const_iterator it = servers_.begin();
+       it != servers_.end(); ++it) {
     int listen_fd = it->first;
     struct epoll_event ev;
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
+    if (epoll_ctl(efd_, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
       LOG_PERROR(ERROR, "epoll_ctl ADD listen_fd");
       return EXIT_FAILURE;
     }
@@ -119,7 +119,7 @@ int ServerManager::run() {
   struct epoll_event events[MAX_EVENTS];
 
   while (1) {
-    int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
+    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
         continue; /* interrupted by signal */
@@ -131,14 +131,14 @@ int ServerManager::run() {
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
 
-      std::map<int, Server>::iterator s_it = _servers.find(fd);
-      if (s_it != _servers.end()) {
+      std::map<int, Server>::iterator s_it = servers_.find(fd);
+      if (s_it != servers_.end()) {
         acceptConnection(fd);
         continue;
       }
 
-      std::map<int, Connection>::iterator c_it = _connections.find(fd);
-      if (c_it == _connections.end()) {
+      std::map<int, Connection>::iterator c_it = connections_.find(fd);
+      if (c_it == connections_.end()) {
         continue; /* unknown fd */
       }
 
@@ -151,7 +151,7 @@ int ServerManager::run() {
 
         if (status < 0) {
           close(fd);
-          _connections.erase(fd);
+          connections_.erase(fd);
           continue;
         }
 
@@ -167,15 +167,15 @@ int ServerManager::run() {
 
         if (status <= 0) {
           close(fd);
-          _connections.erase(fd);
+          connections_.erase(fd);
         }
       }
     }
 
     /* After processing events, iterate connections to prepare responses
        for those that completed reading but don't yet have a write buffer. */
-    for (std::map<int, Connection>::iterator it = _connections.begin();
-         it != _connections.end(); ++it) {
+    for (std::map<int, Connection>::iterator it = connections_.begin();
+         it != connections_.end(); ++it) {
       Connection &conn = it->second;
       int conn_fd = it->first;
 
@@ -256,21 +256,21 @@ int ServerManager::run() {
 }
 
 void ServerManager::shutdown() {
-  if (_efd >= 0) {
-    close(_efd);
-    _efd = -1;
+  if (efd_ >= 0) {
+    close(efd_);
+    efd_ = -1;
   }
   // close all connection fds
-  for (std::map<int, Connection>::iterator it = _connections.begin();
-       it != _connections.end(); ++it) {
+  for (std::map<int, Connection>::iterator it = connections_.begin();
+       it != connections_.end(); ++it) {
     close(it->first);
   }
-  _connections.clear();
+  connections_.clear();
 
   // close listening fds
-  for (std::map<int, Server>::iterator it = _servers.begin();
-       it != _servers.end(); ++it) {
+  for (std::map<int, Server>::iterator it = servers_.begin();
+       it != servers_.end(); ++it) {
     it->second.disconnect();
   }
-  _servers.clear();
+  servers_.clear();
 }
