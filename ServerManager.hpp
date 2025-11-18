@@ -13,9 +13,9 @@ class ServerManager {
   ServerManager(const ServerManager& other);
   ServerManager& operator=(const ServerManager& other);
 
-  int _efd;
-  std::map<int, Server> _servers;
-  std::map<int, Connection> _connections;
+  int efd_;
+  std::map<int, Server> servers_;
+  std::map<int, Connection> connections_;
 
  public:
   ServerManager();

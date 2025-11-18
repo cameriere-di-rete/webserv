@@ -21,13 +21,13 @@ class Logger {
 
  private:
   // Instance fields used by the temporary RAII Logger
-  LogLevel _msgLevel;
-  const char* _file;
-  int _line;
-  std::ostringstream _stream;
+  LogLevel msgLevel_;
+  const char* file_;
+  int line_;
+  std::ostringstream stream_;
 
   // Static logging configuration and helpers
-  static LogLevel _level;
+  static LogLevel level_;
 
   static std::string getCurrentTime();
   static std::string levelToString(LogLevel level);
