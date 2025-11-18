@@ -28,13 +28,16 @@ int parseLogLevelFlag(const std::string &arg) {
   return level - '0';
 }
 
-int main(int argc, char **argv) {
+// Parse program arguments and fill `path` and `logLevel`.
+// This was moved out of main to keep main shorter and clearer.
+void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
+  // Defaults
+  path = "./webserv.conf";
+  logLevel = 1; // Default: INFO
 
-  // 0 = DEBUG, 1 = INFO, 2 = ERROR
-  // run `./webserv -l:N` to choose the log level
+  bool logFlagSet = false;
+  bool pathFlagSet = false;
 
-  std::string path = "./webserv.conf";
-  int logLevel = 1; // Default: INFO
 
   // Parse arguments
   for (int i = 1; i < argc; ++i) {
@@ -42,11 +45,29 @@ int main(int argc, char **argv) {
     int level = parseLogLevelFlag(arg);
 
     if (level >= 0) {
-      logLevel = level;
+      if (!logFlagSet) {
+        logLevel = level;
+        logFlagSet = true;
+      }
     } else {
-      path = arg; // Overwrite if passed
+        if (!pathFlagSet) {
+          path = arg; // Overwrite if passed
+          pathFlagSet = true;
+        }
     }
   }
+}
+
+int main(int argc, char **argv) {
+
+  // run `./webserv -l:N` to choose the log level
+  // 0 = DEBUG, 1 = INFO, 2 = ERROR
+
+  std::string path;
+  int logLevel;
+
+  // collect path and log level from argv
+  processArgs(argc, argv, path, logLevel);
 
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
