@@ -126,7 +126,9 @@ std::vector<Server> Config::getServers(void) {
              << " global directive(s)";
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode& d = root_.directives[i];
+
     if (d.name == "error_page") {
+      requireArgsAtLeast_(d, 2);
       global_error_pages_ = parseErrorPages(d.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                global_error_pages_.begin();
@@ -134,7 +136,9 @@ std::vector<Server> Config::getServers(void) {
         LOG(DEBUG) << "Global error_page: " << it->first << " -> "
                    << it->second;
       }
-    } else if (d.name == "max_request_body" && d.args.size() >= 1) {
+
+    } else if (d.name == "max_request_body") {
+      requireArgsEqual_(d, 1);
       global_max_request_body_ = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
@@ -406,6 +410,28 @@ std::size_t Config::parsePositiveNumber_(const std::string& value) {
   return static_cast<std::size_t>(num);
 }
 
+void Config::requireArgsAtLeast_(const DirectiveNode& d, size_t n) const {
+  if (d.args.size() < n) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Directive '" << d.name
+        << "' requires at least " << n << " argument(s)";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
+  }
+}
+
+void Config::requireArgsEqual_(const DirectiveNode& d, size_t n) const {
+  if (d.args.size() != n) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "Directive '" << d.name
+        << "' requires exactly " << n << " argument(s)";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
+  }
+}
+
 // Validate a list of HTTP methods and populate the destination set with
 // http::Method entries.
 std::set<http::Method> Config::parseMethods(
@@ -501,30 +527,40 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   for (size_t i = 0; i < server_block.directives.size(); ++i) {
     const DirectiveNode& d = server_block.directives[i];
 
-    if (d.name == "listen" && d.args.size() >= 1) {
+    if (d.name == "listen") {
+      requireArgsEqual_(d, 1);
       Config::ListenInfo li = parseListen(d.args[0]);
       srv.port = li.port;
       srv.host = li.host;
       LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr*)&srv.host) << ":"
                  << srv.port;
-      continue;  // continue processing other directives
-    } else if (d.name == "root" && !d.args.empty()) {
+
+    } else if (d.name == "root") {
+      requireArgsEqual_(d, 1);
       srv.root = d.args[0];
       LOG(DEBUG) << "Server root: " << srv.root;
-    } else if (d.name == "index" && !d.args.empty()) {
+
+    } else if (d.name == "index") {
+      requireArgsEqual_(d, 1);
       std::set<std::string> idx;
       for (size_t j = 0; j < d.args.size(); ++j) {
         idx.insert(trim_copy(d.args[j]));
       }
       srv.index = idx;
       LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
-    } else if (d.name == "autoindex" && !d.args.empty()) {
+
+    } else if (d.name == "autoindex") {
+      requireArgsAtLeast_(d, 1);
       srv.autoindex = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
-    } else if (d.name == "allow_methods" && !d.args.empty()) {
+
+    } else if (d.name == "allow_methods") {
+      requireArgsAtLeast_(d, 1);
       srv.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
-    } else if (d.name == "error_page" && d.args.size() >= 2) {
+
+    } else if (d.name == "error_page") {
+      requireArgsAtLeast_(d, 2);
       std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                parsed.begin();
@@ -533,7 +569,9 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
         LOG(DEBUG) << "Server error_page: " << it->first << " -> "
                    << it->second;
       }
-    } else if (d.name == "max_request_body" && !d.args.empty()) {
+
+    } else if (d.name == "max_request_body") {
+      requireArgsEqual_(d, 1);
       srv.max_request_body = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
     }
@@ -603,30 +641,36 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
   for (size_t i = 0; i < location_block.directives.size(); ++i) {
     const DirectiveNode& d = location_block.directives[i];
 
-    if (d.name == "root" && !d.args.empty()) {
+    if (d.name == "root") {
+      requireArgsEqual_(d, 1);
       loc.root = d.args[0];
       LOG(DEBUG) << "  Location root: " << loc.root;
-    } else if (d.name == "index" && !d.args.empty()) {
+    } else if (d.name == "index") {
+      requireArgsAtLeast_(d, 1);
       std::set<std::string> idx;
       for (size_t j = 0; j < d.args.size(); ++j) {
         idx.insert(trim_copy(d.args[j]));
       }
       loc.index = idx;
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
-    } else if (d.name == "autoindex" && !d.args.empty()) {
+    } else if (d.name == "autoindex") {
+      requireArgsEqual_(d, 1);
       loc.autoindex = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
-    } else if (d.name == "allow_methods" && !d.args.empty()) {
+    } else if (d.name == "allow_methods") {
+      requireArgsAtLeast_(d, 1);
       loc.allow_methods = parseMethods(d.args);
       LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
                  << " method(s)";
-    } else if (d.name == "return" && d.args.size() >= 2) {
+    } else if (d.name == "redirect") {
+      requireArgsEqual_(d, 2);
       std::pair<http::Status, std::string> ret = parseRedirect(d.args);
       loc.redirect_code = ret.first;
       loc.redirect_location = ret.second;
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
-    } else if (d.name == "error_page" && d.args.size() >= 2) {
+    } else if (d.name == "error_page") {
+      requireArgsAtLeast_(d, 2);
       std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                parsed.begin();
@@ -635,7 +679,8 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
         LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
                    << it->second;
       }
-    } else if (d.name == "cgi" && !d.args.empty()) {
+    } else if (d.name == "cgi") {
+      requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
     }

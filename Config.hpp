@@ -58,6 +58,12 @@ class Config {
   };
   ListenInfo parseListen(const std::string& listen_arg);
 
+  // Argument count validators
+  // Throw if directive does not have at least n arguments
+  void requireArgsAtLeast_(const DirectiveNode& d, size_t n) const;
+  // Throw if directive does not have exactly n arguments
+  void requireArgsEqual_(const DirectiveNode& d, size_t n) const;
+
   // Validate that an integer status code is a 4xx or 5xx error; throws on
   // invalid
   // Construct, log and throw the standardized invalid error_page status code
