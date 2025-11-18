@@ -1,17 +1,21 @@
 #include "StatusLine.hpp"
-#include "HttpStatus.hpp"
-#include "constants.hpp"
+
 #include <sstream>
 
+#include "HttpStatus.hpp"
+#include "constants.hpp"
+
 StatusLine::StatusLine()
-    : version(HTTP_VERSION), status_code(http::S_200_OK),
+    : version(HTTP_VERSION),
+      status_code(http::S_200_OK),
       reason(http::reasonPhrase(http::S_200_OK)) {}
 
-StatusLine::StatusLine(const StatusLine &other)
-    : version(other.version), status_code(other.status_code),
+StatusLine::StatusLine(const StatusLine& other)
+    : version(other.version),
+      status_code(other.status_code),
       reason(other.reason) {}
 
-StatusLine &StatusLine::operator=(const StatusLine &other) {
+StatusLine& StatusLine::operator=(const StatusLine& other) {
   if (this != &other) {
     version = other.version;
     status_code = other.status_code;
@@ -28,7 +32,7 @@ std::string StatusLine::toString() const {
   return o.str();
 }
 
-bool StatusLine::parse(const std::string &line) {
+bool StatusLine::parse(const std::string& line) {
   std::istringstream in(line);
   int code = 0;
   if (!(in >> version >> code)) {
@@ -36,7 +40,7 @@ bool StatusLine::parse(const std::string &line) {
   }
   try {
     status_code = http::intToStatus(code);
-  } catch (const std::invalid_argument &) {
+  } catch (const std::invalid_argument&) {
     return false;
   }
   std::getline(in, reason);

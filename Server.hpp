@@ -1,19 +1,21 @@
 #pragma once
 
-#include "Location.hpp"
-#include <map>
 #include <netinet/in.h>
+
+#include <map>
 #include <set>
 #include <string>
 
+#include "Location.hpp"
+
 class Server {
-public:
+ public:
   Server(void);
   Server(int port);
-  Server(const Server &other);
+  Server(const Server& other);
   ~Server();
 
-  Server &operator=(const Server &other);
+  Server& operator=(const Server& other);
 
   int fd;
   int port;

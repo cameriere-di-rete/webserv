@@ -1,33 +1,36 @@
 #include "ServerManager.hpp"
-#include "Connection.hpp"
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <netinet/in.h>
 #include <set>
 #include <sstream>
 #include <string>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
+#include "Connection.hpp"
+#include "HttpStatus.hpp"
+#include "Logger.hpp"
+#include "constants.hpp"
+#include "utils.hpp"
+
 ServerManager::ServerManager() : _efd(-1) {}
 
-ServerManager::ServerManager(const ServerManager &other) : _efd(-1) {
+ServerManager::ServerManager(const ServerManager& other) : _efd(-1) {
   (void)other;
 }
 
-ServerManager &ServerManager::operator=(const ServerManager &other) {
+ServerManager& ServerManager::operator=(const ServerManager& other) {
   (void)other;
   return *this;
 }
@@ -36,7 +39,7 @@ ServerManager::~ServerManager() {
   shutdown();
 }
 
-void ServerManager::initServers(std::vector<Server> &servers) {
+void ServerManager::initServers(std::vector<Server>& servers) {
   LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
 
   /* Check for duplicate listen addresses before initializing */
@@ -46,7 +49,7 @@ void ServerManager::initServers(std::vector<Server> &servers) {
     std::pair<in_addr_t, int> addr(it->host, it->port);
     if (listen_addresses.find(addr) != listen_addresses.end()) {
       LOG(ERROR) << "Duplicate listen address found: "
-                 << inet_ntoa(*(in_addr *)&it->host) << ":" << it->port;
+                 << inet_ntoa(*(in_addr*)&it->host) << ":" << it->port;
       throw std::runtime_error("Duplicate listen address in configuration");
     }
     listen_addresses.insert(addr);
@@ -54,12 +57,12 @@ void ServerManager::initServers(std::vector<Server> &servers) {
 
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr *)&it->host)
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr*)&it->host)
                << ":" << it->port;
     it->init();
     /* store by listening fd */
     _servers[it->fd] = *it;
-    LOG(DEBUG) << "Server registered (" << inet_ntoa(*(in_addr *)&it->host)
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(*(in_addr*)&it->host)
                << ":" << it->port << ") with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
@@ -184,7 +187,7 @@ int ServerManager::run() {
         continue; /* unknown fd */
       }
 
-      Connection &c = c_it->second;
+      Connection& c = c_it->second;
       uint32_t ev_mask = events[i].events;
 
       /* readable */
@@ -227,7 +230,7 @@ int ServerManager::run() {
                << " connection(s) for response preparation";
     for (std::map<int, Connection>::iterator it = _connections.begin();
          it != _connections.end(); ++it) {
-      Connection &conn = it->second;
+      Connection& conn = it->second;
       int conn_fd = it->first;
 
       if (!conn.read_done) {

@@ -46,4 +46,4 @@ bool isServerError(Status status);
 // Check if status code (int) is within valid HTTP status code range
 bool isValidStatusCode(int status);
 
-} // namespace http
+}  // namespace http

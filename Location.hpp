@@ -1,17 +1,18 @@
 #pragma once
 
-#include "HttpMethod.hpp"
-#include "HttpStatus.hpp"
 #include <map>
 #include <set>
 #include <string>
 
+#include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
+
 class Location {
-public:
+ public:
   Location();
-  Location(const std::string &path);
-  Location(const Location &other);
-  Location &operator=(const Location &other);
+  Location(const std::string& path);
+  Location(const Location& other);
+  Location& operator=(const Location& other);
   ~Location();
 
   // Location path identifier

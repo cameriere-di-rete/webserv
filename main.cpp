@@ -1,14 +1,15 @@
-#include "Config.hpp"
-#include "Logger.hpp"
-#include "ServerManager.hpp"
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
-int main(int argc, char **argv) {
-  const char *path = (argc > 1) ? argv[1] : "./conf/default.conf";
+#include "Config.hpp"
+#include "Logger.hpp"
+#include "ServerManager.hpp"
+
+int main(int argc, char** argv) {
+  const char* path = (argc > 1) ? argv[1] : "./conf/default.conf";
   LOG(INFO) << "Using configuration file: " << path;
 
   ServerManager sm;
@@ -23,7 +24,7 @@ int main(int argc, char **argv) {
     std::vector<Server> servers = cfg.getServers();
     sm.initServers(servers);
     LOG(INFO) << "All servers initialized and ready to accept connections";
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     LOG(ERROR) << std::string("Error in config or server initialization: ") +
                       e.what();
     return EXIT_FAILURE;

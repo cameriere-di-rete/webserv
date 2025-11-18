@@ -1,12 +1,13 @@
 #include "RequestLine.hpp"
+
 #include <sstream>
 
 RequestLine::RequestLine() : method(), uri(), version() {}
 
-RequestLine::RequestLine(const RequestLine &other)
+RequestLine::RequestLine(const RequestLine& other)
     : method(other.method), uri(other.uri), version(other.version) {}
 
-RequestLine &RequestLine::operator=(const RequestLine &other) {
+RequestLine& RequestLine::operator=(const RequestLine& other) {
   if (this != &other) {
     method = other.method;
     uri = other.uri;
@@ -23,7 +24,7 @@ std::string RequestLine::toString() const {
   return o.str();
 }
 
-bool RequestLine::parse(const std::string &line) {
+bool RequestLine::parse(const std::string& line) {
   std::istringstream in(line);
   if (!(in >> method >> uri >> version)) {
     return false;

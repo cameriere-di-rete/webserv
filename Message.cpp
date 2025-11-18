@@ -1,11 +1,13 @@
 #include "Message.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+
 #include <cctype>
 #include <sstream>
 
+#include "constants.hpp"
+#include "utils.hpp"
+
 namespace {
-bool ci_equal_copy(const std::string &a, const std::string &b) {
+bool ci_equal_copy(const std::string& a, const std::string& b) {
   if (a.size() != b.size()) {
     return false;
   }
@@ -20,15 +22,15 @@ bool ci_equal_copy(const std::string &a, const std::string &b) {
   }
   return true;
 }
-} // namespace
+}  // namespace
 
 /* Message */
 Message::Message() : headers(), body() {}
 
-Message::Message(const Message &other)
+Message::Message(const Message& other)
     : headers(other.headers), body(other.body) {}
 
-Message &Message::operator=(const Message &other) {
+Message& Message::operator=(const Message& other) {
   if (this != &other) {
     headers = other.headers;
     body = other.body;
@@ -38,11 +40,11 @@ Message &Message::operator=(const Message &other) {
 
 Message::~Message() {}
 
-void Message::addHeader(const std::string &name, const std::string &value) {
+void Message::addHeader(const std::string& name, const std::string& value) {
   headers.push_back(Header(name, value));
 }
 
-bool Message::getHeader(const std::string &name, std::string &out) const {
+bool Message::getHeader(const std::string& name, std::string& out) const {
   for (std::vector<Header>::const_iterator it = headers.begin();
        it != headers.end(); ++it) {
     if (ci_equal_copy(it->name, name)) {
@@ -53,7 +55,7 @@ bool Message::getHeader(const std::string &name, std::string &out) const {
   return false;
 }
 
-std::vector<std::string> Message::getHeaders(const std::string &name) const {
+std::vector<std::string> Message::getHeaders(const std::string& name) const {
   std::vector<std::string> res;
   for (std::vector<Header>::const_iterator it = headers.begin();
        it != headers.end(); ++it) {
@@ -64,15 +66,15 @@ std::vector<std::string> Message::getHeaders(const std::string &name) const {
   return res;
 }
 
-void Message::setBody(const Body &b) {
+void Message::setBody(const Body& b) {
   body = b;
 }
 
-Body &Message::getBody() {
+Body& Message::getBody() {
   return body;
 }
 
-const Body &Message::getBody() const {
+const Body& Message::getBody() const {
   return body;
 }
 
@@ -85,7 +87,7 @@ std::string Message::serializeHeaders() const {
   return o.str();
 }
 
-bool Message::parseHeaderLine(const std::string &line, Header &out) {
+bool Message::parseHeaderLine(const std::string& line, Header& out) {
   std::string::size_type pos = line.find(':');
   if (pos == std::string::npos) {
     return false;
@@ -104,11 +106,11 @@ std::string Message::serialize() const {
   return o.str();
 }
 
-std::size_t Message::parseHeaders(const std::vector<std::string> &lines,
+std::size_t Message::parseHeaders(const std::vector<std::string>& lines,
                                   std::size_t start) {
   std::size_t count = 0;
   for (std::vector<std::string>::size_type i = start; i < lines.size(); ++i) {
-    const std::string &ln = lines[i];
+    const std::string& ln = lines[i];
     if (ln.empty()) {
       continue;
     }

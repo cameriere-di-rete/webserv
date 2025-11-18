@@ -1,38 +1,49 @@
 #include "Config.hpp"
-#include "HttpMethod.hpp"
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "utils.hpp"
+
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/stat.h>
+
 #include <cctype>
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <netinet/in.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <sys/stat.h>
+
+#include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
+#include "Logger.hpp"
+#include "utils.hpp"
 
 // ==================== PUBLIC METHODS ====================
 
 Config::Config()
-    : tokens_(), root_(), servers_(), global_error_pages_(),
-      global_max_request_body_(0), idx_(0),
-      current_server_index_(kGlobalContext), current_location_path_() {}
+    : tokens_(),
+      root_(),
+      servers_(),
+      global_error_pages_(),
+      global_max_request_body_(0),
+      idx_(0),
+      current_server_index_(kGlobalContext),
+      current_location_path_() {}
 
 Config::~Config() {}
 
-Config::Config(const Config &other)
-    : tokens_(other.tokens_), root_(other.root_), servers_(other.servers_),
+Config::Config(const Config& other)
+    : tokens_(other.tokens_),
+      root_(other.root_),
+      servers_(other.servers_),
       global_error_pages_(other.global_error_pages_),
       global_max_request_body_(other.global_max_request_body_),
-      idx_(other.idx_), current_server_index_(other.current_server_index_),
+      idx_(other.idx_),
+      current_server_index_(other.current_server_index_),
       current_location_path_(other.current_location_path_) {}
 
-Config &Config::operator=(const Config &other) {
+Config& Config::operator=(const Config& other) {
   if (this != &other) {
     tokens_ = other.tokens_;
     idx_ = other.idx_;
@@ -46,7 +57,7 @@ Config &Config::operator=(const Config &other) {
   return *this;
 }
 
-void Config::parseFile(const std::string &path) {
+void Config::parseFile(const std::string& path) {
   LOG(INFO) << "Starting to parse config file: " << path;
 
   // read file
@@ -96,7 +107,7 @@ std::vector<Server> Config::getServers(void) {
 
   // Ensure that all top-level sub-blocks are `server` blocks
   for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
-    const BlockNode &b = root_.sub_blocks[i];
+    const BlockNode& b = root_.sub_blocks[i];
     if (b.type != "server") {
       std::ostringstream oss;
       oss << configErrorPrefix() << "unexpected top-level block '" << b.type
@@ -114,7 +125,7 @@ std::vector<Server> Config::getServers(void) {
   LOG(DEBUG) << "Processing " << root_.directives.size()
              << " global directive(s)";
   for (size_t i = 0; i < root_.directives.size(); ++i) {
-    const DirectiveNode &d = root_.directives[i];
+    const DirectiveNode& d = root_.directives[i];
     if (d.name == "error_page") {
       global_error_pages_ = parseErrorPages(d.args);
       for (std::map<http::Status, std::string>::const_iterator it =
@@ -134,7 +145,7 @@ std::vector<Server> Config::getServers(void) {
   servers_.clear();
 
   for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
-    const BlockNode &block = root_.sub_blocks[i];
+    const BlockNode& block = root_.sub_blocks[i];
     if (block.type == "server") {
       LOG(DEBUG) << "Translating server block #" << i;
       Server srv;
@@ -168,7 +179,7 @@ std::string Config::configErrorPrefix() const {
 
 // ==================== DEBUG OUTPUT ====================
 
-static void _printBlockRec(const BlockNode &b, int indent) {
+static void _printBlockRec(const BlockNode& b, int indent) {
   std::string pad(indent, ' ');
   {
     std::ostringstream ss;
@@ -179,7 +190,7 @@ static void _printBlockRec(const BlockNode &b, int indent) {
     LOG(DEBUG) << ss.str();
   }
   for (size_t i = 0; i < b.directives.size(); ++i) {
-    const DirectiveNode &d = b.directives[i];
+    const DirectiveNode& d = b.directives[i];
     std::ostringstream ss;
     ss << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
@@ -202,7 +213,7 @@ void Config::debug(void) const {
 
 // ==================== PARSING HELPERS ====================
 
-void Config::removeComments(std::string &s) {
+void Config::removeComments(std::string& s) {
   size_t pos = 0;
   while ((pos = s.find('#', pos)) != std::string::npos) {
     size_t e = s.find('\n', pos);
@@ -214,7 +225,7 @@ void Config::removeComments(std::string &s) {
   }
 }
 
-void Config::tokenize(const std::string &content) {
+void Config::tokenize(const std::string& content) {
   tokens_.clear();
   std::string cur;
   for (size_t i = 0; i < content.size(); ++i) {
@@ -244,7 +255,7 @@ bool Config::eof() const {
   return idx_ >= tokens_.size();
 }
 
-const std::string &Config::peek() const {
+const std::string& Config::peek() const {
   static std::string empty = "";
   return idx_ < tokens_.size() ? tokens_[idx_] : empty;
 }
@@ -266,13 +277,13 @@ DirectiveNode Config::parseDirective() {
     }
     d.args.push_back(get());
   }
-  get(); // consume ;
+  get();  // consume ;
   return d;
 }
 
 BlockNode Config::parseBlock() {
   BlockNode b;
-  b.type = get(); // server or location
+  b.type = get();  // server or location
   if (b.type == "location") {
     if (peek().empty()) {
       throw std::runtime_error("location missing parameter");
@@ -294,13 +305,13 @@ BlockNode Config::parseBlock() {
       b.directives.push_back(parseDirective());
     }
   }
-  get(); // consume }
+  get();  // consume }
   return b;
 }
 
 // ==================== VALIDATION METHODS ====================
 
-int Config::parsePortValue_(const std::string &portstr) {
+int Config::parsePortValue_(const std::string& portstr) {
   std::size_t n = parsePositiveNumber_(portstr);
   if (n < 1 || n > 65535) {
     std::ostringstream oss;
@@ -312,7 +323,7 @@ int Config::parsePortValue_(const std::string &portstr) {
   return static_cast<int>(n);
 }
 
-bool Config::parseBooleanValue_(const std::string &value) {
+bool Config::parseBooleanValue_(const std::string& value) {
   if (value == "on") {
     return true;
   }
@@ -325,17 +336,17 @@ bool Config::parseBooleanValue_(const std::string &value) {
   throw std::runtime_error(oss.str());
 }
 
-http::Method Config::parseHttpMethod_(const std::string &method) {
+http::Method Config::parseHttpMethod_(const std::string& method) {
   try {
     return http::stringToMethod(method);
-  } catch (const std::invalid_argument &e) {
+  } catch (const std::invalid_argument& e) {
     std::ostringstream oss;
     oss << configErrorPrefix() << e.what();
     throw std::runtime_error(oss.str());
   }
 }
 
-http::Status Config::parseRedirectCode_(const std::string &value) {
+http::Status Config::parseRedirectCode_(const std::string& value) {
   std::size_t code_sz = parsePositiveNumber_(value);
   int code = static_cast<int>(code_sz);
   if (code_sz > static_cast<std::size_t>(INT_MAX)) {
@@ -354,7 +365,7 @@ http::Status Config::parseRedirectCode_(const std::string &value) {
       throw std::runtime_error(oss.str());
     }
     return s;
-  } catch (const std::invalid_argument &) {
+  } catch (const std::invalid_argument&) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid redirect status code " << code
         << " (valid: 301, 302, 303, 307, 308)";
@@ -362,7 +373,7 @@ http::Status Config::parseRedirectCode_(const std::string &value) {
   }
 }
 
-std::size_t Config::parsePositiveNumber_(const std::string &value) {
+std::size_t Config::parsePositiveNumber_(const std::string& value) {
   for (size_t i = 0; i < value.size(); ++i) {
     if (value[i] < '0' || value[i] > '9') {
       std::ostringstream oss;
@@ -372,7 +383,7 @@ std::size_t Config::parsePositiveNumber_(const std::string &value) {
   }
 
   errno = 0;
-  char *endptr = NULL;
+  char* endptr = NULL;
   long num = std::strtol(value.c_str(), &endptr, 10);
 
   if (errno == ERANGE) {
@@ -397,11 +408,11 @@ std::size_t Config::parsePositiveNumber_(const std::string &value) {
 
 // Validate a list of HTTP methods and populate the destination set with
 // http::Method entries.
-std::set<http::Method>
-Config::parseMethods(const std::vector<std::string> &args) {
+std::set<http::Method> Config::parseMethods(
+    const std::vector<std::string>& args) {
   std::set<http::Method> dest;
   for (size_t i = 0; i < args.size(); ++i) {
-    const std::string &m = args[i];
+    const std::string& m = args[i];
     http::Method mm = parseHttpMethod_(m);
     dest.insert(mm);
   }
@@ -411,14 +422,14 @@ Config::parseMethods(const std::vector<std::string> &args) {
 // Validate and populate error_page mappings. The args vector is expected
 // to have one or more status codes followed by a final path. For example:
 // ["500","502","/50x.html"]
-std::map<http::Status, std::string>
-Config::parseErrorPages(const std::vector<std::string> &args) {
+std::map<http::Status, std::string> Config::parseErrorPages(
+    const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Directive requires at least two args";
     throw std::runtime_error(oss.str());
   }
-  const std::string &path = args[args.size() - 1];
+  const std::string& path = args[args.size() - 1];
   std::map<http::Status, std::string> dest;
   for (size_t i = 0; i + 1 < args.size(); ++i) {
     http::Status code = parseStatusCode_(args[i]);
@@ -446,8 +457,8 @@ void Config::throwInvalidErrorPageCode_(http::Status code) const {
 
 // Parse a redirect (return) directive. Expects at least two args:
 // [code, location]. Returns pair<code, location>.
-std::pair<http::Status, std::string>
-Config::parseRedirect(const std::vector<std::string> &args) {
+std::pair<http::Status, std::string> Config::parseRedirect(
+    const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Directive requires at least two args";
@@ -458,7 +469,7 @@ Config::parseRedirect(const std::vector<std::string> &args) {
   return std::make_pair(code, location);
 }
 
-http::Status Config::parseStatusCode_(const std::string &value) {
+http::Status Config::parseStatusCode_(const std::string& value) {
   std::size_t code_sz = parsePositiveNumber_(value);
   int code = static_cast<int>(code_sz);
 
@@ -476,7 +487,7 @@ http::Status Config::parseStatusCode_(const std::string &value) {
 
 // ==================== TRANSLATION/BUILDING METHODS ====================
 
-void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
+void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
                                    size_t server_index) {
   LOG(DEBUG) << "Translating server block #" << server_index << "...";
 
@@ -488,15 +499,15 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
   LOG(DEBUG) << "Processing " << server_block.directives.size()
              << " server directive(s)";
   for (size_t i = 0; i < server_block.directives.size(); ++i) {
-    const DirectiveNode &d = server_block.directives[i];
+    const DirectiveNode& d = server_block.directives[i];
 
     if (d.name == "listen" && d.args.size() >= 1) {
       Config::ListenInfo li = parseListen(d.args[0]);
       srv.port = li.port;
       srv.host = li.host;
-      LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr *)&srv.host) << ":"
+      LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr*)&srv.host) << ":"
                  << srv.port;
-      continue; // continue processing other directives
+      continue;  // continue processing other directives
     } else if (d.name == "root" && !d.args.empty()) {
       srv.root = d.args[0];
       LOG(DEBUG) << "Server root: " << srv.root;
@@ -564,7 +575,7 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
   LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
              << " location block(s)";
   for (size_t i = 0; i < server_block.sub_blocks.size(); ++i) {
-    const BlockNode &block = server_block.sub_blocks[i];
+    const BlockNode& block = server_block.sub_blocks[i];
     if (block.type == "location") {
       LOG(DEBUG) << "Translating location: " << block.param;
       Location loc(block.param);
@@ -578,8 +589,8 @@ void Config::translateServerBlock_(const BlockNode &server_block, Server &srv,
   current_location_path_.clear();
 }
 
-void Config::translateLocationBlock_(const BlockNode &location_block,
-                                     Location &loc) {
+void Config::translateLocationBlock_(const BlockNode& location_block,
+                                     Location& loc) {
   // Set path from constructor parameter (block.param)
   loc.path = location_block.param;
   LOG(DEBUG) << "Translating location block: " << loc.path;
@@ -590,7 +601,7 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
   LOG(DEBUG) << "Processing " << location_block.directives.size()
              << " location directive(s)";
   for (size_t i = 0; i < location_block.directives.size(); ++i) {
-    const DirectiveNode &d = location_block.directives[i];
+    const DirectiveNode& d = location_block.directives[i];
 
     if (d.name == "root" && !d.args.empty()) {
       loc.root = d.args[0];
@@ -636,7 +647,7 @@ void Config::translateLocationBlock_(const BlockNode &location_block,
 
 // ==================== DIRECTIVE PARSERS ====================
 
-Config::ListenInfo Config::parseListen(const std::string &listen_arg) {
+Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
   Config::ListenInfo li;
   size_t colon_pos = listen_arg.find(':');
 

@@ -1,8 +1,10 @@
 #include "utils.hpp"
+
+#include <fcntl.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <fcntl.h>
 #include <string>
 
 int set_nonblocking(int fd) {
@@ -14,7 +16,7 @@ int set_nonblocking(int fd) {
 }
 
 // Trim whitespace from both ends of a string and return the trimmed copy.
-std::string trim_copy(const std::string &s) {
+std::string trim_copy(const std::string& s) {
   std::string res = s;
   // left trim
   std::string::size_type i = 0;
@@ -33,7 +35,7 @@ std::string trim_copy(const std::string &s) {
   return res;
 }
 
-void initDefaultHttpMethods(std::set<http::Method> &methods) {
+void initDefaultHttpMethods(std::set<http::Method>& methods) {
   methods.insert(http::GET);
   methods.insert(http::POST);
   methods.insert(http::PUT);
