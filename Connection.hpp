@@ -1,18 +1,19 @@
 #pragma once
 
-#include "Request.hpp"
-#include "Response.hpp"
 #include <cstddef>
 #include <string>
 
+#include "Request.hpp"
+#include "Response.hpp"
+
 class Connection {
-public:
+ public:
   Connection();
   Connection(int fd);
-  Connection(const Connection &other);
+  Connection(const Connection& other);
   ~Connection();
 
-  Connection &operator=(const Connection &other);
+  Connection& operator=(const Connection& other);
 
   int fd;
   int server_fd;
