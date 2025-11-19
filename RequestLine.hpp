@@ -3,10 +3,10 @@
 #include <string>
 
 class RequestLine {
-public:
+ public:
   RequestLine();
-  RequestLine(const RequestLine &other);
-  RequestLine &operator=(const RequestLine &other);
+  RequestLine(const RequestLine& other);
+  RequestLine& operator=(const RequestLine& other);
   ~RequestLine();
 
   std::string method;
@@ -14,5 +14,5 @@ public:
   std::string version;
 
   std::string toString() const;
-  bool parse(const std::string &line);
+  bool parse(const std::string& line);
 };

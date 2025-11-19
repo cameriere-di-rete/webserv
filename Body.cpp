@@ -2,11 +2,11 @@
 
 Body::Body() : data() {}
 
-Body::Body(const std::string &d) : data(d) {}
+Body::Body(const std::string& d) : data(d) {}
 
-Body::Body(const Body &other) : data(other.data) {}
+Body::Body(const Body& other) : data(other.data) {}
 
-Body &Body::operator=(const Body &other) {
+Body& Body::operator=(const Body& other) {
   if (this != &other) {
     data = other.data;
   }

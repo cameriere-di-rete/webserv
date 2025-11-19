@@ -3,11 +3,11 @@
 #include <string>
 
 class Header {
-public:
+ public:
   Header();
-  Header(const std::string &n, const std::string &v);
-  Header(const Header &other);
-  Header &operator=(const Header &other);
+  Header(const std::string& n, const std::string& v);
+  Header(const Header& other);
+  Header& operator=(const Header& other);
   ~Header();
 
   std::string name;
