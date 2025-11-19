@@ -10,7 +10,8 @@
 
 #include "Logger.hpp"
 
-// Single definition of the default config path (avoid multiple definition linker errors).
+// Single definition of the default config path (avoid multiple definition linker
+// errors).
 const char* DEFAULT_CONFIG_PATH = "conf/default.conf";
 
 int set_nonblocking(int fd) {
@@ -73,7 +74,6 @@ int parseLogLevelFlag(const std::string& arg) {
 // Parse program arguments and fill `path` and `logLevel`.
 // This was moved out of main to keep main shorter and clearer.
 void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
-
   logLevel = -1;
 
   // Parse arguments
@@ -84,7 +84,7 @@ void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
     if (level >= 0) {
       if (logLevel < 0) {
         logLevel = level;
-        } else {
+      } else {
         throw std::runtime_error("Error: multiple log_level value provided");
       }
     } else {
@@ -96,7 +96,7 @@ void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
     }
   }
   if (logLevel < 0) {
-    logLevel = Logger::INFO;   // Default: INFO
+    logLevel = Logger::INFO;  // Default: INFO
   }
   if (path.empty()) {
     path = DEFAULT_CONFIG_PATH;
