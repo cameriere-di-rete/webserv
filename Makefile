@@ -1,52 +1,42 @@
-CXX			:=	c++
-CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
+# Wrapper Makefile for CMake build system
+# This maintains compatibility with the original Makefile interface
 
-NAME	:=	webserv
-SOURCES	:=	main.cpp			\
-			BlockNode.cpp		\
-			Body.cpp			\
-			Config.cpp			\
-			Connection.cpp		\
-			DirectiveNode.cpp	\
-			Header.cpp			\
-			HttpMethod.cpp		\
-			HttpStatus.cpp		\
-			Location.cpp		\
-			Logger.cpp			\
-			Message.cpp			\
-			Request.cpp			\
-			RequestLine.cpp		\
-			Response.cpp		\
-			Server.cpp			\
-			ServerManager.cpp	\
-			StatusLine.cpp		\
-			utils.cpp
+NAME := webserv
+BUILD_DIR := build
 
-OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
-DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
-
-# 0 = DEBUG, 1 = INFO, 2 = ERROR
-# run `make [...] LOG_LEVEL='N'` to choose the log level
-ifneq ($(strip $(LOG_LEVEL)),)
-CXXFLAGS += -DLOG_LEVEL=$(LOG_LEVEL)
-endif
-
+# Default target
 all: $(NAME)
 
-$(NAME): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+# Build the project using CMake
+$(NAME):
+	@mkdir -p $(BUILD_DIR)
+	@cd $(BUILD_DIR) && cmake .. $(if $(LOG_LEVEL),-DLOG_LEVEL=$(LOG_LEVEL),)
+	@cd $(BUILD_DIR) && $(MAKE) --no-print-directory
+	@cp $(BUILD_DIR)/$(NAME) .
 
--include $(DEPENDS)
-
-%.o: %.cpp Makefile
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
-
+# Clean build artifacts (object files, etc.)
 clean:
-	$(RM) $(OBJECTS) $(DEPENDS)
+	@if [ -d $(BUILD_DIR) ]; then cd $(BUILD_DIR) && $(MAKE) --no-print-directory clean; fi
+	@rm -f $(NAME)
 
+# Full clean (remove build directory)
 fclean: clean
-	$(RM) $(NAME)
+	@rm -rf $(BUILD_DIR)
 
+# Rebuild from scratch
 re: fclean all
 
-.PHONY: all clean fclean re
+# Help target to show available commands
+help:
+	@echo "Available targets:"
+	@echo "  all     - Build the project (default)"
+	@echo "  clean   - Remove build artifacts"
+	@echo "  fclean  - Remove all generated files including build directory"
+	@echo "  re      - Rebuild from scratch (fclean + all)"
+	@echo "  help    - Show this help message"
+	@echo ""
+	@echo "Build options:"
+	@echo "  LOG_LEVEL=N - Set log level (0=DEBUG, 1=INFO, 2=ERROR)"
+	@echo "  Example: make LOG_LEVEL=0"
+
+.PHONY: all clean fclean re help
