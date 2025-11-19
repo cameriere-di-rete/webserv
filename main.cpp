@@ -17,7 +17,16 @@ int main(int argc, char** argv) {
   int logLevel;
 
   // collect path and log level from argv
-  processArgs(argc, argv, path, logLevel);
+  try {
+    processArgs(argc, argv, path, logLevel);
+  } catch (const std::exception& e) {
+    LOG(ERROR) << std::string("Error processing command-line arguments: ") +
+                      e.what();
+    return EXIT_FAILURE;
+  } catch (...) {
+    LOG(ERROR) << "Unknown error while processing command-line arguments";
+    return EXIT_FAILURE;
+  }
 
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
