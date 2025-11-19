@@ -10,6 +10,9 @@
 
 #include "Logger.hpp"
 
+// Single definition of the default config path (avoid multiple definition linker errors).
+const char* DEFAULT_CONFIG_PATH = "conf/default.conf";
+
 int set_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags < 0) {

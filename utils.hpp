@@ -17,7 +17,7 @@ std::string trim_copy(const std::string& s);
 void initDefaultHttpMethods(std::set<http::Method>& methods);
 
 // Default configuration file path
-const char* DEFAULT_CONFIG_PATH;
+
 
 // Parse log level flag (e.g., "-l:0" for DEBUG, "-l:1" for INFO, "-l:2" for ERROR)
 int parseLogLevelFlag(const std::string& arg);
