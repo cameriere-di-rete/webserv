@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -15,12 +16,8 @@
 #include <iostream>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -160,15 +157,14 @@ int ServerManager::run() {
     LOG(DEBUG) << "Registered listen_fd " << listen_fd << " with epoll";
   }
 
-  /* register signalfd (if available) so signals are delivered as FD events */
-  if (sfd_ >= 0) {
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = sfd_;
-    if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
-      LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
-      // non-fatal: continue without signalfd
-    }
+  /* register signalfd so signals are delivered as FD events.
+   * signalfd must be initialized (setupSignalHandlers must succeed). */
+  struct epoll_event ev;
+  ev.events = EPOLLIN;
+  ev.data.fd = sfd_;
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
+    LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
+    throw std::runtime_error("Failed to register signalfd with epoll");
   }
 
   /* event loop */
@@ -196,7 +192,7 @@ int ServerManager::run() {
       int fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << fd;
 
-      if (sfd_ >= 0 && fd == sfd_) {
+      if (fd == sfd_) {
         // process pending signals from signalfd
         if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
@@ -387,14 +383,15 @@ void ServerManager::setupSignalHandlers() {
 
   if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
     LOG_PERROR(ERROR, "sigprocmask");
-    return;
+    throw std::runtime_error("Failed to block signals");
   }
 
-  // Create signalfd
+  // Create signalfd - REQUIRED: signalfd must be available (Linux 2.6.22+).
+  // If signalfd is not available, initialization will fail.
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
-    return;
+    throw std::runtime_error("Failed to create signalfd - signalfd is required");
   }
 
   // Ignore SIGPIPE
@@ -410,10 +407,6 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-  if (sfd_ < 0) {
-    return stop_requested_;
-  }
-
   struct signalfd_siginfo fdsi;
   while (1) {
     ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
