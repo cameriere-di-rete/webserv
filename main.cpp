@@ -4,7 +4,11 @@
 #include <string>
 #include <vector>
 
-int parseLogLevelFlag(const std::string &arg) {
+#include "Config.hpp"
+#include "Logger.hpp"
+#include "ServerManager.hpp"
+
+int parseLogLevelFlag(const std::string& arg) {
   // Guard 1: Wrong length
   if (arg.length() != 4) {
     return -1;
@@ -27,9 +31,9 @@ int parseLogLevelFlag(const std::string &arg) {
 
 // Parse program arguments and fill `path` and `logLevel`.
 // This was moved out of main to keep main shorter and clearer.
-void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
+void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
   // Defaults
-  logLevel = 1; // Default: INFO
+  logLevel = 1;  // Default: INFO
 
   bool logFlagSet = false;
 
@@ -56,8 +60,7 @@ void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
   }
 }
 
-int main(int argc, char **argv) {
-
+int main(int argc, char** argv) {
   // run `./webserv -l:N` to choose the log level
   // 0 = DEBUG, 1 = INFO, 2 = ERROR
 
