@@ -38,7 +38,6 @@ void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
   bool logFlagSet = false;
   bool pathFlagSet = false;
 
-
   // Parse arguments
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -50,10 +49,10 @@ void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
         logFlagSet = true;
       }
     } else {
-        if (!pathFlagSet) {
-          path = arg; // Overwrite if passed
-          pathFlagSet = true;
-        }
+      if (!pathFlagSet) {
+        path = arg; // Overwrite if passed
+        pathFlagSet = true;
+      }
     }
   }
 }
