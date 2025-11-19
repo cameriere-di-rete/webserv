@@ -184,8 +184,7 @@ int ServerManager::run() {
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
-        continue; /*r::stop_requested_ const { interrupted by non-termination
-                     signal */
+        continue; /* interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       break;
