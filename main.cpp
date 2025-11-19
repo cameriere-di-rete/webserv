@@ -32,11 +32,9 @@ int parseLogLevelFlag(const std::string &arg) {
 // This was moved out of main to keep main shorter and clearer.
 void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
   // Defaults
-  path = "./webserv.conf";
   logLevel = 1; // Default: INFO
 
   bool logFlagSet = false;
-  bool pathFlagSet = false;
 
   // Parse arguments
   for (int i = 1; i < argc; ++i) {
@@ -49,11 +47,15 @@ void processArgs(int argc, char **argv, std::string &path, int &logLevel) {
         logFlagSet = true;
       }
     } else {
-      if (!pathFlagSet) {
-        path = arg; // Overwrite if passed
-        pathFlagSet = true;
+      if (path.empty()) {
+        path = arg;
+      } else {
+        throw std::runtime_error("Error: multiple config file paths provided");
       }
     }
+  }
+  if (path.empty()) {
+    path = "./webserv.conf";
   }
 }
 
