@@ -126,9 +126,11 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
     if (errno == ENOENT) {
       if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
+        throw std::runtime_error("Failed to add file descriptor to epoll");
       }
     } else {
       LOG_PERROR(ERROR, "epoll_ctl MOD");
+      throw std::runtime_error("Failed to modify epoll events");
     }
   }
 }
@@ -160,15 +162,13 @@ int ServerManager::run() {
     LOG(DEBUG) << "Registered listen_fd " << listen_fd << " with epoll";
   }
 
-  /* register signalfd (if available) so signals are delivered as FD events */
-  if (sfd_ >= 0) {
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = sfd_;
-    if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
-      LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
-      // non-fatal: continue without signalfd
-    }
+  /* register signalfd so signals are delivered as FD events */
+  struct epoll_event ev;
+  ev.events = EPOLLIN;
+  ev.data.fd = sfd_;
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
+    LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
+    return EXIT_FAILURE;
   }
 
   /* event loop */
@@ -196,7 +196,7 @@ int ServerManager::run() {
       int fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << fd;
 
-      if (sfd_ >= 0 && fd == sfd_) {
+      if (fd == sfd_) {
         // process pending signals from signalfd
         if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
@@ -383,18 +383,17 @@ void ServerManager::setupSignalHandlers() {
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGTERM);
-  sigaddset(&mask, SIGHUP);
 
   if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
     LOG_PERROR(ERROR, "sigprocmask");
-    return;
+    throw std::runtime_error("Failed to block signals with sigprocmask");
   }
 
   // Create signalfd
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
-    return;
+    throw std::runtime_error("Failed to create signalfd");
   }
 
   // Ignore SIGPIPE
@@ -410,10 +409,6 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-  if (sfd_ < 0) {
-    return stop_requested_;
-  }
-
   struct signalfd_siginfo fdsi;
   while (1) {
     ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
@@ -424,18 +419,16 @@ bool ServerManager::processSignalsFromFd() {
       LOG_PERROR(ERROR, "read(signalfd)");
       return stop_requested_;
     }
-    if (s != sizeof(fdsi)) {
-      continue;
+    if (s > 0 && s != sizeof(fdsi)) {
+      LOG(ERROR) << "signals: partial read from signalfd (" << s
+                 << " bytes, expected " << sizeof(fdsi) << ")";
+      return stop_requested_;
     }
 
     // Handle the signal
     if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
       stop_requested_ = true;
       return true;
-    }
-    if (fdsi.ssi_signo == SIGHUP) {
-      LOG(INFO) << "signals: SIGHUP received";
-      continue;
     }
     LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
   }
