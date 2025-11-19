@@ -1,16 +1,19 @@
 #include "ServerManager.hpp"
-#include "Connection.hpp"
-#include "Logger.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <netinet/in.h>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/epoll.h>
@@ -18,16 +21,23 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
-ServerManager::ServerManager() : _efd(-1), _sfd(-1), _stop_requested(false) {}
+#include "Connection.hpp"
+#include "HttpStatus.hpp"
+#include "Logger.hpp"
+#include "constants.hpp"
+#include "utils.hpp"
+
+ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
 ServerManager::ServerManager(const ServerManager &other)
-    : _efd(-1), _sfd(-1), _stop_requested(false) {
+    : efd_(-1), sfd_(-1), stop_requested_(false) {
   (void)other;
 }
 
-ServerManager &ServerManager::operator=(const ServerManager &other) {
+ServerManager& ServerManager::operator=(const ServerManager& other) {
   (void)other;
   return *this;
 }
@@ -37,23 +47,46 @@ ServerManager::~ServerManager() {
   shutdown();
 }
 
-void ServerManager::initServers(const std::vector<int> &ports) {
-  for (std::vector<int>::const_iterator it = ports.begin(); it != ports.end();
+void ServerManager::initServers(std::vector<Server>& servers) {
+  LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
+
+  /* Check for duplicate listen addresses before initializing */
+  std::set<std::pair<in_addr_t, int> > listen_addresses;
+  for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    Server server(*it);
-    server.init();
-    /* store by listening fd */
-    _servers[server.fd] = server;
-    /* prevent server destructor from closing the fd of the temporary */
-    server.fd = -1;
+    std::pair<in_addr_t, int> addr(it->host, it->port);
+    if (listen_addresses.find(addr) != listen_addresses.end()) {
+      LOG(ERROR) << "Duplicate listen address found: "
+                 << inet_ntoa(*(in_addr*)&it->host) << ":" << it->port;
+      throw std::runtime_error("Duplicate listen address in configuration");
+    }
+    listen_addresses.insert(addr);
   }
+
+  for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
+       ++it) {
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr*)&it->host)
+               << ":" << it->port;
+    it->init();
+    /* store by listening fd */
+    servers_[it->fd] = *it;
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(*(in_addr*)&it->host)
+               << ":" << it->port << ") with fd: " << it->fd;
+    /* prevent server destructor from closing the fd of the temporary */
+    it->fd = -1;
+  }
+  /* clear servers after moving them to ServerManager */
+  servers.clear();
+  LOG(INFO) << "All servers initialized successfully";
 }
 
 void ServerManager::acceptConnection(int listen_fd) {
+  LOG(DEBUG) << "Accepting new connections on listen_fd: " << listen_fd;
   while (1) {
     int conn_fd = accept(listen_fd, NULL, NULL);
     if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        LOG(DEBUG) << "No more pending connections on fd: " << listen_fd;
         break;
       }
       LOG_PERROR(ERROR, "accept");
@@ -65,20 +98,22 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    LOG(INFO) << "New connection accepted (fd: " << conn_fd << ")";
+    LOG(INFO) << "New connection accepted (fd: " << conn_fd
+              << ") from server fd: " << listen_fd;
 
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */
     connection.server_fd = listen_fd;
-    _connections[conn_fd] = connection;
+    connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
     updateEvents(conn_fd, EPOLLIN | EPOLLET);
+    LOG(DEBUG) << "Connection fd " << conn_fd << " registered with EPOLLIN";
   }
 }
 
 void ServerManager::updateEvents(int fd, uint32_t events) {
-  if (_efd < 0) {
+  if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
   }
@@ -87,9 +122,9 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
   ev.events = events;
   ev.data.fd = fd;
 
-  if (epoll_ctl(_efd, EPOLL_CTL_MOD, fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &ev) < 0) {
+      if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
       }
     } else {
@@ -99,32 +134,38 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
 }
 
 int ServerManager::run() {
+  LOG(INFO) << "Starting ServerManager event loop...";
+
   /* create epoll instance */
-  _efd = epoll_create1(0);
-  if (_efd < 0) {
+  efd_ = epoll_create1(0);
+  if (efd_ < 0) {
     LOG_PERROR(ERROR, "epoll_create1");
     return EXIT_FAILURE;
   }
+  LOG(DEBUG) << "Epoll instance created with fd: " << efd_;
 
   /* register listener fds */
-  for (std::map<int, Server>::const_iterator it = _servers.begin();
-       it != _servers.end(); ++it) {
+  LOG(DEBUG) << "Registering " << servers_.size()
+             << " server socket(s) with epoll";
+  for (std::map<int, Server>::const_iterator it = servers_.begin();
+       it != servers_.end(); ++it) {
     int listen_fd = it->first;
     struct epoll_event ev;
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
+    if (epoll_ctl(efd_, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
       LOG_PERROR(ERROR, "epoll_ctl ADD listen_fd");
       return EXIT_FAILURE;
     }
+    LOG(DEBUG) << "Registered listen_fd " << listen_fd << " with epoll";
   }
 
   /* register signalfd (if available) so signals are delivered as FD events */
-  if (_sfd >= 0) {
+  if (sfd_ >= 0) {
     struct epoll_event ev;
     ev.events = EPOLLIN;
-    ev.data.fd = _sfd;
-    if (epoll_ctl(_efd, EPOLL_CTL_ADD, _sfd, &ev) < 0) {
+    ev.data.fd = sfd_;
+    if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
       LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
       // non-fatal: continue without signalfd
     }
@@ -132,62 +173,72 @@ int ServerManager::run() {
 
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
+  LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
-  while (!_stop_requested) {
-    int n = epoll_wait(_efd, events, MAX_EVENTS, -1);
+  while (!stop_requested_) {
+    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
-        if (_stop_requested) {
+        if (stop_requested_) {
           LOG(INFO)
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
-        continue; /*r::_stop_requested const { interrupted by non-termination
+        continue; /*r::stop_requested_ const { interrupted by non-termination
                      signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       break;
     }
 
+    LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
+
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
+      LOG(DEBUG) << "Processing event for fd: " << fd;
 
-      if (_sfd >= 0 && fd == _sfd) {
+      if (sfd_ >= 0 && fd == sfd_) {
         // process pending signals from signalfd
         if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
-        if (_stop_requested) {
+        if (stop_requested_) {
           break; // break out of for-loop; outer while will exit after check
         }
         continue;
       }
 
-      std::map<int, Server>::iterator s_it = _servers.find(fd);
-      if (s_it != _servers.end()) {
+      std::map<int, Server>::iterator s_it = servers_.find(fd);
+      if (s_it != servers_.end()) {
+        LOG(DEBUG)
+            << "Event is on server listen socket, accepting connections...";
         acceptConnection(fd);
         continue;
       }
 
-      std::map<int, Connection>::iterator c_it = _connections.find(fd);
-      if (c_it == _connections.end()) {
+      std::map<int, Connection>::iterator c_it = connections_.find(fd);
+      if (c_it == connections_.end()) {
+        LOG(DEBUG) << "Unknown fd: " << fd << ", skipping";
         continue; /* unknown fd */
       }
 
-      Connection &c = c_it->second;
+      Connection& c = c_it->second;
       uint32_t ev_mask = events[i].events;
 
       /* readable */
       if (ev_mask & EPOLLIN) {
+        LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
         int status = c.handleRead();
 
         if (status < 0) {
+          LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
           close(fd);
-          _connections.erase(fd);
+          connections_.erase(fd);
           continue;
         }
 
         if (c.read_done) {
+          LOG(DEBUG) << "Read complete on fd: " << fd << ", enabling EPOLLOUT";
           /* enable EPOLLOUT now that we have data to send */
           updateEvents(fd, EPOLLOUT | EPOLLET);
         }
@@ -195,20 +246,26 @@ int ServerManager::run() {
 
       /* writable */
       if (ev_mask & EPOLLOUT) {
+        LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
         int status = c.handleWrite();
 
         if (status <= 0) {
+          LOG(DEBUG)
+              << "handleWrite complete or failed, closing connection fd: "
+              << fd;
           close(fd);
-          _connections.erase(fd);
+          connections_.erase(fd);
         }
       }
     }
 
     /* After processing events, iterate connections to prepare responses
        for those that completed reading but don't yet have a write buffer. */
-    for (std::map<int, Connection>::iterator it = _connections.begin();
-         it != _connections.end(); ++it) {
-      Connection &conn = it->second;
+    LOG(DEBUG) << "Checking " << connections_.size()
+               << " connection(s) for response preparation";
+    for (std::map<int, Connection>::iterator it = connections_.begin();
+         it != connections_.end(); ++it) {
+      Connection& conn = it->second;
       int conn_fd = it->first;
 
       if (!conn.read_done) {
@@ -219,9 +276,12 @@ int ServerManager::run() {
         continue; /* already prepared */
       }
 
+      LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
+
       /* find header/body separator */
       std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
       if (headers_pos == std::string::npos) {
+        LOG(DEBUG) << "Headers not complete yet for fd: " << conn_fd;
         continue; /* wait for headers */
       }
 
@@ -247,10 +307,14 @@ int ServerManager::run() {
 
       if (!conn.request.parseStartAndHeaders(lines)) {
         /* malformed start line or headers -> 400 Bad Request */
+        LOG(INFO) << "Malformed request on fd " << conn_fd
+                  << ", sending 400 Bad Request";
         conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = 400;
-        conn.response.status_line.reason = "Bad Request";
-        conn.response.getBody().data = "400 Bad Request";
+        conn.response.status_line.status_code = http::S_400_BAD_REQUEST;
+        conn.response.status_line.reason =
+            http::reasonPhrase(http::S_400_BAD_REQUEST);
+        conn.response.getBody().data =
+            http::statusWithReason(conn.response.status_line.status_code);
         std::ostringstream oss;
         oss << conn.response.getBody().size();
         conn.response.addHeader("Content-Length", oss.str());
@@ -259,6 +323,8 @@ int ServerManager::run() {
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
+      LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
+                 << " " << conn.request.request_line.uri;
 
       /* set body to remaining bytes after header separator */
       std::size_t body_start = headers_pos + 4; /* \r\n\r\n */
@@ -267,10 +333,36 @@ int ServerManager::run() {
         conn.request.getBody().data = conn.read_buffer.substr(body_start);
       }
 
-      /* prepare 200 OK response echoing the request body */
+      /* find the server that accepted this connection */
+      std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
+      if (srv_it == servers_.end()) {
+        /* shouldn't happen, but handle gracefully */
+        LOG(ERROR) << "Server not found for connection fd " << conn_fd
+                   << " (server_fd: " << conn.server_fd << ")";
+        conn.response.status_line.version = HTTP_VERSION;
+        conn.response.status_line.status_code =
+            http::S_500_INTERNAL_SERVER_ERROR;
+        conn.response.status_line.reason =
+            http::reasonPhrase(http::S_500_INTERNAL_SERVER_ERROR);
+        conn.response.getBody().data =
+            http::statusWithReason(conn.response.status_line.status_code);
+        std::ostringstream oss_err;
+        oss_err << conn.response.getBody().size();
+        conn.response.addHeader("Content-Length", oss_err.str());
+        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+        conn.write_buffer = conn.response.serialize();
+        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        continue;
+      }
+
+      LOG(DEBUG) << "Found server configuration for fd " << conn_fd
+                 << " (port: " << srv_it->second.port << ")";
+
+      /* prepare 200 OK response echoing the request */
+      LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
       conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = 200;
-      conn.response.status_line.reason = "OK";
+      conn.response.status_line.status_code = http::S_200_OK;
+      conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
       conn.response.setBody(Body(conn.read_buffer));
       std::ostringstream oss2;
       oss2 << conn.response.getBody().size();
@@ -300,8 +392,8 @@ void ServerManager::setupSignalHandlers() {
   }
 
   // Create signalfd
-  _sfd = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
-  if (_sfd < 0) {
+  sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+  if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
     return;
   }
@@ -319,19 +411,19 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-  if (_sfd < 0) {
-    return _stop_requested;
+  if (sfd_ < 0) {
+    return stop_requested_;
   }
 
   struct signalfd_siginfo fdsi;
   while (1) {
-    ssize_t s = read(_sfd, &fdsi, sizeof(fdsi));
+    ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
     if (s < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return _stop_requested;
+        return stop_requested_;
       }
       LOG_PERROR(ERROR, "read(signalfd)");
-      return _stop_requested;
+      return stop_requested_;
     }
     if (s != sizeof(fdsi)) {
       continue;
@@ -339,7 +431,7 @@ bool ServerManager::processSignalsFromFd() {
 
     // Handle the signal
     if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
-      _stop_requested = true;
+      stop_requested_ = true;
       return true;
     }
     if (fdsi.ssi_signo == SIGHUP) {
@@ -351,25 +443,34 @@ bool ServerManager::processSignalsFromFd() {
 }
 
 void ServerManager::shutdown() {
-  if (_efd >= 0) {
-    close(_efd);
-    _efd = -1;
+  LOG(INFO) << "Shutting down ServerManager...";
+
+  if (efd_ >= 0) {
+    LOG(DEBUG) << "Closing epoll fd: " << efd_;
+    close(efd_);
+    efd_ = -1;
   }
-  if (_sfd >= 0) {
-    close(_sfd);
-    _sfd = -1;
+
+  if (sfd_ >= 0) {
+    close(sfd_);
+    sfd_ = -1;
   }
+
   // close all connection fds
-  for (std::map<int, Connection>::iterator it = _connections.begin();
-       it != _connections.end(); ++it) {
+  LOG(DEBUG) << "Closing " << connections_.size() << " connection(s)";
+  for (std::map<int, Connection>::iterator it = connections_.begin();
+       it != connections_.end(); ++it) {
     close(it->first);
   }
-  _connections.clear();
+  connections_.clear();
 
   // close listening fds
-  for (std::map<int, Server>::iterator it = _servers.begin();
-       it != _servers.end(); ++it) {
+  LOG(DEBUG) << "Closing " << servers_.size() << " server socket(s)";
+  for (std::map<int, Server>::iterator it = servers_.begin();
+       it != servers_.end(); ++it) {
     it->second.disconnect();
   }
-  _servers.clear();
+  servers_.clear();
+
+  LOG(INFO) << "ServerManager shutdown complete";
 }

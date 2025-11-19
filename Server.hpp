@@ -1,16 +1,34 @@
 #pragma once
 
+#include <netinet/in.h>
+
+#include <map>
+#include <set>
+#include <string>
+
+#include "Location.hpp"
+
 class Server {
-public:
+ public:
   Server(void);
   Server(int port);
-  Server(const Server &other);
+  Server(const Server& other);
   ~Server();
 
-  Server &operator=(const Server &other);
+  Server& operator=(const Server& other);
 
   int fd;
   int port;
+  in_addr_t host;
+
+  std::set<http::Method> allow_methods;
+  std::set<std::string> index;
+  bool autoindex;
+  std::string root;
+  std::map<http::Status, std::string> error_page;
+  std::size_t max_request_body;
+
+  std::map<std::string, Location> locations;
 
   void init(void);
   void disconnect(void);

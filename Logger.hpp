@@ -6,7 +6,7 @@
 #include <string>
 
 class Logger {
-public:
+ public:
   enum LogLevel { DEBUG, INFO, ERROR };
 
   // Logger can also be used as a temporary RAII stream object. This allows
@@ -14,30 +14,30 @@ public:
   // with the message location and level, its stream() is used to build the
   // message, and the destructor forwards the composed message to the static
   // logging backend.
-  Logger(LogLevel level, const char *file, int line);
+  Logger(LogLevel level, const char* file, int line);
   ~Logger();
 
-  std::ostringstream &stream();
+  std::ostringstream& stream();
 
-private:
+ private:
   // Instance fields used by the temporary RAII Logger
-  LogLevel _msgLevel;
-  const char *_file;
-  int _line;
-  std::ostringstream _stream;
+  LogLevel msgLevel_;
+  const char* file_;
+  int line_;
+  std::ostringstream stream_;
 
   // Static logging configuration and helpers
-  static LogLevel _level;
+  static LogLevel level_;
 
   static std::string getCurrentTime();
   static std::string levelToString(LogLevel level);
 
-public:
+ public:
   static void setLevel(LogLevel level);
-  static void log(LogLevel level, const std::string &message);
-  static void debug(const std::string &message);
-  static void info(const std::string &message);
-  static void error(const std::string &message);
+  static void log(LogLevel level, const std::string& message);
+  static void debug(const std::string& message);
+  static void info(const std::string& message);
+  static void error(const std::string& message);
   static void printStartupLevel();
 };
 
@@ -47,5 +47,5 @@ public:
 // Convenience macro to log an errno-related error with strerror(errno).
 // It uses the normal LOG(...) temporary Logger so file/line are included
 // automatically by the Logger destructor.
-#define LOG_PERROR(level, msg)                                                 \
+#define LOG_PERROR(level, msg) \
   LOG(level) << msg << ": " << std::strerror(errno);

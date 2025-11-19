@@ -1,37 +1,44 @@
 #pragma once
 
-#include "Connection.hpp"
-#include "Server.hpp"
-#include <map>
 #include <sys/types.h>
+
+#include <map>
 #include <vector>
 
+#include "Connection.hpp"
+#include "Server.hpp"
+
 class ServerManager {
-private:
-  ServerManager(const ServerManager &other);
-  ServerManager &operator=(const ServerManager &other);
+ private:
+  ServerManager(const ServerManager& other);
+  ServerManager& operator=(const ServerManager& other);
 
-  int _efd;
-  int _sfd;             // fd for signalfd
-  bool _stop_requested; // stop flag
-  std::map<int, Server> _servers;
-  std::map<int, Connection> _connections;
+  int efd_;
+  int sfd_;
+  bool stop_requested_;
+  std::map<int, Server> servers_;
+  std::map<int, Connection> connections_;
 
-public:
+ public:
   ServerManager();
   ~ServerManager();
 
-  void initServers(const std::vector<int> &ports);
+  // Initializes all servers from configuration
+  void initServers(std::vector<Server>& servers);
 
+  // Accepts new client connection on given listening socket
   void acceptConnection(int listen_fd);
 
+  // Main event loop: waits for events and handles requests
   int run();
 
+  // Updates epoll events for a file descriptor
   void updateEvents(int fd, u_int32_t events);
 
   void setupSignalHandlers();
 
   bool processSignalsFromFd();
 
+  // Closes all connections and server sockets
   void shutdown();
 };
