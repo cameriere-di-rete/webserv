@@ -9,8 +9,7 @@
 #include <string>
 
 #include "Logger.hpp"
-
-const char* DEFAULT_CONFIG_PATH = "conf/default.conf";
+#include "constants.hpp"
 
 int set_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
