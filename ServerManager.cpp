@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -15,12 +16,8 @@
 #include <iostream>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -32,7 +29,7 @@
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
-ServerManager::ServerManager(const ServerManager &other)
+ServerManager::ServerManager(const ServerManager& other)
     : efd_(-1), sfd_(-1), stop_requested_(false) {
   (void)other;
 }
@@ -168,7 +165,7 @@ int ServerManager::run() {
   ev.data.fd = sfd_;
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
-    return EXIT_FAILURE;
+    throw std::runtime_error("Failed to register signalfd with epoll");
   }
 
   /* event loop */
@@ -202,7 +199,7 @@ int ServerManager::run() {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
         if (stop_requested_) {
-          break; // break out of for-loop; outer while will exit after check
+          break;  // break out of for-loop; outer while will exit after check
         }
         continue;
       }
@@ -389,7 +386,8 @@ void ServerManager::setupSignalHandlers() {
     throw std::runtime_error("Failed to block signals with sigprocmask");
   }
 
-  // Create signalfd
+  // Create signalfd - REQUIRED: signalfd must be available (Linux 2.6.22+).
+  // If signalfd is not available, initialization will fail.
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
