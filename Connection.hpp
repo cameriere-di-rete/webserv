@@ -21,10 +21,13 @@ class Connection {
   std::string write_buffer;
   std::size_t write_offset;
   bool read_done;
+  bool headers_end_found;
   bool write_ready;
   Request request;
   Response response;
 
   int handleRead();
   int handleWrite();
+  void processRequest(const class Server& server);
+  void processResponse(const class Location& location, const class Server& server);
 };

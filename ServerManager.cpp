@@ -202,10 +202,10 @@ int ServerManager::run() {
           continue;
         }
 
-        if (c.read_done) {
-          LOG(DEBUG) << "Read complete on fd: " << fd << ", enabling EPOLLOUT";
-          /* enable EPOLLOUT now that we have data to send */
-          updateEvents(fd, EPOLLOUT | EPOLLET);
+        if (c.headers_end_found) {
+          LOG(DEBUG) << "Headers complete on fd: " << fd
+                     << ", setting read_done flag";
+          c.read_done = true;
         }
       }
 
@@ -323,17 +323,8 @@ int ServerManager::run() {
       LOG(DEBUG) << "Found server configuration for fd " << conn_fd
                  << " (port: " << srv_it->second.port << ")";
 
-      /* prepare 200 OK response echoing the request */
-      LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
-      conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = http::S_200_OK;
-      conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-      conn.response.setBody(Body(conn.read_buffer));
-      std::ostringstream oss2;
-      oss2 << conn.response.getBody().size();
-      conn.response.addHeader("Content-Length", oss2.str());
-      conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-      conn.write_buffer = conn.response.serialize();
+      /* process request using new handler methods */
+      conn.processRequest(srv_it->second);
 
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);

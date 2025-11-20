@@ -139,3 +139,42 @@ void Server::disconnect(void) {
     fd = -1;
   }
 }
+
+Location Server::matchLocation(const std::string& path) const {
+  LOG(DEBUG) << "Matching path '" << path << "' against " << locations.size()
+             << " location(s)";
+
+  // Find the longest matching prefix
+  std::string best_match;
+  std::map<std::string, Location>::const_iterator best_it = locations.end();
+
+  for (std::map<std::string, Location>::const_iterator it = locations.begin();
+       it != locations.end(); ++it) {
+    const std::string& loc_path = it->first;
+
+    // Check if this location path is a prefix of the request path
+    if (path.find(loc_path) == 0) {
+      // This is a match. Keep the longest one.
+      if (loc_path.length() > best_match.length()) {
+        best_match = loc_path;
+        best_it = it;
+      }
+    }
+  }
+
+  if (best_it != locations.end()) {
+    LOG(DEBUG) << "Matched location: '" << best_it->first << "'";
+    return best_it->second;
+  }
+
+  // No location matched, return a default location with server defaults
+  LOG(DEBUG) << "No location matched, using server defaults";
+  Location default_loc;
+  default_loc.path = "/";
+  default_loc.allow_methods = allow_methods;
+  default_loc.index = index;
+  default_loc.autoindex = autoindex;
+  default_loc.root = root;
+  default_loc.error_page = error_page;
+  return default_loc;
+}

@@ -32,4 +32,5 @@ class Server {
 
   void init(void);
   void disconnect(void);
+  Location matchLocation(const std::string& path) const;
 };
