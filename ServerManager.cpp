@@ -409,7 +409,7 @@ void ServerManager::setupSignalHandlers() {
 
 bool ServerManager::processSignalsFromFd() {
   struct signalfd_siginfo fdsi;
-  while (1) {
+  while (true) {
     ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
     if (s < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
