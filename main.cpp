@@ -17,7 +17,15 @@ int main(int argc, char** argv) {
   int logLevel;
 
   // collect path and log level from argv
-  processArgs(argc, argv, path, logLevel);
+  try {
+    processArgs(argc, argv, path, logLevel);
+  } catch (const std::exception& e) {
+    LOG(ERROR) << "Error processing command-line arguments: " << e.what();
+    return EXIT_FAILURE;
+  } catch (...) {
+    LOG(ERROR) << "Unknown error while processing command-line arguments";
+    return EXIT_FAILURE;
+  }
 
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
@@ -34,8 +42,7 @@ int main(int argc, char** argv) {
     sm.initServers(servers);
     LOG(INFO) << "All servers initialized and ready to accept connections";
   } catch (const std::exception& e) {
-    LOG(ERROR) << std::string("Error in config or server initialization: ") +
-                      e.what();
+    LOG(ERROR) << "Error in config or server initialization: " << e.what();
     return EXIT_FAILURE;
   } catch (...) {
     LOG(ERROR) << "Unknown error while initializing Server";

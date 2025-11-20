@@ -82,7 +82,7 @@ void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
       if (logLevel < 0) {
         logLevel = level;
       } else {
-        throw std::runtime_error("Error: multiple log_level value provided");
+        throw std::runtime_error("Error: multiple log level flags provided");
       }
     } else {
       if (path.empty()) {
