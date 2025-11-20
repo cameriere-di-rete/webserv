@@ -160,10 +160,10 @@ int ServerManager::run() {
   }
 
   /* register signalfd so signals are delivered as FD events */
-  struct epoll_event ev;
-  ev.events = EPOLLIN;
-  ev.data.fd = sfd_;
-  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
+  struct epoll_event signal_ev;
+  signal_ev.events = EPOLLIN;
+  signal_ev.data.fd = sfd_;
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &signal_ev) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
     return EXIT_FAILURE;
   }
