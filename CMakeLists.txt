@@ -40,3 +40,18 @@ set(SOURCES
 
 # Create executable
 add_executable(webserv ${SOURCES})
+
+# Write sources list to a temporary file for the generator script
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sources.txt" "${SOURCES}")
+
+# Custom target to generate standalone Makefile
+# This creates a simple Makefile that can be committed and used without CMake
+add_custom_target(generate-makefile
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCES_FILE="${CMAKE_CURRENT_BINARY_DIR}/sources.txt"
+        -DINPUT_FILE="${CMAKE_CURRENT_SOURCE_DIR}/Makefile.in"
+        -DOUTPUT_FILE="${CMAKE_CURRENT_SOURCE_DIR}/Makefile"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/generate_makefile.cmake"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating standalone Makefile from CMakeLists.txt"
+)

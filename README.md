@@ -6,11 +6,11 @@ https://datatracker.ietf.org/doc/html/rfc1945
 
 ## Building
 
-The project supports two build systems: **Makefile** (default) and **CMake** (optional).
+The project uses **CMake** as the source of truth, with a generated **Makefile** for users without CMake.
 
-### Using Makefile (Default)
+### Using Makefile (For users without CMake)
 
-For users with only `make` available:
+The Makefile is automatically generated from CMake and committed to the repository:
 
 ```bash
 make        # Build the project
@@ -24,9 +24,9 @@ Set the log level during build:
 make LOG_LEVEL=0  # 0=DEBUG, 1=INFO, 2=ERROR
 ```
 
-### Using CMake (Optional)
+### Using CMake (For development)
 
-For users who prefer CMake or need IDE integration:
+For developers who want to modify the build system:
 
 ```bash
 mkdir build && cd build
@@ -40,9 +40,22 @@ cmake -DLOG_LEVEL=0 ..
 make
 ```
 
+### Regenerating the Makefile
+
+When you modify `CMakeLists.txt`, regenerate the Makefile:
+
+```bash
+cmake -B build
+cmake --build build --target generate-makefile
+```
+
+Then commit the updated Makefile.
+
 ### Build System Files
 
-- **Makefile**: Standalone Makefile for direct compilation
-- **CMakeLists.txt**: CMake configuration file (kept in sync with Makefile)
+- **CMakeLists.txt**: Source of truth for the build system
+- **Makefile**: Auto-generated from CMakeLists.txt (committed for users without CMake)
+- **Makefile.in**: Template used to generate the Makefile
+- **generate_makefile.cmake**: Script that generates the Makefile from CMakeLists.txt
 
-Both build systems produce identical binaries and support the same build options.
+The Makefile is automatically generated from CMakeLists.txt, so there's no risk of them getting out of sync.
