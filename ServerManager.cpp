@@ -184,7 +184,7 @@ int ServerManager::run() {
         continue; /* interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
-      break;
+      return EXIT_FAILURE;
     }
 
     LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
