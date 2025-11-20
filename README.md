@@ -6,9 +6,11 @@ https://datatracker.ietf.org/doc/html/rfc1945
 
 ## Building
 
-The project uses CMake as the build system with a Makefile wrapper for convenience.
+The project supports two build systems: **Makefile** (default) and **CMake** (optional).
 
-### Quick Start
+### Using Makefile (Default)
+
+For users with only `make` available:
 
 ```bash
 make        # Build the project
@@ -17,17 +19,30 @@ make fclean # Remove all generated files
 make re     # Rebuild from scratch
 ```
 
-### Build Options
-
 Set the log level during build:
 ```bash
 make LOG_LEVEL=0  # 0=DEBUG, 1=INFO, 2=ERROR
 ```
 
-### Build System
+### Using CMake (Optional)
 
-- **CMakeLists.txt**: CMake configuration file
-- **Makefile**: Wrapper that invokes CMake (maintains original Makefile interface)
-- **Makefile.legacy**: Original Makefile (kept for reference)
+For users who prefer CMake or need IDE integration:
 
-The wrapper Makefile provides the same interface as the original Makefile, but uses CMake under the hood. All builds happen in the `build/` directory, and the final executable is copied to the project root.
+```bash
+mkdir build && cd build
+cmake ..
+make
+```
+
+Or with log level:
+```bash
+cmake -DLOG_LEVEL=0 ..
+make
+```
+
+### Build System Files
+
+- **Makefile**: Standalone Makefile for direct compilation
+- **CMakeLists.txt**: CMake configuration file (kept in sync with Makefile)
+
+Both build systems produce identical binaries and support the same build options.
