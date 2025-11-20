@@ -199,7 +199,7 @@ int ServerManager::run() {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
         if (stop_requested_) {
-          break;  // break out of for-loop; outer while will exit after check
+          return EXIT_FAILURE
         }
         continue;
       }
