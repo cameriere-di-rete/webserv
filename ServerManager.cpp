@@ -29,7 +29,7 @@
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
-ServerManager::ServerManager(const ServerManager &other)
+ServerManager::ServerManager(const ServerManager& other)
     : efd_(-1), sfd_(-1), stop_requested_(false) {
   (void)other;
 }
@@ -198,7 +198,7 @@ int ServerManager::run() {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
         if (stop_requested_) {
-          break; // break out of for-loop; outer while will exit after check
+          break;  // break out of for-loop; outer while will exit after check
         }
         continue;
       }
@@ -391,7 +391,8 @@ void ServerManager::setupSignalHandlers() {
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
-    throw std::runtime_error("Failed to create signalfd - signalfd is required");
+    throw std::runtime_error(
+        "Failed to create signalfd - signalfd is required");
   }
 
   // Ignore SIGPIPE
