@@ -30,8 +30,9 @@ int main(int argc, char** argv) {
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
   ServerManager sm;
-
   try {
+    sm.setupSignalHandlers();
+
     Config cfg;
     cfg.parseFile(std::string(path));
     LOG(INFO) << "Configuration file parsed successfully";
@@ -41,6 +42,8 @@ int main(int argc, char** argv) {
     std::vector<Server> servers = cfg.getServers();
     sm.initServers(servers);
     LOG(INFO) << "All servers initialized and ready to accept connections";
+
+    return sm.run();
   } catch (const std::exception& e) {
     LOG(ERROR) << "Error in config or server initialization: " << e.what();
     return EXIT_FAILURE;
@@ -48,8 +51,4 @@ int main(int argc, char** argv) {
     LOG(ERROR) << "Unknown error while initializing Server";
     return EXIT_FAILURE;
   }
-
-  signal(SIGPIPE, SIG_IGN);
-
-  return sm.run();
 }
