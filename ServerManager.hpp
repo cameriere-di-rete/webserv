@@ -14,6 +14,8 @@ class ServerManager {
   ServerManager& operator=(const ServerManager& other);
 
   int efd_;
+  int sfd_;
+  bool stop_requested_;
   std::map<int, Server> servers_;
   std::map<int, Connection> connections_;
 
@@ -32,6 +34,10 @@ class ServerManager {
 
   // Updates epoll events for a file descriptor
   void updateEvents(int fd, u_int32_t events);
+
+  void setupSignalHandlers();
+
+  bool processSignalsFromFd();
 
   // Closes all connections and server sockets
   void shutdown();
