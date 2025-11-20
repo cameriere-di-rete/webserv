@@ -123,9 +123,11 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
     if (errno == ENOENT) {
       if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
+        throw std::runtime_error("Failed to add file descriptor to epoll");
       }
     } else {
       LOG_PERROR(ERROR, "epoll_ctl MOD");
+      throw std::runtime_error("Failed to modify epoll events");
     }
   }
 }
@@ -157,8 +159,7 @@ int ServerManager::run() {
     LOG(DEBUG) << "Registered listen_fd " << listen_fd << " with epoll";
   }
 
-  /* register signalfd so signals are delivered as FD events.
-   * signalfd must be initialized (setupSignalHandlers must succeed). */
+  /* register signalfd so signals are delivered as FD events */
   struct epoll_event ev;
   ev.events = EPOLLIN;
   ev.data.fd = sfd_;
@@ -379,11 +380,10 @@ void ServerManager::setupSignalHandlers() {
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);
   sigaddset(&mask, SIGTERM);
-  sigaddset(&mask, SIGHUP);
 
   if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
     LOG_PERROR(ERROR, "sigprocmask");
-    throw std::runtime_error("Failed to block signals");
+    throw std::runtime_error("Failed to block signals with sigprocmask");
   }
 
   // Create signalfd - REQUIRED: signalfd must be available (Linux 2.6.22+).
@@ -391,8 +391,7 @@ void ServerManager::setupSignalHandlers() {
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
-    throw std::runtime_error(
-        "Failed to create signalfd - signalfd is required");
+    throw std::runtime_error("Failed to create signalfd");
   }
 
   // Ignore SIGPIPE
@@ -418,18 +417,16 @@ bool ServerManager::processSignalsFromFd() {
       LOG_PERROR(ERROR, "read(signalfd)");
       return stop_requested_;
     }
-    if (s != sizeof(fdsi)) {
-      continue;
+    if (s > 0 && s != sizeof(fdsi)) {
+      LOG(ERROR) << "signals: partial read from signalfd (" << s
+                 << " bytes, expected " << sizeof(fdsi) << ")";
+      return stop_requested_;
     }
 
     // Handle the signal
     if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
       stop_requested_ = true;
       return true;
-    }
-    if (fdsi.ssi_signo == SIGHUP) {
-      LOG(INFO) << "signals: SIGHUP received";
-      continue;
     }
     LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
   }
