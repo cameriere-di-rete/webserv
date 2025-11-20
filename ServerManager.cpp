@@ -447,6 +447,7 @@ void ServerManager::shutdown() {
   }
 
   if (sfd_ >= 0) {
+    LOG(DEBUG) << "Closing signalfd: " << sfd_;
     close(sfd_);
     sfd_ = -1;
   }
