@@ -165,7 +165,7 @@ int ServerManager::run() {
   ev.data.fd = sfd_;
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &ev) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
-    throw std::runtime_error("Failed to register signalfd with epoll");
+    return EXIT_FAILURE;
   }
 
   /* event loop */
