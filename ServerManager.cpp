@@ -160,6 +160,10 @@ int ServerManager::run() {
   }
 
   /* register signalfd so signals are delivered as FD events */
+  if (sfd_ < 0) {
+    LOG(ERROR) << "signalfd not initialized";
+    return EXIT_FAILURE;
+  }
   struct epoll_event signal_ev;
   signal_ev.events = EPOLLIN;
   signal_ev.data.fd = sfd_;
