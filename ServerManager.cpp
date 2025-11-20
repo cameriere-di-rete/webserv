@@ -199,7 +199,7 @@ int ServerManager::run() {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
         }
         if (stop_requested_) {
-          return EXIT_FAILURE;
+          return EXIT_SUCCESS;
         }
         continue;
       }
