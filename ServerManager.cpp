@@ -395,6 +395,9 @@ void ServerManager::setupSignalHandlers() {
   sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
   if (sfd_ < 0) {
     LOG_PERROR(ERROR, "signalfd");
+    // Unblock the signals before throwing, to avoid leaving the process in a
+    // bad state
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
     throw std::runtime_error("Failed to create signalfd");
   }
 
