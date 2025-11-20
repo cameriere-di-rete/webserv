@@ -440,7 +440,7 @@ bool ServerManager::processSignalsFromFd() {
       stop_requested_ = true;
       return true;
     }
-    LOG(INFO) << "signals: got signo=" << fdsi.ssi_signo;
+    LOG(INFO) << "signals: got unexpected signo=" << fdsi.ssi_signo;
   }
 }
 
