@@ -421,7 +421,7 @@ bool ServerManager::processSignalsFromFd() {
       LOG(ERROR) << "signals: signalfd closed unexpectedly";
       return stop_requested_;
     }
-    if (s > 0 && s != sizeof(fdsi)) {
+    if (s != sizeof(fdsi)) {
       LOG(ERROR) << "signals: partial read from signalfd (" << s
                  << " bytes, expected " << sizeof(fdsi) << ")";
       return stop_requested_;
