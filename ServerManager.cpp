@@ -401,6 +401,7 @@ void ServerManager::setupSignalHandlers() {
   sigemptyset(&sa_pipe.sa_mask);
   if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
     LOG_PERROR(ERROR, "sigaction(SIGPIPE)");
+    throw std::runtime_error("Failed to ignore SIGPIPE with sigaction");
   }
 
   LOG(INFO) << "signals: signalfd installed and signals blocked";
