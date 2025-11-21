@@ -142,6 +142,8 @@ std::vector<Server> Config::getServers(void) {
       global_max_request_body_ = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
+    } else {
+      throwUnrecognizedDirective_(d, "as global directive");
     }
   }
 
@@ -179,6 +181,21 @@ std::string Config::configErrorPrefix() const {
   }
   oss << ": ";
   return oss.str();
+}
+
+// Centralised helper to throw standardized unrecognized-directive errors.
+// `context` will be appended after the directive message (for example:
+// "in server block", "in location block", or "global directive").
+void Config::throwUnrecognizedDirective_(const DirectiveNode& d,
+                                         const std::string& context) const {
+  std::ostringstream oss;
+  oss << configErrorPrefix() << "Unrecognized directive '" << d.name << "'";
+  if (!context.empty()) {
+    oss << " " << context;
+  }
+  std::string msg = oss.str();
+  LOG(ERROR) << msg;
+  throw std::runtime_error(msg);
 }
 
 // ==================== DEBUG OUTPUT ====================
@@ -574,6 +591,8 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       requireArgsEqual_(d, 1);
       srv.max_request_body = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
+    } else {
+      throwUnrecognizedDirective_(d, "in server block");
     }
   }
 
@@ -683,6 +702,8 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else {
+      throwUnrecognizedDirective_(d, "in location block");
     }
   }
   // clear location context (server context remains active in caller)
