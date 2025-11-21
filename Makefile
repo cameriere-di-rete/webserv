@@ -28,7 +28,11 @@ SOURCES	:=	main.cpp \
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
 
-all: $(NAME)
+# Files that, when changed, should trigger regenerating the Makefile
+CMAKE_INPUTS := CMakeLists.txt generate_makefile.cmake
+STAMP := build/.cmake_stamp
+
+all: $(STAMP) $(NAME)
 
 $(NAME): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@
@@ -46,4 +50,15 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+# Regenerate the auto-generated Makefile when CMake inputs change.
+$(STAMP): $(CMAKE_INPUTS)
+	@cmake -B build && cmake --build build --target generate-makefile
+	@mkdir -p $(dir $@)
+	@touch $@
+
+regenerate-stamp:
+	@rm -f $(STAMP) && $(MAKE) $(STAMP)
+
+regenerate: regenerate-stamp
+
+.PHONY: all clean fclean re regenerate-stamp regenerate
