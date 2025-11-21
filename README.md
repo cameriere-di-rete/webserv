@@ -49,14 +49,30 @@ If no config file is specified, the default is `conf/default.conf`.
 
 ### Regenerating the Makefile
 
-When you modify `CMakeLists.txt`, regenerate the Makefile:
+The Makefile is generated from `CMakeLists.txt` using the `generate-makefile` target.
+
+Automatic regeneration: the generated `Makefile` now embeds a small stamp-based rule so
+`make` will automatically regenerate the top-level `Makefile` when important CMake files
+change (for example `CMakeLists.txt` and other `*.cmake` files). The stamp file used is
+`build/.cmake_stamp`.
+
+Manual regeneration options:
+
+- Run the CMake generator directly:
 
 ```bash
 cmake -B build
 cmake --build build --target generate-makefile
 ```
 
-Then commit the updated Makefile.
+- Or use the convenience make target (embedded in the generated `Makefile`):
+
+```bash
+make regenerate        # alias for regenerate-stamp
+make regenerate-stamp  # force regeneration via the stamp target
+```
+
+After regeneration, if you want to keep the generated `Makefile` in the repo, commit the updated file.
 
 ### Build System Files
 
