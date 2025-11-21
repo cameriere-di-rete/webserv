@@ -78,7 +78,7 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 
 void ServerManager::acceptConnection(int listen_fd) {
   LOG(DEBUG) << "Accepting new connections on listen_fd: " << listen_fd;
-  while (1) {
+  while (true) {
     int conn_fd = accept(listen_fd, NULL, NULL);
     if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -108,13 +108,13 @@ void ServerManager::acceptConnection(int listen_fd) {
   }
 }
 
-void ServerManager::updateEvents(int fd, uint32_t events) {
+void ServerManager::updateEvents(int fd, uint32_t events) const {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
   }
 
-  struct epoll_event ev;
+  struct epoll_event ev = {};
   ev.events = events;
   ev.data.fd = fd;
 
@@ -148,7 +148,7 @@ int ServerManager::run() {
   for (std::map<int, Server>::const_iterator it = servers_.begin();
        it != servers_.end(); ++it) {
     int listen_fd = it->first;
-    struct epoll_event ev;
+    struct epoll_event ev = {};
     ev.events = EPOLLIN; /* only need read events for the listener */
     ev.data.fd = listen_fd;
     if (epoll_ctl(efd_, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
@@ -163,7 +163,7 @@ int ServerManager::run() {
     LOG(ERROR) << "signalfd not initialized";
     return EXIT_FAILURE;
   }
-  struct epoll_event signal_ev;
+  struct epoll_event signal_ev = {};
   signal_ev.events = EPOLLIN;
   signal_ev.data.fd = sfd_;
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &signal_ev) < 0) {
@@ -225,7 +225,7 @@ int ServerManager::run() {
       uint32_t ev_mask = events[i].events;
 
       /* readable */
-      if (ev_mask & EPOLLIN) {
+      if ((ev_mask & EPOLLIN) != 0U) {
         LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
         int status = c.handleRead();
 
@@ -242,7 +242,7 @@ int ServerManager::run() {
       }
 
       /* writable */
-      if (ev_mask & EPOLLOUT) {
+      if ((ev_mask & EPOLLOUT) != 0U) {
         LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
         int status = c.handleWrite();
 
@@ -336,7 +336,7 @@ void ServerManager::setupSignalHandlers() {
   }
 
   // Ignore SIGPIPE
-  struct sigaction sa_pipe;
+  struct sigaction sa_pipe = {};
   std::memset(&sa_pipe, 0, sizeof(sa_pipe));
   sa_pipe.sa_handler = SIG_IGN;
   sigemptyset(&sa_pipe.sa_mask);
@@ -349,7 +349,7 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-  struct signalfd_siginfo fdsi;
+  struct signalfd_siginfo fdsi = {};
   while (true) {
     ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
     if (s < 0) {

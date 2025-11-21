@@ -22,14 +22,9 @@
 // ==================== PUBLIC METHODS ====================
 
 Config::Config()
-    : tokens_(),
-      root_(),
-      servers_(),
-      global_error_pages_(),
-      global_max_request_body_(0),
+    : global_max_request_body_(0),
       idx_(0),
-      current_server_index_(kGlobalContext),
-      current_location_path_() {}
+      current_server_index_(kGlobalContext) {}
 
 Config::~Config() {}
 
@@ -200,7 +195,7 @@ void Config::throwUnrecognizedDirective_(const DirectiveNode& d,
 
 // ==================== DEBUG OUTPUT ====================
 
-static void _printBlockRec(const BlockNode& b, int indent) {
+static void printBlockRec(const BlockNode& b, int indent) {
   std::string pad(indent, ' ');
   {
     std::ostringstream ss;
@@ -215,7 +210,7 @@ static void _printBlockRec(const BlockNode& b, int indent) {
     std::ostringstream ss;
     ss << pad << "  Directive: name='" << d.name << "' args=[";
     for (size_t j = 0; j < d.args.size(); ++j) {
-      if (j) {
+      if (j != 0U) {
         ss << ", ";
       }
       ss << "'" << d.args[j] << "'";
@@ -224,12 +219,12 @@ static void _printBlockRec(const BlockNode& b, int indent) {
     LOG(DEBUG) << ss.str();
   }
   for (size_t i = 0; i < b.sub_blocks.size(); ++i) {
-    _printBlockRec(b.sub_blocks[i], indent + 2);
+    printBlockRec(b.sub_blocks[i], indent + 2);
   }
 }
 
 void Config::debug(void) const {
-  _printBlockRec(root_, 0);
+  printBlockRec(root_, 0);
 }
 
 // ==================== PARSING HELPERS ====================
@@ -257,7 +252,7 @@ void Config::tokenize(const std::string& content) {
         cur.clear();
       }
       tokens_.push_back(std::string(1, c));
-    } else if (std::isspace(static_cast<unsigned char>(c))) {
+    } else if (std::isspace(static_cast<unsigned char>(c)) != 0) {
       if (!cur.empty()) {
         tokens_.push_back(cur);
         cur.clear();
@@ -277,7 +272,7 @@ bool Config::eof() const {
 }
 
 const std::string& Config::peek() const {
-  static std::string empty = "";
+  static std::string empty;
   return idx_ < tokens_.size() ? tokens_[idx_] : empty;
 }
 
@@ -508,7 +503,7 @@ std::pair<http::Status, std::string> Config::parseRedirect(
     throw std::runtime_error(oss.str());
   }
   http::Status code = parseRedirectCode_(args[0]);
-  std::string location = args[1];
+  const std::string& location = args[1];
   return std::make_pair(code, location);
 }
 
@@ -714,7 +709,7 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
 // ==================== DIRECTIVE PARSERS ====================
 
 Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
-  Config::ListenInfo li;
+  Config::ListenInfo li = {};
   size_t colon_pos = listen_arg.find(':');
 
   // Extract port string

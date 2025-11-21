@@ -31,7 +31,7 @@ class Config {
   std::string current_location_path_;
 
   // Parsing helpers
-  void removeComments(std::string& s);
+  static void removeComments(std::string& s);
   void tokenize(const std::string& content);
   bool eof() const;
   const std::string& peek() const;

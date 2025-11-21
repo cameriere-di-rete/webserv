@@ -24,14 +24,15 @@ std::string trim_copy(const std::string& s) {
   std::string res = s;
   // left trim
   std::string::size_type i = 0;
-  while (i < res.size() && std::isspace(static_cast<unsigned char>(res[i]))) {
+  while (i < res.size() &&
+         (std::isspace(static_cast<unsigned char>(res[i])) != 0)) {
     ++i;
   }
   res.erase(0, i);
   // right trim
   if (!res.empty()) {
     std::string::size_type j = res.size() - 1;
-    while (j > 0 && std::isspace(static_cast<unsigned char>(res[j]))) {
+    while (j > 0 && (std::isspace(static_cast<unsigned char>(res[j])) != 0)) {
       --j;
     }
     res.erase(j);

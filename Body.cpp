@@ -1,6 +1,6 @@
 #include "Body.hpp"
 
-Body::Body() : data() {}
+Body::Body() {}
 
 Body::Body(const std::string& d) : data(d) {}
 

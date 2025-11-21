@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-RequestLine::RequestLine() : method(), uri(), version() {}
+RequestLine::RequestLine() {}
 
 RequestLine::RequestLine(const RequestLine& other)
     : method(other.method), uri(other.uri), version(other.version) {}
@@ -26,8 +26,5 @@ std::string RequestLine::toString() const {
 
 bool RequestLine::parse(const std::string& line) {
   std::istringstream in(line);
-  if (!(in >> method >> uri >> version)) {
-    return false;
-  }
-  return true;
+  return !!(in >> method >> uri >> version);
 }
