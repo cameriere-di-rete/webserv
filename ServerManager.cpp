@@ -287,13 +287,6 @@ int ServerManager::run() {
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
                  << " " << conn.request.request_line.uri;
 
-      /* set body to remaining bytes after header separator */
-      std::size_t body_start = conn.headers_end_pos + 4; /* \r\n\r\n */
-      conn.request.getBody().data.clear();
-      if (conn.read_buffer.size() > body_start) {
-        conn.request.getBody().data = conn.read_buffer.substr(body_start);
-      }
-
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
       if (srv_it == servers_.end()) {
