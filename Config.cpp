@@ -683,6 +683,13 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Unrecognized directive '" << d.name
+          << "' in location block";
+      std::string msg = oss.str();
+      LOG(ERROR) << msg;
+      throw std::runtime_error(msg);
     }
   }
   // clear location context (server context remains active in caller)
