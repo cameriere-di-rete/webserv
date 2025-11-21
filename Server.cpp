@@ -18,13 +18,8 @@ Server::Server(void)
     : fd(-1),
       port(-1),
       host(INADDR_ANY),
-      allow_methods(),
-      index(),
       autoindex(false),
-      root(),
-      error_page(),
-      max_request_body(0),
-      locations() {
+      max_request_body(0) {
   LOG(DEBUG) << "Server() default constructor called";
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Server initialized with default allowed methods";
@@ -34,13 +29,8 @@ Server::Server(int port)
     : fd(-1),
       port(port),
       host(INADDR_ANY),
-      allow_methods(),
-      index(),
       autoindex(false),
-      root(),
-      error_page(),
-      max_request_body(0),
-      locations() {
+      max_request_body(0) {
   LOG(DEBUG) << "Server(port) constructor called with port: " << port;
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Server on port " << port
@@ -99,7 +89,7 @@ void Server::init(void) {
   }
   LOG(DEBUG) << "SO_REUSEADDR option set on socket";
 
-  struct sockaddr_in addr;
+  struct sockaddr_in addr = {};
   std::memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   /* bind to configured host (INADDR_ANY if not set) */

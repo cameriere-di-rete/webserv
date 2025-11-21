@@ -25,7 +25,7 @@ bool ci_equal_copy(const std::string& a, const std::string& b) {
 }  // namespace
 
 /* Message */
-Message::Message() : headers(), body() {}
+Message::Message() {}
 
 Message::Message(const Message& other)
     : headers(other.headers), body(other.body) {}

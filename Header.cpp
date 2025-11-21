@@ -1,6 +1,6 @@
 #include "Header.hpp"
 
-Header::Header() : name(), value() {}
+Header::Header() {}
 
 Header::Header(const std::string& n, const std::string& v)
     : name(n), value(v) {}

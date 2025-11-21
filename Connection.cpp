@@ -20,18 +20,14 @@ Connection::Connection()
       server_fd(-1),
       write_offset(0),
       headers_end_pos(std::string::npos),
-      write_ready(false),
-      request(),
-      response() {}
+      write_ready(false) {}
 
 Connection::Connection(int fd)
     : fd(fd),
       server_fd(-1),
       write_offset(0),
       headers_end_pos(std::string::npos),
-      write_ready(false),
-      request(),
-      response() {}
+      write_ready(false) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -62,7 +58,7 @@ Connection& Connection::operator=(const Connection& other) {
 }
 
 int Connection::handleRead() {
-  while (1) {
+  while (true) {
     char buf[WRITE_BUF_SIZE] = {0};
 
     ssize_t r = recv(fd, buf, sizeof(buf), 0);

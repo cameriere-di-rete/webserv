@@ -1,6 +1,6 @@
 #include "DirectiveNode.hpp"
 
-DirectiveNode::DirectiveNode() : name(), args() {}
+DirectiveNode::DirectiveNode() {}
 
 DirectiveNode::DirectiveNode(const std::string& n,
                              const std::vector<std::string>& a)
