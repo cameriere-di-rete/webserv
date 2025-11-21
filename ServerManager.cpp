@@ -275,34 +275,8 @@ int ServerManager::run() {
 
       LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
-      /* find header/body separator */
-      std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
-      if (headers_pos == std::string::npos) {
-        LOG(DEBUG) << "Headers not complete yet for fd: " << conn_fd;
-        continue; /* wait for headers */
-      }
-
-      /* split header part into lines */
-      std::vector<std::string> lines;
-      std::string temp;
-      for (std::size_t i = 0; i < headers_pos; ++i) {
-        char ch = conn.read_buffer[i];
-        if (ch == '\r') {
-          continue;
-        }
-        if (ch == '\n') {
-          lines.push_back(temp);
-          temp.clear();
-        } else {
-          temp.push_back(ch);
-        }
-      }
-
-      if (!temp.empty()) {
-        lines.push_back(temp);
-      }
-
-      if (!conn.request.parseStartAndHeaders(lines)) {
+      if (!conn.request.parseStartAndHeaders(conn.read_buffer,
+                                             conn.headers_end_pos)) {
         /* malformed start line or headers -> 400 Bad Request */
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
