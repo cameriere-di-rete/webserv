@@ -15,7 +15,6 @@
 #include <cstring>
 #include <iostream>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -237,10 +236,8 @@ int ServerManager::run() {
           continue;
         }
 
-        if (c.read_done) {
-          LOG(DEBUG) << "Read complete on fd: " << fd << ", enabling EPOLLOUT";
-          /* enable EPOLLOUT now that we have data to send */
-          updateEvents(fd, EPOLLOUT | EPOLLET);
+        if (c.headers_end_pos != std::string::npos) {
+          LOG(DEBUG) << "Headers complete on fd: " << fd;
         }
       }
 
@@ -268,7 +265,7 @@ int ServerManager::run() {
       Connection& conn = it->second;
       int conn_fd = it->first;
 
-      if (!conn.read_done) {
+      if (conn.headers_end_pos == std::string::npos) {
         continue;
       }
 
@@ -278,60 +275,17 @@ int ServerManager::run() {
 
       LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
-      /* find header/body separator */
-      std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
-      if (headers_pos == std::string::npos) {
-        LOG(DEBUG) << "Headers not complete yet for fd: " << conn_fd;
-        continue; /* wait for headers */
-      }
-
-      /* split header part into lines */
-      std::vector<std::string> lines;
-      std::string temp;
-      for (std::size_t i = 0; i < headers_pos; ++i) {
-        char ch = conn.read_buffer[i];
-        if (ch == '\r') {
-          continue;
-        }
-        if (ch == '\n') {
-          lines.push_back(temp);
-          temp.clear();
-        } else {
-          temp.push_back(ch);
-        }
-      }
-
-      if (!temp.empty()) {
-        lines.push_back(temp);
-      }
-
-      if (!conn.request.parseStartAndHeaders(lines)) {
+      if (!conn.request.parseStartAndHeaders(conn.read_buffer,
+                                             conn.headers_end_pos)) {
         /* malformed start line or headers -> 400 Bad Request */
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = http::S_400_BAD_REQUEST;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_400_BAD_REQUEST);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss;
-        oss << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
                  << " " << conn.request.request_line.uri;
-
-      /* set body to remaining bytes after header separator */
-      std::size_t body_start = headers_pos + 4; /* \r\n\r\n */
-      conn.request.getBody().data.clear();
-      if (conn.read_buffer.size() > body_start) {
-        conn.request.getBody().data = conn.read_buffer.substr(body_start);
-      }
 
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
@@ -339,18 +293,7 @@ int ServerManager::run() {
         /* shouldn't happen, but handle gracefully */
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code =
-            http::S_500_INTERNAL_SERVER_ERROR;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_500_INTERNAL_SERVER_ERROR);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss_err;
-        oss_err << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss_err.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
@@ -358,17 +301,8 @@ int ServerManager::run() {
       LOG(DEBUG) << "Found server configuration for fd " << conn_fd
                  << " (port: " << srv_it->second.port << ")";
 
-      /* prepare 200 OK response echoing the request */
-      LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
-      conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = http::S_200_OK;
-      conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-      conn.response.setBody(Body(conn.read_buffer));
-      std::ostringstream oss2;
-      oss2 << conn.response.getBody().size();
-      conn.response.addHeader("Content-Length", oss2.str());
-      conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-      conn.write_buffer = conn.response.serialize();
+      /* process request using new handler methods */
+      conn.processRequest(srv_it->second);
 
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
