@@ -39,10 +39,13 @@ Run the server with a configuration file:
 
 Set the log level at runtime:
 ```bash
-./webserv -l:0 [config_file]  # 0=DEBUG, 1=INFO, 2=ERROR
+./webserv -l:0           # Use default config with DEBUG level
+./webserv -l:1 my.conf   # Use custom config with INFO level
 ```
 
-If no config file is specified, the default is `./conf/default.conf`.
+Log levels: 0=DEBUG, 1=INFO, 2=ERROR
+
+If no config file is specified, the default is `conf/default.conf`.
 
 ### Regenerating the Makefile
 
