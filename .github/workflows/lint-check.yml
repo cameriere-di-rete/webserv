@@ -1,14 +1,18 @@
-name: cpp-linter
+name: Lint Check
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
 
 jobs:
   cpp-linter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
         env:
@@ -18,6 +22,7 @@ jobs:
           tidy-checks: '' # Use .clang-tidy config file
           # only 'update' a single comment in a pull request thread.
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1

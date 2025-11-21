@@ -4,9 +4,9 @@
 
 struct Body {
   Body();
-  explicit Body(const std::string &d);
-  Body(const Body &other);
-  Body &operator=(const Body &other);
+  explicit Body(const std::string& d);
+  Body(const Body& other);
+  Body& operator=(const Body& other);
   ~Body();
 
   void clear();

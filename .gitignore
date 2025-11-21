@@ -8,3 +8,7 @@ webserv
 
 # editors
 .swp
+
+.pid
+.log
+_codeql_detected_source_root

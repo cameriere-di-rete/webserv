@@ -1,0 +1,30 @@
+name: Build Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - 'Makefile'
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build project
+        run: make
+
+      - name: Verify binary was created
+        run: |
+          if test -f webserv; then
+            echo "Build successful - webserv binary created"
+          else
+            echo "Error: webserv binary was not created"
+            exit 1
+          fi
