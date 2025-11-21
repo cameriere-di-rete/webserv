@@ -34,9 +34,15 @@ re: fclean all
 
 # Regenerate the auto-generated Makefile when CMake inputs change.
 $(STAMP): $(CMAKE_INPUTS)
-	@cmake -B build && cmake --build build --target generate-makefile
-	@mkdir -p $(dir $@)
-	@touch $@
+	@if command -v cmake >/dev/null 2>&1; then \
+		cmake -B build && cmake --build build --target generate-makefile; \
+		mkdir -p $(dir $@); \
+		touch $@; \
+	else \
+		echo "Warning: CMake not found, skipping Makefile regeneration"; \
+		mkdir -p $(dir $@); \
+		touch $@; \
+	fi
 
 regenerate-stamp:
 	@rm -f $(STAMP) && $(MAKE) $(STAMP)
