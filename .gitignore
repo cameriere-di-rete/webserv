@@ -6,6 +6,13 @@ webserv
 *.o
 *.d
 
+# cmake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.bak
+
 # editors
 .swp
 
