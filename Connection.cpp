@@ -19,7 +19,6 @@ Connection::Connection()
     : fd(-1),
       server_fd(-1),
       write_offset(0),
-      read_done(false),
       headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
@@ -29,7 +28,6 @@ Connection::Connection(int fd)
     : fd(fd),
       server_fd(-1),
       write_offset(0),
-      read_done(false),
       headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
@@ -41,7 +39,6 @@ Connection::Connection(const Connection& other)
       read_buffer(other.read_buffer),
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
-      read_done(other.read_done),
       headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
       request(other.request),
@@ -56,7 +53,6 @@ Connection& Connection::operator=(const Connection& other) {
     read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
-    read_done = other.read_done;
     headers_end_pos = other.headers_end_pos;
     write_ready = other.write_ready;
     request = other.request;
