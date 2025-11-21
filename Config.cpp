@@ -143,7 +143,7 @@ std::vector<Server> Config::getServers(void) {
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
     } else {
-      throwUnrecognizedDirective_(d, "global directive");
+      throwUnrecognizedDirective_(d, "as global directive");
     }
   }
 
