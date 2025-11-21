@@ -120,6 +120,25 @@ int Connection::handleWrite() {
   return 0;
 }
 
+void Connection::prepareErrorResponse(http::Status status) {
+  response.status_line.version = HTTP_VERSION;
+  response.status_line.status_code = status;
+  response.status_line.reason = http::reasonPhrase(status);
+
+  std::string title = http::statusWithReason(status);
+  std::ostringstream body;
+  body << "<html>" << CRLF << "<head><title>" << title << "</title></head>"
+       << CRLF << "<body>" << CRLF << "<center><h1>" << title
+       << "</h1></center>" << CRLF << "</body>" << CRLF << "</html>" << CRLF;
+
+  response.getBody().data = body.str();
+  response.addHeader("Content-Type", "text/html; charset=utf-8");
+  std::ostringstream oss;
+  oss << response.getBody().size();
+  response.addHeader("Content-Length", oss.str());
+  write_buffer = response.serialize();
+}
+
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
@@ -139,27 +158,16 @@ void Connection::processRequest(const Server& server) {
   Location location = server.matchLocation(path);
 
   // 4. Process response based on location
-  processResponse(location, server);
+  processResponse(location);
 }
 
-void Connection::processResponse(const Location& location, const Server& server) {
-  (void)server;  // unused for now, will be used for error pages
+void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
   // 1. Check HTTP protocol version
   if (request.request_line.version != HTTP_VERSION) {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
-    response.status_line.version = HTTP_VERSION;
-    response.status_line.status_code = http::S_505_HTTP_VERSION_NOT_SUPPORTED;
-    response.status_line.reason =
-        http::reasonPhrase(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
-    response.getBody().data =
-        http::statusWithReason(response.status_line.status_code);
-    std::ostringstream oss;
-    oss << response.getBody().size();
-    response.addHeader("Content-Length", oss.str());
-    response.addHeader("Content-Type", "text/plain; charset=utf-8");
-    write_buffer = response.serialize();
+    prepareErrorResponse(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
     return;
   }
 
@@ -170,17 +178,7 @@ void Connection::processResponse(const Location& location, const Server& server)
   } catch (const std::invalid_argument&) {
     // Method not in implemented_methods
     LOG(INFO) << "Not implemented method: " << request.request_line.method;
-    response.status_line.version = HTTP_VERSION;
-    response.status_line.status_code = http::S_501_NOT_IMPLEMENTED;
-    response.status_line.reason =
-        http::reasonPhrase(http::S_501_NOT_IMPLEMENTED);
-    response.getBody().data =
-        http::statusWithReason(response.status_line.status_code);
-    std::ostringstream oss;
-    oss << response.getBody().size();
-    response.addHeader("Content-Length", oss.str());
-    response.addHeader("Content-Type", "text/plain; charset=utf-8");
-    write_buffer = response.serialize();
+    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
     return;
   }
 
@@ -188,11 +186,6 @@ void Connection::processResponse(const Location& location, const Server& server)
   if (location.allow_methods.find(method) == location.allow_methods.end()) {
     LOG(INFO) << "Method not allowed: " << request.request_line.method
               << " for location: " << location.path;
-    response.status_line.version = HTTP_VERSION;
-    response.status_line.status_code = http::S_405_METHOD_NOT_ALLOWED;
-    response.status_line.reason =
-        http::reasonPhrase(http::S_405_METHOD_NOT_ALLOWED);
-
     // Build Allow header with allowed methods
     std::string allow_header;
     for (std::set<http::Method>::const_iterator it =
@@ -204,14 +197,7 @@ void Connection::processResponse(const Location& location, const Server& server)
       allow_header += http::methodToString(*it);
     }
     response.addHeader("Allow", allow_header);
-
-    response.getBody().data =
-        http::statusWithReason(response.status_line.status_code);
-    std::ostringstream oss;
-    oss << response.getBody().size();
-    response.addHeader("Content-Length", oss.str());
-    response.addHeader("Content-Type", "text/plain; charset=utf-8");
-    write_buffer = response.serialize();
+    prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
     return;
   }
 

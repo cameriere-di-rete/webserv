@@ -15,7 +15,6 @@
 #include <cstring>
 #include <iostream>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -309,17 +308,7 @@ int ServerManager::run() {
         /* malformed start line or headers -> 400 Bad Request */
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = http::S_400_BAD_REQUEST;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_400_BAD_REQUEST);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss;
-        oss << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
@@ -339,18 +328,7 @@ int ServerManager::run() {
         /* shouldn't happen, but handle gracefully */
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code =
-            http::S_500_INTERNAL_SERVER_ERROR;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_500_INTERNAL_SERVER_ERROR);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss_err;
-        oss_err << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss_err.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }

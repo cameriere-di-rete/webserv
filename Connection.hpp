@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <string>
 
+#include "HttpStatus.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
 
@@ -29,5 +30,6 @@ class Connection {
   int handleRead();
   int handleWrite();
   void processRequest(const class Server& server);
-  void processResponse(const class Location& location, const class Server& server);
+  void processResponse(const class Location& location);
+  void prepareErrorResponse(http::Status status);
 };
