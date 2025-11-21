@@ -1,0 +1,50 @@
+name: Check generated Makefile
+
+on:
+  push:
+    paths:
+      - 'Makefile'
+      - 'Makefile.in'
+      - 'CMakeLists.txt'
+      - '**/*.cmake'
+  pull_request:
+    paths:
+      - 'Makefile'
+      - 'Makefile.in'
+      - 'CMakeLists.txt'
+      - '**/*.cmake'
+
+jobs:
+  check-makefile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Save committed Makefile
+        run: |
+          if [ -f Makefile ]; then cp Makefile Makefile.committed; else touch Makefile.committed; fi
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+
+      - name: Regenerate Makefile from CMake
+        run: |
+          cmake -B build
+          cmake --build build --target generate-makefile
+
+      - name: Ensure Makefile is up-to-date
+        run: |
+          # Compare the generated Makefile to the committed copy we saved earlier
+          if ! cmp -s Makefile.committed Makefile; then
+            echo "ERROR: Makefile is out of sync with CMake generator.";
+            echo "Run: cmake -B build && cmake --build build --target generate-makefile";
+            echo "Commit the updated Makefile and push.";
+            echo
+            diff -u Makefile.committed Makefile || true
+            exit 1
+          fi
