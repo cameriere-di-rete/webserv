@@ -20,7 +20,7 @@ Connection::Connection()
       server_fd(-1),
       write_offset(0),
       read_done(false),
-      headers_end_found(false),
+      headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
       response() {}
@@ -30,7 +30,7 @@ Connection::Connection(int fd)
       server_fd(-1),
       write_offset(0),
       read_done(false),
-      headers_end_found(false),
+      headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
       response() {}
@@ -42,7 +42,7 @@ Connection::Connection(const Connection& other)
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
       read_done(other.read_done),
-      headers_end_found(other.headers_end_found),
+      headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
       request(other.request),
       response(other.response) {}
@@ -57,7 +57,7 @@ Connection& Connection::operator=(const Connection& other) {
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
     read_done = other.read_done;
-    headers_end_found = other.headers_end_found;
+    headers_end_pos = other.headers_end_pos;
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
@@ -88,8 +88,9 @@ int Connection::handleRead() {
     read_buffer.append(buf, r);
 
     // Check if the HTTP request headers are complete
-    if (read_buffer.find(CRLF CRLF) != std::string::npos) {
-      headers_end_found = true;
+    std::size_t pos = read_buffer.find(CRLF CRLF);
+    if (pos != std::string::npos) {
+      headers_end_pos = pos;
       break;
     }
   }

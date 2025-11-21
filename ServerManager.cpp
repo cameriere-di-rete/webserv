@@ -236,7 +236,7 @@ int ServerManager::run() {
           continue;
         }
 
-        if (c.headers_end_found) {
+        if (c.headers_end_pos != std::string::npos) {
           LOG(DEBUG) << "Headers complete on fd: " << fd;
         }
       }
@@ -265,7 +265,7 @@ int ServerManager::run() {
       Connection& conn = it->second;
       int conn_fd = it->first;
 
-      if (!conn.read_done) {
+      if (conn.headers_end_pos == std::string::npos) {
         continue;
       }
 
