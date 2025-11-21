@@ -142,6 +142,13 @@ std::vector<Server> Config::getServers(void) {
       global_max_request_body_ = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
+    } else {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Unrecognized global directive '" << d.name
+          << "'";
+      std::string msg = oss.str();
+      LOG(ERROR) << msg;
+      throw std::runtime_error(msg);
     }
   }
 
@@ -574,6 +581,13 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       requireArgsEqual_(d, 1);
       srv.max_request_body = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
+    } else {
+      std::ostringstream oss;
+      oss << configErrorPrefix() << "Unrecognized directive '" << d.name
+          << "' in server block";
+      std::string msg = oss.str();
+      LOG(ERROR) << msg;
+      throw std::runtime_error(msg);
     }
   }
 
