@@ -49,4 +49,13 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+test:
+	@mkdir -p build_tests
+	@cmake -S . -B build_tests
+	@cmake --build build_tests --target runTests -- -j
+	@ctest --test-dir build_tests --output-on-failure
+
+clean-tests:
+	@rm -rf build_tests
+
+.PHONY: all clean fclean re test clean-tests
