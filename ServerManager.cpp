@@ -237,9 +237,7 @@ int ServerManager::run() {
         }
 
         if (c.headers_end_found) {
-          LOG(DEBUG) << "Headers complete on fd: " << fd
-                     << ", setting read_done flag";
-          c.read_done = true;
+          LOG(DEBUG) << "Headers complete on fd: " << fd;
         }
       }
 
