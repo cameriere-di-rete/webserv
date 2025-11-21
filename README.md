@@ -19,11 +19,6 @@ make fclean # Remove all generated files
 make re     # Rebuild from scratch
 ```
 
-Set the log level during build:
-```bash
-make LOG_LEVEL=0  # 0=DEBUG, 1=INFO, 2=ERROR
-```
-
 ### Using CMake (For development)
 
 For developers who want to modify the build system:
@@ -34,11 +29,20 @@ cmake ..
 make
 ```
 
-Or with log level:
+## Running
+
+Run the server with a configuration file:
+
 ```bash
-cmake -DLOG_LEVEL=0 ..
-make
+./webserv [config_file]
 ```
+
+Set the log level at runtime:
+```bash
+./webserv -l:0 [config_file]  # 0=DEBUG, 1=INFO, 2=ERROR
+```
+
+If no config file is specified, the default is `./conf/default.conf`.
 
 ### Regenerating the Makefile
 

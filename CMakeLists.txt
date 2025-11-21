@@ -9,12 +9,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags matching original Makefile
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 
-# Optional LOG_LEVEL support
-# Usage: cmake -DLOG_LEVEL=0 .. (0=DEBUG, 1=INFO, 2=ERROR)
-if(DEFINED LOG_LEVEL)
-    add_compile_definitions(LOG_LEVEL=${LOG_LEVEL})
-endif()
-
 # Source files from original Makefile
 set(SOURCES
     main.cpp
