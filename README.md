@@ -53,8 +53,11 @@ The Makefile is generated from `CMakeLists.txt` using the `generate-makefile` ta
 
 Automatic regeneration: the generated `Makefile` now embeds a small stamp-based rule so
 `make` will automatically regenerate the top-level `Makefile` when important CMake files
-change (for example `CMakeLists.txt` and other `*.cmake` files). The stamp file used is
+change (for example `CMakeLists.txt`, `Makefile.in`, and other `*.cmake` files). The stamp file used is
 `build/.cmake_stamp`.
+
+**Note:** Automatic regeneration only works if CMake is installed and available in your environment.
+If CMake is not available, a warning is displayed but the build continues using the committed Makefile.
 
 Manual regeneration options:
 
