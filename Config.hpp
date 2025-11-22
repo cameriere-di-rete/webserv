@@ -36,6 +36,7 @@ class Config {
   bool eof() const;
   const std::string& peek() const;
   std::string get();
+  bool isBlock() const;
   BlockNode parseBlock();
   DirectiveNode parseDirective();
 
