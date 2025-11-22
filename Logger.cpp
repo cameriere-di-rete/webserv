@@ -13,7 +13,7 @@ Logger::Logger(LogLevel level, const char* file, int line)
 
 Logger::~Logger() {
   std::ostringstream o;
-  if (msgLevel_ == DEBUG) {
+  if (level_ == DEBUG) {
     o << "(" << file_ << ":" << line_ << ") ";
   }
   o << stream_.str();
