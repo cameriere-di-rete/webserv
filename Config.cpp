@@ -289,20 +289,13 @@ std::string Config::get() {
 }
 
 bool Config::isBlock() const {
-  if (idx_ >= tokens_.size()) {
-    return false;
-  }
-  // Check if next token is '{'
-  size_t next_idx = idx_ + 1;
-  if (next_idx < tokens_.size() && tokens_[next_idx] == "{") {
-    return true;
-  }
-  // Check if token after next is '{' (for blocks with parameters like location)
-  size_t next_next_idx = idx_ + 2;
-  if (next_next_idx < tokens_.size() && tokens_[next_next_idx] == "{") {
-    return true;
-  }
-  return false;
+  // A block is identified by a '{' following the current token.
+  // This can be:
+  //   - Immediately after (e.g., "server {")
+  //   - After one parameter (e.g., "location /path {")
+  // We look ahead at most 2 positions to accommodate blocks with parameters.
+  return (idx_ + 1 < tokens_.size() && tokens_[idx_ + 1] == "{") ||
+         (idx_ + 2 < tokens_.size() && tokens_[idx_ + 2] == "{");
 }
 
 DirectiveNode Config::parseDirective() {
