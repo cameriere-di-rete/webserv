@@ -81,8 +81,8 @@ void Config::parseFile(const std::string& path) {
 
   root_.type = "root";
   while (!eof()) {
-    if (peek() == "server") {
-      LOG(DEBUG) << "Found server block, parsing...";
+    if (isBlock()) {
+      LOG(DEBUG) << "Found block '" << peek() << "', parsing...";
       root_.sub_blocks.push_back(parseBlock());
     } else {
       LOG(DEBUG) << "Found global directive: " << peek();
@@ -288,6 +288,23 @@ std::string Config::get() {
   return tokens_[idx_++];
 }
 
+bool Config::isBlock() const {
+  if (idx_ >= tokens_.size()) {
+    return false;
+  }
+  // Check if next token is '{'
+  size_t next_idx = idx_ + 1;
+  if (next_idx < tokens_.size() && tokens_[next_idx] == "{") {
+    return true;
+  }
+  // Check if token after next is '{' (for blocks with parameters like location)
+  size_t next_next_idx = idx_ + 2;
+  if (next_next_idx < tokens_.size() && tokens_[next_next_idx] == "{") {
+    return true;
+  }
+  return false;
+}
+
 DirectiveNode Config::parseDirective() {
   DirectiveNode d;
   d.name = get();
@@ -318,9 +335,7 @@ BlockNode Config::parseBlock() {
     if (eof()) {
       throw std::runtime_error(std::string("Missing '}' for block ") + b.type);
     }
-    if (peek() == "location") {
-      b.sub_blocks.push_back(parseBlock());
-    } else if (peek() == "server") {
+    if (isBlock()) {
       b.sub_blocks.push_back(parseBlock());
     } else {
       b.directives.push_back(parseDirective());
