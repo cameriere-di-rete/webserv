@@ -19,12 +19,12 @@ RequestLine& RequestLine::operator=(const RequestLine& other) {
 RequestLine::~RequestLine() {}
 
 std::string RequestLine::toString() const {
-  std::ostringstream o;
-  o << method << " " << uri << " " << version;
-  return o.str();
+  std::ostringstream output;
+  output << method << " " << uri << " " << version;
+  return output.str();
 }
 
 bool RequestLine::parse(const std::string& line) {
-  std::istringstream in(line);
-  return !!(in >> method >> uri >> version);
+  std::istringstream input(line);
+  return !!(input >> method >> uri >> version);
 }

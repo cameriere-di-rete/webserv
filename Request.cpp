@@ -28,15 +28,15 @@ bool Request::parseStartAndHeaders(const std::string& buffer,
   std::vector<std::string> lines;
   std::string temp;
   for (std::size_t i = 0; i < headers_pos; ++i) {
-    char ch = buffer[i];
-    if (ch == '\r') {
+    char curr_char = buffer[i];
+    if (curr_char == '\r') {
       continue;
     }
-    if (ch == '\n') {
+    if (curr_char == '\n') {
       lines.push_back(temp);
       temp.clear();
     } else {
-      temp.push_back(ch);
+      temp.push_back(curr_char);
     }
   }
 
