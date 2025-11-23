@@ -70,7 +70,9 @@ Server& Server::operator=(const Server& other) {
 }
 
 void Server::init(void) {
-  LOG(INFO) << "Initializing server on " << inet_ntoa(*(in_addr*)&host) << ":"
+  in_addr host_addr;
+  host_addr.s_addr = host;
+  LOG(INFO) << "Initializing server on " << inet_ntoa(host_addr) << ":"
             << port << "...";
 
   fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -96,12 +98,12 @@ void Server::init(void) {
   addr.sin_addr.s_addr = host;
   addr.sin_port = htons(port);
 
-  if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+  if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
     disconnect();
     LOG_PERROR(ERROR, "bind");
     throw std::runtime_error("bind");
   }
-  LOG(DEBUG) << "Socket bound to " << inet_ntoa(*(in_addr*)&host) << ":"
+  LOG(DEBUG) << "Socket bound to " << inet_ntoa(host_addr) << ":"
              << port;
 
   if (listen(fd, MAX_CONNECTIONS_PER_SERVER) < 0) {
