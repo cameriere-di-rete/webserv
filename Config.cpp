@@ -313,9 +313,8 @@ BlockNode Config::parseBlock() {
     if (eof()) {
       throw std::runtime_error(std::string("Missing '}' for block ") + block.type);
     }
-    if (peek() == "location") {
-      block.sub_blocks.push_back(parseBlock());
-    } else if (peek() == "server") {
+    const std::string& next_token = peek();
+    if (next_token == "location" || next_token == "server") {
       block.sub_blocks.push_back(parseBlock());
     } else {
       block.directives.push_back(parseDirective());
@@ -539,43 +538,45 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   LOG(DEBUG) << "Processing " << server_block.directives.size()
              << " server directive(s)";
   for (size_t i = 0; i < server_block.directives.size(); ++i) {
-    const DirectiveNode& d = server_block.directives[i];
+    const DirectiveNode& directive = server_block.directives[i];
 
-    if (d.name == "listen") {
-      requireArgsEqual_(d, 1);
-      Config::ListenInfo li = parseListen(d.args[0]);
-      srv.port = li.port;
-      srv.host = li.host;
-      LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr*)&srv.host) << ":"
+    if (directive.name == "listen") {
+      requireArgsEqual_(directive, 1);
+      Config::ListenInfo listen_info = parseListen(directive.args[0]);
+      srv.port = listen_info.port;
+      srv.host = listen_info.host;
+      in_addr addr;
+      addr.s_addr = srv.host;
+      LOG(DEBUG) << "Server listen: " << inet_ntoa(addr) << ":"
                  << srv.port;
 
-    } else if (d.name == "root") {
-      requireArgsEqual_(d, 1);
-      srv.root = d.args[0];
+    } else if (directive.name == "root") {
+      requireArgsEqual_(directive, 1);
+      srv.root = directive.args[0];
       LOG(DEBUG) << "Server root: " << srv.root;
 
-    } else if (d.name == "index") {
-      requireArgsEqual_(d, 1);
+    } else if (directive.name == "index") {
+      requireArgsEqual_(directive, 1);
       std::set<std::string> idx;
-      for (size_t j = 0; j < d.args.size(); ++j) {
-        idx.insert(trim_copy(d.args[j]));
+      for (size_t j = 0; j < directive.args.size(); ++j) {
+        idx.insert(trim_copy(directive.args[j]));
       }
       srv.index = idx;
-      LOG(DEBUG) << "Server index files: " << d.args.size() << " file(s)";
+      LOG(DEBUG) << "Server index files: " << directive.args.size() << " file(s)";
 
-    } else if (d.name == "autoindex") {
-      requireArgsAtLeast_(d, 1);
-      srv.autoindex = parseBooleanValue_(d.args[0]);
+    } else if (directive.name == "autoindex") {
+      requireArgsAtLeast_(directive, 1);
+      srv.autoindex = parseBooleanValue_(directive.args[0]);
       LOG(DEBUG) << "Server autoindex: " << (srv.autoindex ? "on" : "off");
 
-    } else if (d.name == "allow_methods") {
-      requireArgsAtLeast_(d, 1);
-      srv.allow_methods = parseMethods(d.args);
-      LOG(DEBUG) << "Server allowed methods: " << d.args.size() << " method(s)";
+    } else if (directive.name == "allow_methods") {
+      requireArgsAtLeast_(directive, 1);
+      srv.allow_methods = parseMethods(directive.args);
+      LOG(DEBUG) << "Server allowed methods: " << directive.args.size() << " method(s)";
 
-    } else if (d.name == "error_page") {
-      requireArgsAtLeast_(d, 2);
-      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
+    } else if (directive.name == "error_page") {
+      requireArgsAtLeast_(directive, 2);
+      std::map<http::Status, std::string> parsed = parseErrorPages(directive.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                parsed.begin();
            it != parsed.end(); ++it) {
@@ -584,12 +585,12 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
                    << it->second;
       }
 
-    } else if (d.name == "max_request_body") {
-      requireArgsEqual_(d, 1);
-      srv.max_request_body = parsePositiveNumber_(d.args[0]);
+    } else if (directive.name == "max_request_body") {
+      requireArgsEqual_(directive, 1);
+      srv.max_request_body = parsePositiveNumber_(directive.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
     } else {
-      throwUnrecognizedDirective_(d, "in server block");
+      throwUnrecognizedDirective_(directive, "in server block");
     }
   }
 
@@ -655,39 +656,39 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
   LOG(DEBUG) << "Processing " << location_block.directives.size()
              << " location directive(s)";
   for (size_t i = 0; i < location_block.directives.size(); ++i) {
-    const DirectiveNode& d = location_block.directives[i];
+    const DirectiveNode& directive = location_block.directives[i];
 
-    if (d.name == "root") {
-      requireArgsEqual_(d, 1);
-      loc.root = d.args[0];
+    if (directive.name == "root") {
+      requireArgsEqual_(directive, 1);
+      loc.root = directive.args[0];
       LOG(DEBUG) << "  Location root: " << loc.root;
-    } else if (d.name == "index") {
-      requireArgsAtLeast_(d, 1);
+    } else if (directive.name == "index") {
+      requireArgsAtLeast_(directive, 1);
       std::set<std::string> idx;
-      for (size_t j = 0; j < d.args.size(); ++j) {
-        idx.insert(trim_copy(d.args[j]));
+      for (size_t j = 0; j < directive.args.size(); ++j) {
+        idx.insert(trim_copy(directive.args[j]));
       }
       loc.index = idx;
-      LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
-    } else if (d.name == "autoindex") {
-      requireArgsEqual_(d, 1);
-      loc.autoindex = parseBooleanValue_(d.args[0]);
+      LOG(DEBUG) << "  Location index files: " << directive.args.size() << " file(s)";
+    } else if (directive.name == "autoindex") {
+      requireArgsEqual_(directive, 1);
+      loc.autoindex = parseBooleanValue_(directive.args[0]);
       LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
-    } else if (d.name == "allow_methods") {
-      requireArgsAtLeast_(d, 1);
-      loc.allow_methods = parseMethods(d.args);
-      LOG(DEBUG) << "  Location allowed methods: " << d.args.size()
+    } else if (directive.name == "allow_methods") {
+      requireArgsAtLeast_(directive, 1);
+      loc.allow_methods = parseMethods(directive.args);
+      LOG(DEBUG) << "  Location allowed methods: " << directive.args.size()
                  << " method(s)";
-    } else if (d.name == "redirect") {
-      requireArgsEqual_(d, 2);
-      std::pair<http::Status, std::string> ret = parseRedirect(d.args);
+    } else if (directive.name == "redirect") {
+      requireArgsEqual_(directive, 2);
+      std::pair<http::Status, std::string> ret = parseRedirect(directive.args);
       loc.redirect_code = ret.first;
       loc.redirect_location = ret.second;
       LOG(DEBUG) << "  Location redirect: " << loc.redirect_code << " -> "
                  << loc.redirect_location;
-    } else if (d.name == "error_page") {
-      requireArgsAtLeast_(d, 2);
-      std::map<http::Status, std::string> parsed = parseErrorPages(d.args);
+    } else if (directive.name == "error_page") {
+      requireArgsAtLeast_(directive, 2);
+      std::map<http::Status, std::string> parsed = parseErrorPages(directive.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                parsed.begin();
            it != parsed.end(); ++it) {
@@ -695,12 +696,12 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
         LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
                    << it->second;
       }
-    } else if (d.name == "cgi") {
-      requireArgsEqual_(d, 1);
-      loc.cgi = parseBooleanValue_(d.args[0]);
+    } else if (directive.name == "cgi") {
+      requireArgsEqual_(directive, 1);
+      loc.cgi = parseBooleanValue_(directive.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
     } else {
-      throwUnrecognizedDirective_(d, "in location block");
+      throwUnrecognizedDirective_(directive, "in location block");
     }
   }
   // clear location context (server context remains active in caller)
@@ -711,7 +712,7 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
 // ==================== DIRECTIVE PARSERS ====================
 
 Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
-  Config::ListenInfo li = {};
+  Config::ListenInfo listen_info = {};
   size_t colon_pos = listen_arg.find(':');
 
   // Extract port string
@@ -721,18 +722,18 @@ Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
   } else {
     portstr = listen_arg;
   }
-  li.port = parsePortValue_(portstr);
+  listen_info.port = parsePortValue_(portstr);
 
   // no host
   if (colon_pos == std::string::npos) {
-    li.host = INADDR_ANY;
-    return li;
+    listen_info.host = INADDR_ANY;
+    return listen_info;
   }
 
-  li.host = inet_addr(listen_arg.substr(0, colon_pos).c_str());
+  listen_info.host = inet_addr(listen_arg.substr(0, colon_pos).c_str());
 
   // invalid host
-  if (li.host == INADDR_NONE) {
+  if (listen_info.host == INADDR_NONE) {
     std::ostringstream oss;
     oss << configErrorPrefix()
         << "Invalid IP address in listen directive: " << listen_arg;
@@ -740,5 +741,5 @@ Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
     throw std::runtime_error(oss.str());
   }
 
-  return li;
+  return listen_info;
 }
