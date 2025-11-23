@@ -22,8 +22,8 @@ Connection::Connection()
       headers_end_pos(std::string::npos),
       write_ready(false) {}
 
-Connection::Connection(int fd)
-    : fd(fd),
+Connection::Connection(int file_descriptor)
+    : fd(file_descriptor),
       server_fd(-1),
       write_offset(0),
       headers_end_pos(std::string::npos),

@@ -66,8 +66,8 @@ std::vector<std::string> Message::getHeaders(const std::string& name) const {
   return res;
 }
 
-void Message::setBody(const Body& b) {
-  body = b;
+void Message::setBody(const Body& body_obj) {
+  body = body_obj;
 }
 
 Body& Message::getBody() {

@@ -11,17 +11,17 @@
 #include "Logger.hpp"
 #include "constants.hpp"
 
-int set_nonblocking(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
+int set_nonblocking(int file_descriptor) {
+  int flags = fcntl(file_descriptor, F_GETFL, 0);
   if (flags < 0) {
     return -1;
   }
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+  return fcntl(file_descriptor, F_SETFL, flags | O_NONBLOCK);
 }
 
 // Trim whitespace from both ends of a string and return the trimmed copy.
-std::string trim_copy(const std::string& s) {
-  std::string res = s;
+std::string trim_copy(const std::string& str) {
+  std::string res = str;
   // left trim
   std::string::size_type i = 0;
   while (i < res.size() &&

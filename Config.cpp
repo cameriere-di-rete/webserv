@@ -102,10 +102,10 @@ std::vector<Server> Config::getServers(void) {
 
   // Ensure that all top-level sub-blocks are `server` blocks
   for (size_t i = 0; i < root_.sub_blocks.size(); ++i) {
-    const BlockNode& b = root_.sub_blocks[i];
-    if (b.type != "server") {
+    const BlockNode& block = root_.sub_blocks[i];
+    if (block.type != "server") {
       std::ostringstream oss;
-      oss << configErrorPrefix() << "unexpected top-level block '" << b.type
+      oss << configErrorPrefix() << "unexpected top-level block '" << block.type
           << "' at index " << i << " (expected 'server')";
       std::string msg = oss.str();
       LOG(ERROR) << msg;
@@ -120,11 +120,11 @@ std::vector<Server> Config::getServers(void) {
   LOG(DEBUG) << "Processing " << root_.directives.size()
              << " global directive(s)";
   for (size_t i = 0; i < root_.directives.size(); ++i) {
-    const DirectiveNode& d = root_.directives[i];
+    const DirectiveNode& directive = root_.directives[i];
 
-    if (d.name == "error_page") {
-      requireArgsAtLeast_(d, 2);
-      global_error_pages_ = parseErrorPages(d.args);
+    if (directive.name == "error_page") {
+      requireArgsAtLeast_(directive, 2);
+      global_error_pages_ = parseErrorPages(directive.args);
       for (std::map<http::Status, std::string>::const_iterator it =
                global_error_pages_.begin();
            it != global_error_pages_.end(); ++it) {
@@ -132,13 +132,13 @@ std::vector<Server> Config::getServers(void) {
                    << it->second;
       }
 
-    } else if (d.name == "max_request_body") {
-      requireArgsEqual_(d, 1);
-      global_max_request_body_ = parsePositiveNumber_(d.args[0]);
+    } else if (directive.name == "max_request_body") {
+      requireArgsEqual_(directive, 1);
+      global_max_request_body_ = parsePositiveNumber_(directive.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
     } else {
-      throwUnrecognizedDirective_(d, "as global directive");
+      throwUnrecognizedDirective_(directive, "as global directive");
     }
   }
 
@@ -181,10 +181,10 @@ std::string Config::configErrorPrefix() const {
 // Centralised helper to throw standardized unrecognized-directive errors.
 // `context` will be appended after the directive message (for example:
 // "in server block", "in location block", or "global directive").
-void Config::throwUnrecognizedDirective_(const DirectiveNode& d,
+void Config::throwUnrecognizedDirective_(const DirectiveNode& directive,
                                          const std::string& context) const {
   std::ostringstream oss;
-  oss << configErrorPrefix() << "Unrecognized directive '" << d.name << "'";
+  oss << configErrorPrefix() << "Unrecognized directive '" << directive.name << "'";
   if (!context.empty()) {
     oss << " " << context;
   }
@@ -195,31 +195,31 @@ void Config::throwUnrecognizedDirective_(const DirectiveNode& d,
 
 // ==================== DEBUG OUTPUT ====================
 
-static void printBlockRec(const BlockNode& b, int indent) {
+static void printBlockRec(const BlockNode& block, int indent) {
   std::string pad(indent, ' ');
   {
-    std::ostringstream ss;
-    ss << pad << "Block: type='" << b.type << "'";
-    if (!b.param.empty()) {
-      ss << " param='" << b.param << "'";
+    std::ostringstream stream;
+    stream << pad << "Block: type='" << block.type << "'";
+    if (!block.param.empty()) {
+      stream << " param='" << block.param << "'";
     }
-    LOG(DEBUG) << ss.str();
+    LOG(DEBUG) << stream.str();
   }
-  for (size_t i = 0; i < b.directives.size(); ++i) {
-    const DirectiveNode& d = b.directives[i];
-    std::ostringstream ss;
-    ss << pad << "  Directive: name='" << d.name << "' args=[";
-    for (size_t j = 0; j < d.args.size(); ++j) {
+  for (size_t i = 0; i < block.directives.size(); ++i) {
+    const DirectiveNode& directive = block.directives[i];
+    std::ostringstream stream;
+    stream << pad << "  Directive: name='" << directive.name << "' args=[";
+    for (size_t j = 0; j < directive.args.size(); ++j) {
       if (j != 0U) {
-        ss << ", ";
+        stream << ", ";
       }
-      ss << "'" << d.args[j] << "'";
+      stream << "'" << directive.args[j] << "'";
     }
-    ss << "]";
-    LOG(DEBUG) << ss.str();
+    stream << "]";
+    LOG(DEBUG) << stream.str();
   }
-  for (size_t i = 0; i < b.sub_blocks.size(); ++i) {
-    printBlockRec(b.sub_blocks[i], indent + 2);
+  for (size_t i = 0; i < block.sub_blocks.size(); ++i) {
+    printBlockRec(block.sub_blocks[i], indent + 2);
   }
 }
 
@@ -229,15 +229,15 @@ void Config::debug(void) const {
 
 // ==================== PARSING HELPERS ====================
 
-void Config::removeComments(std::string& s) {
+void Config::removeComments(std::string& str) {
   size_t pos = 0;
-  while ((pos = s.find('#', pos)) != std::string::npos) {
-    size_t e = s.find('\n', pos);
-    if (e == std::string::npos) {
-      s.erase(pos);
+  while ((pos = str.find('#', pos)) != std::string::npos) {
+    size_t end = str.find('\n', pos);
+    if (end == std::string::npos) {
+      str.erase(pos);
       break;
     }
-    s.erase(pos, e - pos);
+    str.erase(pos, end - pos);
   }
 }
 
@@ -245,20 +245,20 @@ void Config::tokenize(const std::string& content) {
   tokens_.clear();
   std::string cur;
   for (size_t i = 0; i < content.size(); ++i) {
-    char c = content[i];
-    if (c == '{' || c == '}' || c == ';') {
+    char chr = content[i];
+    if (chr == '{' || chr == '}' || chr == ';') {
       if (!cur.empty()) {
         tokens_.push_back(cur);
         cur.clear();
       }
-      tokens_.push_back(std::string(1, c));
-    } else if (std::isspace(static_cast<unsigned char>(c)) != 0) {
+      tokens_.push_back(std::string(1, chr));
+    } else if (std::isspace(static_cast<unsigned char>(chr)) != 0) {
       if (!cur.empty()) {
         tokens_.push_back(cur);
         cur.clear();
       }
     } else {
-      cur.push_back(c);
+      cur.push_back(chr);
     }
   }
   if (!cur.empty()) {
@@ -284,59 +284,60 @@ std::string Config::get() {
 }
 
 DirectiveNode Config::parseDirective() {
-  DirectiveNode d;
-  d.name = get();
+  DirectiveNode directive;
+  directive.name = get();
   while (peek() != ";") {
     if (eof()) {
-      throw std::runtime_error(std::string("Directive '") + d.name +
+      throw std::runtime_error(std::string("Directive '") + directive.name +
                                "' missing ';'");
     }
-    d.args.push_back(get());
+    directive.args.push_back(get());
   }
   get();  // consume ;
-  return d;
+  return directive;
 }
 
 BlockNode Config::parseBlock() {
-  BlockNode b;
-  b.type = get();  // server or location
-  if (b.type == "location") {
+  BlockNode block;
+  block.type = get();  // server or location
+  if (block.type == "location") {
     if (peek().empty()) {
       throw std::runtime_error("location missing parameter");
     }
-    b.param = get();
+    block.param = get();
   }
   if (get() != "{") {
     throw std::runtime_error("Expected '{' after block type");
   }
   while (peek() != "}") {
     if (eof()) {
-      throw std::runtime_error(std::string("Missing '}' for block ") + b.type);
+      throw std::runtime_error(std::string("Missing '}' for block ") + block.type);
     }
     if (peek() == "location") {
-      b.sub_blocks.push_back(parseBlock());
+      block.sub_blocks.push_back(parseBlock());
     } else if (peek() == "server") {
-      b.sub_blocks.push_back(parseBlock());
+      block.sub_blocks.push_back(parseBlock());
     } else {
-      b.directives.push_back(parseDirective());
+      block.directives.push_back(parseDirective());
     }
   }
   get();  // consume }
-  return b;
+  return block;
 }
 
 // ==================== VALIDATION METHODS ====================
 
 int Config::parsePortValue_(const std::string& portstr) {
-  std::size_t n = parsePositiveNumber_(portstr);
-  if (n < 1 || n > 65535) {
+  static const std::size_t kMaxPort = 65535;
+  std::size_t num = parsePositiveNumber_(portstr);
+  if (num < 1 || num > kMaxPort) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "Invalid port number " << n
+    oss << configErrorPrefix() << "Invalid port number " << num
         << " (must be 1-65535)";
     LOG(ERROR) << oss.str();
     throw std::runtime_error(oss.str());
   }
-  return static_cast<int>(n);
+  return static_cast<int>(num);
 }
 
 bool Config::parseBooleanValue_(const std::string& value) {
@@ -373,14 +374,14 @@ http::Status Config::parseRedirectCode_(const std::string& value) {
   }
 
   try {
-    http::Status s = http::intToStatus(code);
-    if (!http::isRedirect(s)) {
+    http::Status status = http::intToStatus(code);
+    if (!http::isRedirect(status)) {
       std::ostringstream oss;
       oss << configErrorPrefix() << "Invalid redirect status code " << code
           << " (valid: 301, 302, 303, 307, 308)";
       throw std::runtime_error(oss.str());
     }
-    return s;
+    return status;
   } catch (const std::invalid_argument&) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "Invalid redirect status code " << code
@@ -390,6 +391,7 @@ http::Status Config::parseRedirectCode_(const std::string& value) {
 }
 
 std::size_t Config::parsePositiveNumber_(const std::string& value) {
+  static const int kDecimalBase = 10;
   for (size_t i = 0; i < value.size(); ++i) {
     if (value[i] < '0' || value[i] > '9') {
       std::ostringstream oss;
@@ -400,7 +402,7 @@ std::size_t Config::parsePositiveNumber_(const std::string& value) {
 
   errno = 0;
   char* endptr = NULL;
-  long num = std::strtol(value.c_str(), &endptr, 10);
+  long num = std::strtol(value.c_str(), &endptr, kDecimalBase);
 
   if (errno == ERANGE) {
     std::ostringstream oss;
@@ -422,22 +424,22 @@ std::size_t Config::parsePositiveNumber_(const std::string& value) {
   return static_cast<std::size_t>(num);
 }
 
-void Config::requireArgsAtLeast_(const DirectiveNode& d, size_t n) const {
-  if (d.args.size() < n) {
+void Config::requireArgsAtLeast_(const DirectiveNode& directive, size_t num) const {
+  if (directive.args.size() < num) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "Directive '" << d.name
-        << "' requires at least " << n << " argument(s)";
+    oss << configErrorPrefix() << "Directive '" << directive.name
+        << "' requires at least " << num << " argument(s)";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
   }
 }
 
-void Config::requireArgsEqual_(const DirectiveNode& d, size_t n) const {
-  if (d.args.size() != n) {
+void Config::requireArgsEqual_(const DirectiveNode& directive, size_t num) const {
+  if (directive.args.size() != num) {
     std::ostringstream oss;
-    oss << configErrorPrefix() << "Directive '" << d.name
-        << "' requires exactly " << n << " argument(s)";
+    oss << configErrorPrefix() << "Directive '" << directive.name
+        << "' requires exactly " << num << " argument(s)";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
@@ -450,9 +452,9 @@ std::set<http::Method> Config::parseMethods(
     const std::vector<std::string>& args) {
   std::set<http::Method> dest;
   for (size_t i = 0; i < args.size(); ++i) {
-    const std::string& m = args[i];
-    http::Method mm = parseHttpMethod_(m);
-    dest.insert(mm);
+    const std::string& method_str = args[i];
+    http::Method method = parseHttpMethod_(method_str);
+    dest.insert(method);
   }
   return dest;
 }

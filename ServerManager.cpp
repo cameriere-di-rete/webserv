@@ -108,7 +108,7 @@ void ServerManager::acceptConnection(int listen_fd) {
   }
 }
 
-void ServerManager::updateEvents(int fd, uint32_t events) const {
+void ServerManager::updateEvents(int file_descriptor, uint32_t events) const {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
@@ -116,11 +116,11 @@ void ServerManager::updateEvents(int fd, uint32_t events) const {
 
   struct epoll_event ev = {};
   ev.events = events;
-  ev.data.fd = fd;
+  ev.data.fd = file_descriptor;
 
-  if (epoll_ctl(efd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_MOD, file_descriptor, &ev) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
+      if (epoll_ctl(efd_, EPOLL_CTL_ADD, file_descriptor, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
         throw std::runtime_error("Failed to add file descriptor to epoll");
       }
