@@ -62,7 +62,7 @@ TEST(InitDefaultHttpMethodsTests, InsertsFiveStandardMethods) {
     std::set<http::Method> methods;
     initDefaultHttpMethods(methods);
 
-    EXPECT_EQ(5u, methods.size());
+    EXPECT_EQ(methods.size(), 5u);
 
     EXPECT_NE(methods.find(http::GET), methods.end());
     EXPECT_NE(methods.find(http::POST), methods.end());
