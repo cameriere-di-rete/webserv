@@ -12,9 +12,9 @@ Logger::Logger(LogLevel level, const char* file, int line)
     : msgLevel_(level), file_(file), line_(line) {}
 
 Logger::~Logger() {
-  std::ostringstream o;
-  o << "(" << file_ << ":" << line_ << ") " << stream_.str();
-  Logger::log(msgLevel_, o.str());
+  std::ostringstream output;
+  output << "(" << file_ << ":" << line_ << ") " << stream_.str();
+  Logger::log(msgLevel_, output.str());
 }
 
 std::ostringstream& Logger::stream() {
@@ -28,18 +28,20 @@ std::ostringstream& Logger::stream() {
 #define LOG_LEVEL Logger::INFO
 #endif
 
-Logger::LogLevel Logger::level_ = static_cast<Logger::LogLevel>(
-    (LOG_LEVEL >= Logger::DEBUG && LOG_LEVEL <= Logger::ERROR) ? LOG_LEVEL
-                                                               : Logger::INFO);
+Logger::LogLevel Logger::level_ = 
+    (LOG_LEVEL >= Logger::DEBUG && LOG_LEVEL <= Logger::ERROR) 
+    ? static_cast<Logger::LogLevel>(LOG_LEVEL)
+    : Logger::INFO;
 
 void Logger::setLevel(LogLevel level) {
   level_ = level;
 }
 
 std::string Logger::getCurrentTime() {
+  static const size_t kTimeBufferSize = 32;
   time_t now = time(0);
   struct tm* timeinfo = localtime(&now);
-  char buffer[32];
+  char buffer[kTimeBufferSize];
   strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
   return std::string(buffer);
 }
