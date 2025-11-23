@@ -7,7 +7,7 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(runTests test_main.cpp test_utils.cpp ../utils.cpp)
+add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp)
 target_link_libraries(runTests ${GTEST_LIBRARIES} pthread)
 
 target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)
