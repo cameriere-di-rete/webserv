@@ -2,9 +2,9 @@
 
 DirectiveNode::DirectiveNode() {}
 
-DirectiveNode::DirectiveNode(const std::string& n,
-                             const std::vector<std::string>& a)
-    : name(n), args(a) {}
+DirectiveNode::DirectiveNode(const std::string& name_str,
+                             const std::vector<std::string>& args_vec)
+    : name(name_str), args(args_vec) {}
 
 DirectiveNode::DirectiveNode(const DirectiveNode& other)
     : name(other.name), args(other.args) {}
