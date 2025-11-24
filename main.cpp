@@ -44,10 +44,7 @@ int main(int argc, char** argv) {
     LOG(INFO) << "All servers initialized and ready to accept connections";
 
     return sm.run();
-  } catch (const std::exception& e) {
-    return EXIT_FAILURE;
   } catch (...) {
-    LOG(ERROR) << "Unknown error while initializing Server";
     return EXIT_FAILURE;
   }
 }
