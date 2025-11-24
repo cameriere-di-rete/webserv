@@ -17,6 +17,7 @@ set(SOURCES
     Config.cpp
     Connection.cpp
     DirectiveNode.cpp
+    FileHandler.cpp
     Header.cpp
     HttpMethod.cpp
     HttpStatus.cpp
