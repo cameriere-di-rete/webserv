@@ -22,6 +22,7 @@
 #include "Server.hpp"
 #include "StaticFileHandler.hpp"
 #include "constants.hpp"
+#include "RedirectHandler.hpp"
 
 Connection::Connection()
     : fd(-1),
@@ -214,7 +215,8 @@ void Connection::processResponse(const Location& location) {
   }
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
-    // handleRedirect();
+    // Delegate redirect response preparation to RedirectHandler
+    HandlerRedirect(*this, location);
     return;
   }
 
