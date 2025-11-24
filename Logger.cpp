@@ -13,7 +13,10 @@ Logger::Logger(LogLevel level, const char* file, int line)
 
 Logger::~Logger() {
   std::ostringstream o;
-  o << "(" << file_ << ":" << line_ << ") " << stream_.str();
+  if (level_ == DEBUG) {
+    o << "(" << file_ << ":" << line_ << ")\t";
+  }
+  o << stream_.str();
   Logger::log(msgLevel_, o.str());
 }
 
@@ -62,7 +65,7 @@ void Logger::log(LogLevel level, const std::string& message) {
     return;
   }
 
-  std::cout << "[" << getCurrentTime() << "] [" << levelToString(level) << "] "
+  std::cout << "[" << getCurrentTime() << "] [" << levelToString(level) << "]\t"
             << message << std::endl;
 }
 

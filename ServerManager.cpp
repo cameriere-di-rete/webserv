@@ -3,17 +3,19 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <set>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,9 +26,10 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
-ServerManager::ServerManager() : efd_(-1) {}
+ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
-ServerManager::ServerManager(const ServerManager& other) : efd_(-1) {
+ServerManager::ServerManager(const ServerManager& other)
+    : efd_(-1), sfd_(-1), stop_requested_(false) {
   (void)other;
 }
 
@@ -36,6 +39,7 @@ ServerManager& ServerManager::operator=(const ServerManager& other) {
 }
 
 ServerManager::~ServerManager() {
+  LOG(DEBUG) << "Shutting down ServerManager...";
   shutdown();
 }
 
@@ -118,9 +122,11 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
     if (errno == ENOENT) {
       if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
+        throw std::runtime_error("Failed to add file descriptor to epoll");
       }
     } else {
       LOG_PERROR(ERROR, "epoll_ctl MOD");
+      throw std::runtime_error("Failed to modify epoll events");
     }
   }
 }
@@ -152,16 +158,33 @@ int ServerManager::run() {
     LOG(DEBUG) << "Registered listen_fd " << listen_fd << " with epoll";
   }
 
+  /* register signalfd so signals are delivered as FD events */
+  if (sfd_ < 0) {
+    LOG(ERROR) << "signalfd not initialized";
+    return EXIT_FAILURE;
+  }
+  struct epoll_event signal_ev;
+  signal_ev.events = EPOLLIN;
+  signal_ev.data.fd = sfd_;
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &signal_ev) < 0) {
+    LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
+    return EXIT_FAILURE;
+  }
+
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
-  while (1) {
+  while (!stop_requested_) {
     int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
-        LOG(DEBUG) << "epoll_wait interrupted by signal, continuing...";
-        continue; /* interrupted by signal */
+        if (stop_requested_) {
+          LOG(INFO)
+              << "ServerManager: stop requested by signal, exiting event loop";
+          break;
+        }
+        continue; /* interrupted by non-termination signal */
       }
       LOG_PERROR(ERROR, "epoll_wait");
       return EXIT_FAILURE;
@@ -172,6 +195,17 @@ int ServerManager::run() {
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << fd;
+
+      if (fd == sfd_) {
+        // process pending signals from signalfd
+        if (processSignalsFromFd()) {
+          LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
+        }
+        if (stop_requested_) {
+          return EXIT_SUCCESS;
+        }
+        continue;
+      }
 
       std::map<int, Server>::iterator s_it = servers_.find(fd);
       if (s_it != servers_.end()) {
@@ -202,10 +236,8 @@ int ServerManager::run() {
           continue;
         }
 
-        if (c.read_done) {
-          LOG(DEBUG) << "Read complete on fd: " << fd << ", enabling EPOLLOUT";
-          /* enable EPOLLOUT now that we have data to send */
-          updateEvents(fd, EPOLLOUT | EPOLLET);
+        if (c.headers_end_pos != std::string::npos) {
+          LOG(DEBUG) << "Headers complete on fd: " << fd;
         }
       }
 
@@ -233,7 +265,7 @@ int ServerManager::run() {
       Connection& conn = it->second;
       int conn_fd = it->first;
 
-      if (!conn.read_done) {
+      if (conn.headers_end_pos == std::string::npos) {
         continue;
       }
 
@@ -243,60 +275,17 @@ int ServerManager::run() {
 
       LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
-      /* find header/body separator */
-      std::size_t headers_pos = conn.read_buffer.find(CRLF CRLF);
-      if (headers_pos == std::string::npos) {
-        LOG(DEBUG) << "Headers not complete yet for fd: " << conn_fd;
-        continue; /* wait for headers */
-      }
-
-      /* split header part into lines */
-      std::vector<std::string> lines;
-      std::string temp;
-      for (std::size_t i = 0; i < headers_pos; ++i) {
-        char ch = conn.read_buffer[i];
-        if (ch == '\r') {
-          continue;
-        }
-        if (ch == '\n') {
-          lines.push_back(temp);
-          temp.clear();
-        } else {
-          temp.push_back(ch);
-        }
-      }
-
-      if (!temp.empty()) {
-        lines.push_back(temp);
-      }
-
-      if (!conn.request.parseStartAndHeaders(lines)) {
+      if (!conn.request.parseStartAndHeaders(conn.read_buffer,
+                                             conn.headers_end_pos)) {
         /* malformed start line or headers -> 400 Bad Request */
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code = http::S_400_BAD_REQUEST;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_400_BAD_REQUEST);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss;
-        oss << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
                  << " " << conn.request.request_line.uri;
-
-      /* set body to remaining bytes after header separator */
-      std::size_t body_start = headers_pos + 4; /* \r\n\r\n */
-      conn.request.getBody().data.clear();
-      if (conn.read_buffer.size() > body_start) {
-        conn.request.getBody().data = conn.read_buffer.substr(body_start);
-      }
 
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
@@ -304,18 +293,7 @@ int ServerManager::run() {
         /* shouldn't happen, but handle gracefully */
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
-        conn.response.status_line.version = HTTP_VERSION;
-        conn.response.status_line.status_code =
-            http::S_500_INTERNAL_SERVER_ERROR;
-        conn.response.status_line.reason =
-            http::reasonPhrase(http::S_500_INTERNAL_SERVER_ERROR);
-        conn.response.getBody().data =
-            http::statusWithReason(conn.response.status_line.status_code);
-        std::ostringstream oss_err;
-        oss_err << conn.response.getBody().size();
-        conn.response.addHeader("Content-Length", oss_err.str());
-        conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-        conn.write_buffer = conn.response.serialize();
+        conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
@@ -323,25 +301,81 @@ int ServerManager::run() {
       LOG(DEBUG) << "Found server configuration for fd " << conn_fd
                  << " (port: " << srv_it->second.port << ")";
 
-      /* prepare 200 OK response echoing the request */
-      LOG(DEBUG) << "Preparing echo response for fd " << conn_fd;
-      conn.response.status_line.version = HTTP_VERSION;
-      conn.response.status_line.status_code = http::S_200_OK;
-      conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-      conn.response.setBody(Body(conn.read_buffer));
-      std::ostringstream oss2;
-      oss2 << conn.response.getBody().size();
-      conn.response.addHeader("Content-Length", oss2.str());
-      conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-      conn.write_buffer = conn.response.serialize();
+      /* process request using new handler methods */
+      conn.processRequest(srv_it->second);
 
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
   }
-
-  shutdown();
+  LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
+}
+
+void ServerManager::setupSignalHandlers() {
+  // Block the signals we want to handle
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGTERM);
+
+  if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
+    LOG_PERROR(ERROR, "sigprocmask");
+    throw std::runtime_error("Failed to block signals with sigprocmask");
+  }
+
+  // Create signalfd - REQUIRED: signalfd must be available (Linux 2.6.22+).
+  // If signalfd is not available, initialization will fail.
+  sfd_ = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
+  if (sfd_ < 0) {
+    LOG_PERROR(ERROR, "signalfd");
+    // Unblock the signals before throwing, to avoid leaving the process in a
+    // bad state
+    sigprocmask(SIG_UNBLOCK, &mask, NULL);
+    throw std::runtime_error("Failed to create signalfd");
+  }
+
+  // Ignore SIGPIPE
+  struct sigaction sa_pipe;
+  std::memset(&sa_pipe, 0, sizeof(sa_pipe));
+  sa_pipe.sa_handler = SIG_IGN;
+  sigemptyset(&sa_pipe.sa_mask);
+  if (sigaction(SIGPIPE, &sa_pipe, NULL) < 0) {
+    LOG_PERROR(ERROR, "sigaction(SIGPIPE)");
+    throw std::runtime_error("Failed to ignore SIGPIPE with sigaction");
+  }
+
+  LOG(INFO) << "signals: signalfd installed and signals blocked";
+}
+
+bool ServerManager::processSignalsFromFd() {
+  struct signalfd_siginfo fdsi;
+  while (true) {
+    ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
+    if (s < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        return stop_requested_;
+      }
+      LOG_PERROR(ERROR, "read(signalfd)");
+      return stop_requested_;
+    }
+    if (s == 0) {
+      LOG(ERROR) << "signals: signalfd closed unexpectedly";
+      return stop_requested_;
+    }
+    if (s != sizeof(fdsi)) {
+      LOG(ERROR) << "signals: partial read from signalfd (" << s
+                 << " bytes, expected " << sizeof(fdsi) << ")";
+      return stop_requested_;
+    }
+
+    // Handle the signal
+    if (fdsi.ssi_signo == SIGINT || fdsi.ssi_signo == SIGTERM) {
+      stop_requested_ = true;
+      return true;
+    }
+    LOG(INFO) << "signals: got unexpected signo=" << fdsi.ssi_signo;
+  }
 }
 
 void ServerManager::shutdown() {
@@ -351,6 +385,12 @@ void ServerManager::shutdown() {
     LOG(DEBUG) << "Closing epoll fd: " << efd_;
     close(efd_);
     efd_ = -1;
+  }
+
+  if (sfd_ >= 0) {
+    LOG(DEBUG) << "Closing signalfd: " << sfd_;
+    close(sfd_);
+    sfd_ = -1;
   }
 
   // close all connection fds

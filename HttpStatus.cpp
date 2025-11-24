@@ -47,6 +47,8 @@ std::string reasonPhrase(Status status) {
       return "Service Unavailable";
     case S_504_GATEWAY_TIMEOUT:
       return "Gateway Timeout";
+    case S_505_HTTP_VERSION_NOT_SUPPORTED:
+      return "HTTP Version Not Supported";
     default:
       return "";
   }
@@ -94,6 +96,8 @@ Status intToStatus(int status) {
       return S_503_SERVICE_UNAVAILABLE;
     case 504:
       return S_504_GATEWAY_TIMEOUT;
+    case 505:
+      return S_505_HTTP_VERSION_NOT_SUPPORTED;
     default:
       throw std::invalid_argument("Unknown HTTP status code");
   }
@@ -122,7 +126,7 @@ bool isClientError(Status s) {
 }
 
 bool isServerError(Status s) {
-  return s >= 500 && s <= 504;
+  return s >= 500 && s <= 505;
 }
 
 bool isValidStatusCode(int status) {

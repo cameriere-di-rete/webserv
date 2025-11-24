@@ -81,8 +81,8 @@ void Config::parseFile(const std::string& path) {
 
   root_.type = "root";
   while (!eof()) {
-    if (peek() == "server") {
-      LOG(DEBUG) << "Found server block, parsing...";
+    if (isBlock()) {
+      LOG(DEBUG) << "Found block '" << peek() << "', parsing...";
       root_.sub_blocks.push_back(parseBlock());
     } else {
       LOG(DEBUG) << "Found global directive: " << peek();
@@ -142,6 +142,8 @@ std::vector<Server> Config::getServers(void) {
       global_max_request_body_ = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Global max_request_body set to: "
                  << global_max_request_body_;
+    } else {
+      throwUnrecognizedDirective_(d, "as global directive");
     }
   }
 
@@ -179,6 +181,21 @@ std::string Config::configErrorPrefix() const {
   }
   oss << ": ";
   return oss.str();
+}
+
+// Centralised helper to throw standardized unrecognized-directive errors.
+// `context` will be appended after the directive message (for example:
+// "in server block", "in location block", or "global directive").
+void Config::throwUnrecognizedDirective_(const DirectiveNode& d,
+                                         const std::string& context) const {
+  std::ostringstream oss;
+  oss << configErrorPrefix() << "Unrecognized directive '" << d.name << "'";
+  if (!context.empty()) {
+    oss << " " << context;
+  }
+  std::string msg = oss.str();
+  LOG(ERROR) << msg;
+  throw std::runtime_error(msg);
 }
 
 // ==================== DEBUG OUTPUT ====================
@@ -271,6 +288,16 @@ std::string Config::get() {
   return tokens_[idx_++];
 }
 
+bool Config::isBlock() const {
+  // A block is identified by a '{' following the current token.
+  // This can be:
+  //   - Immediately after (e.g., "server {")
+  //   - After one parameter (e.g., "location /path {")
+  // We look ahead at most 2 positions to accommodate blocks with parameters.
+  return (idx_ + 1 < tokens_.size() && tokens_[idx_ + 1] == "{") ||
+         (idx_ + 2 < tokens_.size() && tokens_[idx_ + 2] == "{");
+}
+
 DirectiveNode Config::parseDirective() {
   DirectiveNode d;
   d.name = get();
@@ -301,9 +328,7 @@ BlockNode Config::parseBlock() {
     if (eof()) {
       throw std::runtime_error(std::string("Missing '}' for block ") + b.type);
     }
-    if (peek() == "location") {
-      b.sub_blocks.push_back(parseBlock());
-    } else if (peek() == "server") {
+    if (isBlock()) {
       b.sub_blocks.push_back(parseBlock());
     } else {
       b.directives.push_back(parseDirective());
@@ -574,6 +599,8 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       requireArgsEqual_(d, 1);
       srv.max_request_body = parsePositiveNumber_(d.args[0]);
       LOG(DEBUG) << "Server max_request_body: " << srv.max_request_body;
+    } else {
+      throwUnrecognizedDirective_(d, "in server block");
     }
   }
 
@@ -683,6 +710,8 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else {
+      throwUnrecognizedDirective_(d, "in location block");
     }
   }
   // clear location context (server context remains active in caller)

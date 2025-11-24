@@ -5,25 +5,7 @@ CXX			:=	c++
 CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
-SOURCES	:=	main.cpp \
-			BlockNode.cpp \
-			Body.cpp \
-			Config.cpp \
-			Connection.cpp \
-			DirectiveNode.cpp \
-			Header.cpp \
-			HttpMethod.cpp \
-			HttpStatus.cpp \
-			Location.cpp \
-			Logger.cpp \
-			Message.cpp \
-			Request.cpp \
-			RequestLine.cpp \
-			Response.cpp \
-			Server.cpp \
-			ServerManager.cpp \
-			StatusLine.cpp \
-			utils.cpp
+SOURCES	:=	@SOURCES_LIST@
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
@@ -52,15 +34,6 @@ re: fclean
 	@rm -f $(STAMP)
 	$(MAKE) all
 
-test:
-	@mkdir -p build_tests
-	@cmake -S . -B build_tests
-	@cmake --build build_tests --target runTests -- -j
-	@ctest --test-dir build_tests --output-on-failure
-
-clean-tests:
-	@rm -rf build_tests
-
 # Regenerate the auto-generated Makefile when CMake inputs change.
 $(STAMP): $(CMAKE_INPUTS)
 	@if command -v cmake >/dev/null 2>&1; then \
@@ -78,4 +51,4 @@ regenerate-stamp:
 
 regenerate: regenerate-stamp
 
-.PHONY: all clean fclean re test clean-tests regenerate-stamp regenerate
+.PHONY: all clean fclean re regenerate-stamp regenerate

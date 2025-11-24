@@ -25,7 +25,8 @@ enum Status {
   S_501_NOT_IMPLEMENTED = 501,
   S_502_BAD_GATEWAY = 502,
   S_503_SERVICE_UNAVAILABLE = 503,
-  S_504_GATEWAY_TIMEOUT = 504
+  S_504_GATEWAY_TIMEOUT = 504,
+  S_505_HTTP_VERSION_NOT_SUPPORTED = 505
 };
 
 // Convert int to Status enum; throws std::invalid_argument on unknown code

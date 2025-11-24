@@ -13,5 +13,5 @@ class Request : public Message {
   RequestLine request_line;
 
   virtual std::string startLine() const;
-  bool parseStartAndHeaders(const std::vector<std::string>& lines);
+  bool parseStartAndHeaders(const std::string& buffer, std::size_t headers_pos);
 };
