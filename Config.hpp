@@ -36,6 +36,7 @@ class Config {
   bool eof() const;
   const std::string& peek() const;
   std::string get();
+  bool isBlock() const;
   BlockNode parseBlock();
   DirectiveNode parseDirective();
 
@@ -73,6 +74,12 @@ class Config {
   // Construct, log and throw the standardized invalid error_page status code
   // message. Kept separate to avoid duplicate message construction.
   void throwInvalidErrorPageCode_(http::Status code) const;
+
+  // Construct, log and throw a standardized message for unrecognized
+  // directives. The `context` string is appended after the message
+  // (e.g. "in server block" or "global directive").
+  void throwUnrecognizedDirective_(const DirectiveNode& d,
+                                   const std::string& context) const;
 
   std::string configErrorPrefix() const;
 
