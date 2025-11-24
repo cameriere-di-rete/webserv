@@ -17,7 +17,8 @@ set(SOURCES
     Config.cpp
     Connection.cpp
     DirectiveNode.cpp
-    FileHandler.cpp
+    EchoHandler.cpp
+    file_utils.cpp
     Header.cpp
     HttpMethod.cpp
     HttpStatus.cpp
@@ -29,6 +30,7 @@ set(SOURCES
     Response.cpp
     Server.cpp
     ServerManager.cpp
+    StaticFileHandler.cpp
     StatusLine.cpp
     utils.cpp
 )

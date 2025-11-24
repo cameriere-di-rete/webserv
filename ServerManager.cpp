@@ -17,14 +17,12 @@
 #include <cstring>
 #include <iostream>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "Connection.hpp"
-#include "FileHandler.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"

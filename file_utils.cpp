@@ -1,4 +1,4 @@
-#include "FileHandler.hpp"
+#include "file_utils.hpp"
 
 #include <fcntl.h>
 #include <sys/sendfile.h>
@@ -15,7 +15,7 @@
 #include "Response.hpp"
 #include "constants.hpp"
 
-namespace FileHandler {
+namespace file_utils {
 
 std::string guessMime(const std::string& path) {
   std::string def = "application/octet-stream";
@@ -55,28 +55,28 @@ bool openFile(const std::string& path, FileInfo& out) {
 
   int fd = open(path.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG_PERROR(ERROR, "FileHandler: openFile failed for '" << path << "'");
+    LOG_PERROR(ERROR, "file_utils: openFile failed for '" << path << "'");
     return false;
   }
 
   struct stat st;
   if (fstat(fd, &st) < 0) {
     close(fd);
-    LOG_PERROR(ERROR, "FileHandler: fstat failed for '" << path << "'");
+    LOG_PERROR(ERROR, "file_utils: fstat failed for '" << path << "'");
     return false;
   }
 
   out.fd = fd;
   out.size = st.st_size;
   out.content_type = guessMime(path);
-  LOG(DEBUG) << "FileHandler: opened '" << path << "' fd=" << out.fd
+  LOG(DEBUG) << "file_utils: opened '" << path << "' fd=" << out.fd
              << " size=" << out.size << " type=" << out.content_type;
   return true;
 }
 
 void closeFile(FileInfo& fi) {
   if (fi.fd >= 0) {
-    LOG(DEBUG) << "FileHandler: closing fd=" << fi.fd;
+    LOG(DEBUG) << "file_utils: closing fd=" << fi.fd;
     close(fi.fd);
     fi.fd = -1;
   }
@@ -89,7 +89,7 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
     return 0;  // nothing to send
   }
 
-  LOG(DEBUG) << "FileHandler: streamToSocket fd=" << file_fd
+  LOG(DEBUG) << "file_utils: streamToSocket fd=" << file_fd
              << " to sock=" << sock_fd << " offset=" << offset
              << " max=" << max_offset;
   while (offset < max_offset) {
@@ -101,19 +101,19 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
     ssize_t s = sendfile(sock_fd, file_fd, &offset, to_send);
     if (s < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG(DEBUG) << "FileHandler: sendfile would block (EAGAIN)";
+        LOG(DEBUG) << "file_utils: sendfile would block (EAGAIN)";
         return 1;
       }
-      LOG_PERROR(ERROR, "FileHandler: sendfile error");
+      LOG_PERROR(ERROR, "file_utils: sendfile error");
       return -1;
     }
 
     if (s == 0) {
-      LOG(DEBUG) << "FileHandler: sendfile returned 0 (EOF?)";
+      LOG(DEBUG) << "file_utils: sendfile returned 0 (EOF?)";
       break;  // no more data
     }
 
-    LOG(DEBUG) << "FileHandler: sendfile wrote " << s
+    LOG(DEBUG) << "file_utils: sendfile wrote " << s
                << " bytes, new offset=" << offset;
   }
 
@@ -122,7 +122,6 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
 
 bool parseRange(const std::string& rangeHeader, off_t file_size,
                 off_t& out_start, off_t& out_end) {
-  // expected to start with "bytes="
   const std::string prefix = "bytes=";
   if (rangeHeader.compare(0, prefix.size(), prefix) != 0) {
     return false;
@@ -138,7 +137,6 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
   std::string second = spec.substr(dash + 1);
 
   if (first.empty()) {
-    // suffix length: -N -> last N bytes
     if (second.empty()) {
       return false;
     }
@@ -154,7 +152,6 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
     return true;
   }
 
-  // first is present
   off_t start = atoll(first.c_str());
   off_t end = -1;
   if (second.empty()) {
@@ -187,7 +184,7 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
 
   if (!openFile(path, outFile)) {
     LOG(DEBUG)
-        << "FileHandler: prepareFileResponse - openFile returned false for '"
+        << "file_utils: prepareFileResponse - openFile returned false for '"
         << path << "'";
     return -1;  // not found
   }
@@ -198,8 +195,7 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
   if (rangeHeader) {
     off_t s = 0, e = 0;
     if (!parseRange(*rangeHeader, file_size, s, e)) {
-      // invalid range -> 416
-      LOG(DEBUG) << "FileHandler: prepareFileResponse - invalid range '"
+      LOG(DEBUG) << "file_utils: prepareFileResponse - invalid range '"
                  << *rangeHeader << "' for file=" << path
                  << " size=" << file_size;
       outResponse.status_line.version = HTTP_VERSION;
@@ -213,15 +209,13 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
         tmp << outResponse.getBody().size();
         outResponse.addHeader("Content-Length", tmp.str());
       }
-      // indicate actual size
       std::ostringstream cr;
       cr << "bytes */" << file_size;
       outResponse.addHeader("Content-Range", cr.str());
-      // close file
       closeFile(outFile);
       return -2;
     }
-    LOG(DEBUG) << "FileHandler: prepareFileResponse - parsed range start=" << s
+    LOG(DEBUG) << "file_utils: prepareFileResponse - parsed range start=" << s
                << " end=" << e;
     out_start = s;
     out_end = e;
@@ -256,11 +250,11 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
   }
 
   outResponse.addHeader("Content-Type", outFile.content_type);
-  LOG(DEBUG) << "FileHandler: prepareFileResponse prepared response code="
+  LOG(DEBUG) << "file_utils: prepareFileResponse prepared response code="
              << outResponse.status_line.status_code
              << " content-type=" << outFile.content_type
              << " length=" << outFile.size;
   return 0;
 }
 
-}  // namespace FileHandler
+}  // namespace file_utils

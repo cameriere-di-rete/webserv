@@ -1,6 +1,7 @@
 #include "Connection.hpp"
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -9,12 +10,13 @@
 #include <sstream>
 
 #include "Body.hpp"
-#include "FileHandler.hpp"
+#include "EchoHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
 #include "Server.hpp"
+#include "StaticFileHandler.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -25,10 +27,7 @@ Connection::Connection()
       write_ready(false),
       request(),
       response(),
-      file_fd(-1),
-      file_offset(0),
-      file_size(0),
-      sending_file(false) {}
+      active_handler(NULL) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -38,10 +37,7 @@ Connection::Connection(int fd)
       write_ready(false),
       request(),
       response(),
-      file_fd(-1),
-      file_offset(0),
-      file_size(0),
-      sending_file(false) {}
+      active_handler(NULL) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -53,12 +49,11 @@ Connection::Connection(const Connection& other)
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
-      file_fd(other.file_fd),
-      file_offset(other.file_offset),
-      file_size(other.file_size),
-      sending_file(other.sending_file) {}
+      active_handler(NULL) {}
 
-Connection::~Connection() {}
+Connection::~Connection() {
+  clearHandler();
+}
 
 Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
@@ -71,10 +66,7 @@ Connection& Connection::operator=(const Connection& other) {
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
-    file_fd = other.file_fd;
-    file_offset = other.file_offset;
-    file_size = other.file_size;
-    sending_file = other.sending_file;
+    clearHandler();
   }
   return *this;
 }
@@ -131,25 +123,17 @@ int Connection::handleWrite() {
     write_offset += static_cast<size_t>(w);
   }
 
-  // If there's an open file to stream, delegate streaming to FileHandler
-  if (sending_file && file_fd >= 0) {
-    int r = FileHandler::streamToSocket(fd, file_fd, file_offset, file_size);
-    if (r == 1) {
-      // Would block, wait for EPOLLOUT
+  // If there's an active handler, ask it to resume (streaming, CGI, etc.)
+  if (active_handler) {
+    HandlerResult hr = active_handler->resume(*this);
+    if (hr == HR_WOULD_BLOCK) {
       return 1;
-    } else if (r < 0) {
-      LOG_PERROR(ERROR, "sendfile");
-      close(file_fd);
-      file_fd = -1;
-      sending_file = false;
+    } else if (hr == HR_ERROR) {
+      clearHandler();
       return -1;
-    }
-
-    if (file_offset >= file_size) {
-      /* finished sending file */
-      close(file_fd);
-      file_fd = -1;
-      sending_file = false;
+    } else {
+      // HR_DONE
+      clearHandler();
     }
   }
 
@@ -174,6 +158,18 @@ void Connection::prepareErrorResponse(http::Status status) {
   oss << response.getBody().size();
   response.addHeader("Content-Length", oss.str());
   write_buffer = response.serialize();
+}
+
+void Connection::setHandler(IHandler* h) {
+  clearHandler();
+  active_handler = h;
+}
+
+void Connection::clearHandler() {
+  if (active_handler) {
+    delete active_handler;
+    active_handler = NULL;
+  }
 }
 
 void Connection::processRequest(const Server& server) {
@@ -260,56 +256,107 @@ void Connection::processResponse(const Location& location) {
   const std::string& uri = request.request_line.uri;
 
   if (req_method == "GET") {
-    // map URI to filesystem path (simple, serve from current directory)
-    std::string path = "./www" + uri;
-    if (!path.empty() && path[path.size() - 1] == '/') {
-      path += "index.html";
+    // map URI to filesystem path using Location configuration
+    std::string rel = uri;
+    // If location.path is a prefix of the URI, strip it
+    if (!location.path.empty() && location.path != "/") {
+      if (rel.find(location.path) == 0) {
+        rel = rel.substr(location.path.size());
+        if (rel.empty()) {
+          rel = "/";
+        }
+      }
+    }
+
+    // Build filesystem path from location root
+    if (location.root.empty()) {
+      // misconfigured location: no root specified
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    }
+    std::string root = location.root;
+    // Normalize separators when concatenating
+    std::string path;
+    if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
+        rel[0] == '/') {
+      path = root + rel.substr(1);
+    } else if (!root.empty() && root[root.size() - 1] != '/' && !rel.empty() &&
+               rel[0] != '/') {
+      path = root + "/" + rel;
+    } else {
+      path = root + rel;
+    }
+
+    // If the path is a directory (or ends with '/'), try index files from the
+    // location
+    struct stat st;
+    bool path_is_dir = false;
+    if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+      path_is_dir = true;
+      if (path[path.size() - 1] != '/') {
+        path += '/';
+      }
+    }
+    if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+      bool found_index = false;
+      for (std::set<std::string>::const_iterator it = location.index.begin();
+           it != location.index.end(); ++it) {
+        std::string cand = path + *it;
+        if (stat(cand.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+          path = cand;
+          found_index = true;
+          break;
+        }
+      }
+      if (!found_index) {
+        if (location.autoindex) {
+          // autoindex not implemented yet
+          prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+        } else {
+          prepareErrorResponse(http::S_404_NOT_FOUND);
+        }
+        return;
+      }
     }
 
     // basic path traversal protection
     if (path.find("..") != std::string::npos) {
       prepareErrorResponse(http::S_403_FORBIDDEN);
+      return;
+    }
+
+    // create a StaticFileHandler to serve the file
+    StaticFileHandler* h = new StaticFileHandler(path);
+    setHandler(h);
+    HandlerResult hr = active_handler->start(*this, location);
+    if (hr == HR_WOULD_BLOCK) {
+      // handler will stream the body later via resume()
+      return;
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
     } else {
-      FileInfo fi;
-      if (!FileHandler::openFile(path, fi)) {
-        // not found
-        prepareErrorResponse(http::S_404_NOT_FOUND);
-      } else {
-        off_t size = fi.size;
-        response.status_line.version = HTTP_VERSION;
-        response.status_line.status_code = http::S_200_OK;
-        response.status_line.reason = "OK";
-        std::ostringstream oss;
-        oss << size;
-        response.addHeader("Content-Length", oss.str());
-        response.addHeader("Content-Type", fi.content_type);
-
-        // serialize only start line and headers (no body) so we can
-        // stream the file using sendfile
-        std::ostringstream header_stream;
-        header_stream << response.startLine() << CRLF;
-        header_stream << response.serializeHeaders();
-        header_stream << CRLF;
-        write_buffer = header_stream.str();
-
-        // set up file streaming state on connection
-        file_fd = fi.fd;
-        file_offset = 0;
-        file_size = fi.size;
-        sending_file = true;
-      }
+      // HR_DONE: response already prepared in this->write_buffer
+      clearHandler();
+      // fall through to allow caller to write response
     }
   } else {
-    /* non-GET: echo the request body (previous behaviour) */
-    response.status_line.version = HTTP_VERSION;
-    response.status_line.status_code = http::S_200_OK;
-    response.status_line.reason = "OK";
-    response.setBody(Body(read_buffer));
-    std::ostringstream oss2;
-    oss2 << response.getBody().size();
-    response.addHeader("Content-Length", oss2.str());
-    response.addHeader("Content-Type", "text/plain; charset=utf-8");
-    write_buffer = response.serialize();
+    // non-GET: delegate to EchoHandler
+    EchoHandler* h = new EchoHandler();
+    setHandler(h);
+    HandlerResult hr = active_handler->start(*this, location);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will complete later
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    } else {
+      // HR_DONE: response prepared in write_buffer
+      clearHandler();
+      // fall through to allow caller to write response
+    }
   }
 
   if (location.autoindex) {

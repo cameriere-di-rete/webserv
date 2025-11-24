@@ -12,7 +12,7 @@ struct FileInfo {
   std::string content_type;
 };
 
-namespace FileHandler {
+namespace file_utils {
 bool openFile(const std::string& path, FileInfo& out);
 void closeFile(FileInfo& fi);
 std::string guessMime(const std::string& path);
@@ -39,4 +39,4 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
                         ::Response& outResponse, FileInfo& outFile,
                         off_t& out_start, off_t& out_end);
-}  // namespace FileHandler
+}  // namespace file_utils

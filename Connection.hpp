@@ -1,12 +1,17 @@
 #pragma once
 
-#include <cstddef>
-#include <string>
 #include <sys/types.h>
 
+#include <cstddef>
+#include <string>
+
 #include "HttpStatus.hpp"
+#include "IHandler.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+
+// forward declare for handler pointer ownership
+class IHandler;
 
 class Connection {
  public:
@@ -26,16 +31,15 @@ class Connection {
   bool write_ready;
   Request request;
   Response response;
-  /* file streaming state (used when serving files without loading into memory)
-   */
-  int file_fd;
-  off_t file_offset;
-  off_t file_size;
-  bool sending_file;
+  // active request handler (if any)
+  IHandler* active_handler;
 
   int handleRead();
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);
   void prepareErrorResponse(http::Status status);
+  // handler ownership helpers
+  void setHandler(IHandler* h);
+  void clearHandler();
 };
