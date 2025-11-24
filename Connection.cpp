@@ -138,7 +138,7 @@ int Connection::handleWrite() {
       // Would block, wait for EPOLLOUT
       return 1;
     } else if (r < 0) {
-      error("sendfile");
+      LOG_PERROR(ERROR, "sendfile");
       close(file_fd);
       file_fd = -1;
       sending_file = false;
@@ -238,16 +238,82 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  // For now, just return a simple 200 OK response
-  // TODO: Implement redirect, CGI, file and directory handling
-  LOG(DEBUG) << "Request validation passed, sending 200 OK";
-  response.status_line.version = HTTP_VERSION;
-  response.status_line.status_code = http::S_200_OK;
-  response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  response.setBody(Body(read_buffer));
-  std::ostringstream oss2;
-  oss2 << response.getBody().size();
-  response.addHeader("Content-Length", oss2.str());
-  response.addHeader("Content-Type", "text/plain; charset=utf-8");
-  write_buffer = response.serialize();
+  if (location.cgi) {
+    // handleCGI();
+    return;
+  }
+
+  if (location.redirect_code != http::S_0_UNKNOWN) {
+    // handleRedirect();
+    return;
+  }
+
+  // handleFile
+  // handleIndexFile
+
+  /* prepare response: if GET -> try to stream file, otherwise echo the
+         request body as before */
+  // reset response state
+  response = Response();
+
+  const std::string& req_method = request.request_line.method;
+  const std::string& uri = request.request_line.uri;
+
+  if (req_method == "GET") {
+    // map URI to filesystem path (simple, serve from current directory)
+    std::string path = "./www" + uri;
+    if (!path.empty() && path[path.size() - 1] == '/') {
+      path += "index.html";
+    }
+
+    // basic path traversal protection
+    if (path.find("..") != std::string::npos) {
+      prepareErrorResponse(http::S_403_FORBIDDEN);
+    } else {
+      FileInfo fi;
+      if (!FileHandler::openFile(path, fi)) {
+        // not found
+        prepareErrorResponse(http::S_404_NOT_FOUND);
+      } else {
+        off_t size = fi.size;
+        response.status_line.version = HTTP_VERSION;
+        response.status_line.status_code = http::S_200_OK;
+        response.status_line.reason = "OK";
+        std::ostringstream oss;
+        oss << size;
+        response.addHeader("Content-Length", oss.str());
+        response.addHeader("Content-Type", fi.content_type);
+
+        // serialize only start line and headers (no body) so we can
+        // stream the file using sendfile
+        std::ostringstream header_stream;
+        header_stream << response.startLine() << CRLF;
+        header_stream << response.serializeHeaders();
+        header_stream << CRLF;
+        write_buffer = header_stream.str();
+
+        // set up file streaming state on connection
+        file_fd = fi.fd;
+        file_offset = 0;
+        file_size = fi.size;
+        sending_file = true;
+      }
+    }
+  } else {
+    /* non-GET: echo the request body (previous behaviour) */
+    response.status_line.version = HTTP_VERSION;
+    response.status_line.status_code = http::S_200_OK;
+    response.status_line.reason = "OK";
+    response.setBody(Body(read_buffer));
+    std::ostringstream oss2;
+    oss2 << response.getBody().size();
+    response.addHeader("Content-Length", oss2.str());
+    response.addHeader("Content-Type", "text/plain; charset=utf-8");
+    write_buffer = response.serialize();
+  }
+
+  if (location.autoindex) {
+    // handleAutoindex();
+    return;
+  }
 }
