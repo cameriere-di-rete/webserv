@@ -8,7 +8,7 @@
 EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}
 
-HandlerResult EchoHandler::start(Connection& conn, const Location& /*loc*/) {
+HandlerResult EchoHandler::start(Connection& conn) {
   // Prepare a simple 200 OK response that echoes the request body
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_200_OK;

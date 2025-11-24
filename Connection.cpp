@@ -197,11 +197,58 @@ void Connection::processRequest(const Server& server) {
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
+  // Validate protocol version and allowed method for this location.
+  http::Status vstat = validateRequestForLocation(location);
+  if (vstat != http::S_0_UNKNOWN) {
+    prepareErrorResponse(vstat);
+    return;
+  }
+
+  if (location.cgi) {
+    // handleCGI();
+    return;
+  }
+
+  if (location.redirect_code != http::S_0_UNKNOWN) {
+    // handleRedirect();
+    return;
+  }
+
+  // reset response state
+  response = Response();
+
+  const std::string& req_method = request.request_line.method;
+
+  if (req_method == "GET") {
+    std::string path;
+    if (!resolvePathForLocation(location, path)) {
+      return;  // resolvePathForLocation prepared an error response
+    }
+    StaticFileHandler* h = new StaticFileHandler(path);
+    setHandler(h);
+  } else {
+    EchoHandler* h = new EchoHandler();
+    setHandler(h);
+  }
+
+  HandlerResult hr = active_handler->start(*this);
+  if (hr == HR_WOULD_BLOCK) {
+    return;  // handler will continue later
+  } else if (hr == HR_ERROR) {
+    clearHandler();
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return;
+  } else {
+    // HR_DONE: response prepared in write_buffer, handler cleared
+    clearHandler();
+  }
+}
+
+http::Status Connection::validateRequestForLocation(const Location& location) {
   // 1. Check HTTP protocol version
   if (request.request_line.version != HTTP_VERSION) {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
-    prepareErrorResponse(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
-    return;
+    return http::S_505_HTTP_VERSION_NOT_SUPPORTED;
   }
 
   // 2. Check HTTP method
@@ -209,10 +256,8 @@ void Connection::processResponse(const Location& location) {
   try {
     method = http::stringToMethod(request.request_line.method);
   } catch (const std::invalid_argument&) {
-    // Method not in implemented_methods
     LOG(INFO) << "Not implemented method: " << request.request_line.method;
-    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-    return;
+    return http::S_501_NOT_IMPLEMENTED;
   }
 
   // Check if method is allowed in this location
@@ -230,137 +275,84 @@ void Connection::processResponse(const Location& location) {
       allow_header += http::methodToString(*it);
     }
     response.addHeader("Allow", allow_header);
-    prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
-    return;
+    return http::S_405_METHOD_NOT_ALLOWED;
   }
 
-  if (location.cgi) {
-    // handleCGI();
-    return;
+  return http::S_0_UNKNOWN;  // OK
+}
+
+bool Connection::resolvePathForLocation(const Location& location,
+                                        std::string& out_path) {
+  // Use the request URI (strip query string)
+  std::string uri = request.request_line.uri;
+  std::size_t q = uri.find('?');
+  if (q != std::string::npos) {
+    uri = uri.substr(0, q);
   }
 
-  if (location.redirect_code != http::S_0_UNKNOWN) {
-    // handleRedirect();
-    return;
+  // Relative path inside the location
+  std::string rel = uri;
+  if (!location.path.empty() && location.path != "/") {
+    if (rel.find(location.path) == 0) {
+      rel = rel.substr(location.path.size());
+      if (rel.empty()) {
+        rel = "/";
+      }
+    }
   }
 
-  // handleFile
-  // handleIndexFile
+  if (location.root.empty()) {
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return false;
+  }
+  std::string root = location.root;
 
-  /* prepare response: if GET -> try to stream file, otherwise echo the
-         request body as before */
-  // reset response state
-  response = Response();
-
-  const std::string& req_method = request.request_line.method;
-  const std::string& uri = request.request_line.uri;
-
-  if (req_method == "GET") {
-    // map URI to filesystem path using Location configuration
-    std::string rel = uri;
-    // If location.path is a prefix of the URI, strip it
-    if (!location.path.empty() && location.path != "/") {
-      if (rel.find(location.path) == 0) {
-        rel = rel.substr(location.path.size());
-        if (rel.empty()) {
-          rel = "/";
-        }
-      }
-    }
-
-    // Build filesystem path from location root
-    if (location.root.empty()) {
-      // misconfigured location: no root specified
-      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      return;
-    }
-    std::string root = location.root;
-    // Normalize separators when concatenating
-    std::string path;
-    if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
-        rel[0] == '/') {
-      path = root + rel.substr(1);
-    } else if (!root.empty() && root[root.size() - 1] != '/' && !rel.empty() &&
-               rel[0] != '/') {
-      path = root + "/" + rel;
-    } else {
-      path = root + rel;
-    }
-
-    // If the path is a directory (or ends with '/'), try index files from the
-    // location
-    struct stat st;
-    bool path_is_dir = false;
-    if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-      path_is_dir = true;
-      if (path[path.size() - 1] != '/') {
-        path += '/';
-      }
-    }
-    if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
-      bool found_index = false;
-      for (std::set<std::string>::const_iterator it = location.index.begin();
-           it != location.index.end(); ++it) {
-        std::string cand = path + *it;
-        if (stat(cand.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-          path = cand;
-          found_index = true;
-          break;
-        }
-      }
-      if (!found_index) {
-        if (location.autoindex) {
-          // autoindex not implemented yet
-          prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-        } else {
-          prepareErrorResponse(http::S_404_NOT_FOUND);
-        }
-        return;
-      }
-    }
-
-    // basic path traversal protection
-    if (path.find("..") != std::string::npos) {
-      prepareErrorResponse(http::S_403_FORBIDDEN);
-      return;
-    }
-
-    // create a StaticFileHandler to serve the file
-    StaticFileHandler* h = new StaticFileHandler(path);
-    setHandler(h);
-    HandlerResult hr = active_handler->start(*this, location);
-    if (hr == HR_WOULD_BLOCK) {
-      // handler will stream the body later via resume()
-      return;
-    } else if (hr == HR_ERROR) {
-      clearHandler();
-      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      return;
-    } else {
-      // HR_DONE: response already prepared in this->write_buffer
-      clearHandler();
-      // fall through to allow caller to write response
-    }
+  std::string path;
+  if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
+      rel[0] == '/') {
+    path = root + rel.substr(1);
+  } else if (!root.empty() && root[root.size() - 1] != '/' && !rel.empty() &&
+             rel[0] != '/') {
+    path = root + "/" + rel;
   } else {
-    // non-GET: delegate to EchoHandler
-    EchoHandler* h = new EchoHandler();
-    setHandler(h);
-    HandlerResult hr = active_handler->start(*this, location);
-    if (hr == HR_WOULD_BLOCK) {
-      return;  // handler will complete later
-    } else if (hr == HR_ERROR) {
-      clearHandler();
-      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      return;
-    } else {
-      // HR_DONE: response prepared in write_buffer
-      clearHandler();
-      // fall through to allow caller to write response
+    path = root + rel;
+  }
+
+  struct stat st;
+  bool path_is_dir = false;
+  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+    path_is_dir = true;
+    if (path[path.size() - 1] != '/') {
+      path += '/';
     }
   }
 
-  if (location.autoindex) {
-    // handleAutoindex();
-    return;
+  if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+    bool found_index = false;
+    for (std::set<std::string>::const_iterator it = location.index.begin();
+         it != location.index.end(); ++it) {
+      std::string cand = path + *it;
+      if (stat(cand.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+        path = cand;
+        found_index = true;
+        break;
+      }
+    }
+    if (!found_index) {
+      if (location.autoindex) {
+        prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+      } else {
+        prepareErrorResponse(http::S_404_NOT_FOUND);
+      }
+      return false;
+    }
   }
+
+  if (path.find("..") != std::string::npos) {
+    prepareErrorResponse(http::S_403_FORBIDDEN);
+    return false;
+  }
+
+  out_path = path;
+  return true;
 }

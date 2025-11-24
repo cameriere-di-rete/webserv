@@ -7,6 +7,6 @@ class EchoHandler : public IHandler {
   EchoHandler();
   virtual ~EchoHandler();
 
-  virtual HandlerResult start(Connection& conn, const Location& loc);
+  virtual HandlerResult start(Connection& conn);
   virtual HandlerResult resume(Connection& conn);
 };

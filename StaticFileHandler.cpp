@@ -3,7 +3,6 @@
 #include <cstring>
 #include <sstream>
 
-#include "Location.hpp"
 #include "Request.hpp"
 #include "constants.hpp"
 #include "file_utils.hpp"
@@ -18,8 +17,7 @@ StaticFileHandler::~StaticFileHandler() {
   }
 }
 
-HandlerResult StaticFileHandler::start(Connection& conn,
-                                       const Location& /*loc*/) {
+HandlerResult StaticFileHandler::start(Connection& conn) {
   std::string range;
   const std::string* rangePtr = NULL;
   if (conn.request.getHeader("Range", range)) {
