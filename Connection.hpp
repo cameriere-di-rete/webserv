@@ -10,7 +10,7 @@
 class Connection {
  public:
   Connection();
-  Connection(int fd);
+  Connection(int file_descriptor);
   Connection(const Connection& other);
   ~Connection();
 

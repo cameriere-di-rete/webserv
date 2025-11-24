@@ -12,9 +12,9 @@ Location::Location()
          "DELETE, HEAD)";
 }
 
-Location::Location(const std::string& p)
-    : path(p), redirect_code(http::S_0_UNKNOWN), cgi(false), autoindex(false) {
-  LOG(DEBUG) << "Location(path) constructor called with path: " << p;
+Location::Location(const std::string& path_str)
+    : path(path_str), redirect_code(http::S_0_UNKNOWN), cgi(false), autoindex(false) {
+  LOG(DEBUG) << "Location(path) constructor called with path: " << path_str;
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Location '" << path
              << "' initialized with default allowed methods";
