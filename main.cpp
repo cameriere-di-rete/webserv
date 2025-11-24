@@ -47,7 +47,6 @@ int main(int argc, char** argv) {
   } catch (const std::exception& e) {
     return EXIT_FAILURE;
   } catch (...) {
-    LOG(ERROR) << "Unknown error while initializing Server";
     return EXIT_FAILURE;
   }
 }
