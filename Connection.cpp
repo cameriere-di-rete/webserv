@@ -19,10 +19,10 @@
 #include "Logger.hpp"
 #include "PostHandler.hpp"
 #include "PutHandler.hpp"
+#include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "StaticFileHandler.hpp"
 #include "constants.hpp"
-#include "RedirectHandler.hpp"
 
 Connection::Connection()
     : fd(-1),
