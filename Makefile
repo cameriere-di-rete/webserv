@@ -10,19 +10,15 @@ SOURCES	:=	main.cpp \
 			Body.cpp \
 			Config.cpp \
 			Connection.cpp \
-			DeleteHandler.cpp \
 			DirectiveNode.cpp \
 			EchoHandler.cpp \
 			file_utils.cpp \
 			Header.cpp \
-			HeadHandler.cpp \
 			HttpMethod.cpp \
 			HttpStatus.cpp \
 			Location.cpp \
 			Logger.cpp \
 			Message.cpp \
-			PostHandler.cpp \
-			PutHandler.cpp \
 			Request.cpp \
 			RequestLine.cpp \
 			Response.cpp \
@@ -30,7 +26,12 @@ SOURCES	:=	main.cpp \
 			ServerManager.cpp \
 			StaticFileHandler.cpp \
 			StatusLine.cpp \
-			utils.cpp
+			utils.cpp \
+			DeleteHandler.cpp \
+			HeadHandler.cpp \
+			RedirectHandler.cpp \
+			PostHandler.cpp \
+			PutHandler.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
