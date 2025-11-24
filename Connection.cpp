@@ -10,11 +10,15 @@
 #include <sstream>
 
 #include "Body.hpp"
+#include "DeleteHandler.hpp"
 #include "EchoHandler.hpp"
+#include "HeadHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
+#include "PostHandler.hpp"
+#include "PutHandler.hpp"
 #include "Server.hpp"
 #include "StaticFileHandler.hpp"
 #include "constants.hpp"
@@ -226,9 +230,26 @@ void Connection::processResponse(const Location& location) {
     }
     StaticFileHandler* h = new StaticFileHandler(path);
     setHandler(h);
-  } else {
-    EchoHandler* h = new EchoHandler();
+  } else if (req_method == "HEAD") {
+    std::string path;
+    if (!resolvePathForLocation(location, path)) {
+      return;  // resolvePathForLocation prepared an error response
+    }
+    HeadHandler* h = new HeadHandler(path);
     setHandler(h);
+  } else if (req_method == "POST") {
+    PostHandler* h = new PostHandler();
+    setHandler(h);
+  } else if (req_method == "PUT") {
+    PutHandler* h = new PutHandler();
+    setHandler(h);
+  } else if (req_method == "DELETE") {
+    DeleteHandler* h = new DeleteHandler();
+    setHandler(h);
+  } else {
+    // Method not implemented or unsupported
+    prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
+    return;
   }
 
   HandlerResult hr = active_handler->start(*this);
