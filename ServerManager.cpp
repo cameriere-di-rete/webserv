@@ -197,7 +197,7 @@ int ServerManager::run() {
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
     for (int i = 0; i < num_events; ++i) {
-      int event_fd = events.at(static_cast<size_t>(i)).data.fd;
+      int event_fd = events[static_cast<size_t>(i)].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
       if (event_fd == sfd_) {
@@ -226,7 +226,7 @@ int ServerManager::run() {
       }
 
       Connection& conn = conn_it->second;
-      uint32_t event_mask = events.at(static_cast<size_t>(i)).events;
+      uint32_t event_mask = events[static_cast<size_t>(i)].events;
 
       /* readable */
       if ((event_mask & EPOLLIN) != 0U) {
