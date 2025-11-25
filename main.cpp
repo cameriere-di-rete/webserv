@@ -5,9 +5,33 @@
 #include <vector>
 
 #include "Config.hpp"
+#include "DeleteHandler.hpp"
+#include "HandlerRegistry.hpp"
+#include "HeadHandler.hpp"
 #include "Logger.hpp"
+#include "PostHandler.hpp"
+#include "PutHandler.hpp"
 #include "ServerManager.hpp"
+#include "StaticFileHandler.hpp"
 #include "utils.hpp"
+
+// Register all handler prototypes with the registry.
+// Order matters: more specific handlers should come before generic ones.
+static void registerHandlers() {
+  HandlerRegistry& registry = HandlerRegistry::instance();
+
+  // Register handlers in order of specificity
+  // GET requests for static files
+  registry.registerHandler(new StaticFileHandler());
+  // HEAD requests for file metadata
+  registry.registerHandler(new HeadHandler());
+  // POST requests
+  registry.registerHandler(new PostHandler());
+  // PUT requests
+  registry.registerHandler(new PutHandler());
+  // DELETE requests
+  registry.registerHandler(new DeleteHandler());
+}
 
 int main(int argc, char** argv) {
   // run `./webserv -l:N` to choose the log level
@@ -28,6 +52,9 @@ int main(int argc, char** argv) {
   }
 
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
+
+  // Register all request handlers
+  registerHandlers();
 
   ServerManager sm;
   try {

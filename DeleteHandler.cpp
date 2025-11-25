@@ -3,11 +3,23 @@
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
+#include "Request.hpp"
 #include "constants.hpp"
 
 DeleteHandler::DeleteHandler() {}
 
 DeleteHandler::~DeleteHandler() {}
+
+bool DeleteHandler::canHandle(const HandlerContext& ctx) const {
+  if (!ctx.request) {
+    return false;
+  }
+  return ctx.request->request_line.method == "DELETE";
+}
+
+IHandler* DeleteHandler::create(const HandlerContext& /*ctx*/) const {
+  return new DeleteHandler();
+}
 
 HandlerResult DeleteHandler::start(Connection& conn) {
   LOG(DEBUG) << "DeleteHandler: processing DELETE request for fd=" << conn.fd;

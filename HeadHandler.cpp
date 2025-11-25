@@ -5,12 +5,28 @@
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
+#include "Request.hpp"
 #include "constants.hpp"
 #include "file_utils.hpp"
+
+HeadHandler::HeadHandler() : file_path_() {}
 
 HeadHandler::HeadHandler(const std::string& path) : file_path_(path) {}
 
 HeadHandler::~HeadHandler() {}
+
+bool HeadHandler::canHandle(const HandlerContext& ctx) const {
+  // Handle HEAD requests for files (not directories without index)
+  if (!ctx.request) {
+    return false;
+  }
+  const std::string& method = ctx.request->request_line.method;
+  return method == "HEAD" && !ctx.resolved_path.empty() && !ctx.is_directory;
+}
+
+IHandler* HeadHandler::create(const HandlerContext& ctx) const {
+  return new HeadHandler(ctx.resolved_path);
+}
 
 HandlerResult HeadHandler::start(Connection& conn) {
   LOG(DEBUG) << "HeadHandler: processing HEAD request for fd=" << conn.fd

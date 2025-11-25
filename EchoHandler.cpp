@@ -3,10 +3,21 @@
 #include <sstream>
 
 #include "Connection.hpp"
+#include "Request.hpp"
 #include "constants.hpp"
 
 EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}
+
+bool EchoHandler::canHandle(const HandlerContext& /*ctx*/) const {
+  // EchoHandler is a fallback/debug handler, typically not used in production
+  // It can handle any request if explicitly selected
+  return false;
+}
+
+IHandler* EchoHandler::create(const HandlerContext& /*ctx*/) const {
+  return new EchoHandler();
+}
 
 HandlerResult EchoHandler::start(Connection& conn) {
   // Prepare a simple 200 OK response that echoes the request body

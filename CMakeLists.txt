@@ -16,15 +16,20 @@ set(SOURCES
     Body.cpp
     Config.cpp
     Connection.cpp
+    DeleteHandler.cpp
     DirectiveNode.cpp
     EchoHandler.cpp
     file_utils.cpp
+    HandlerRegistry.cpp
     Header.cpp
+    HeadHandler.cpp
     HttpMethod.cpp
     HttpStatus.cpp
     Location.cpp
     Logger.cpp
     Message.cpp
+    PostHandler.cpp
+    PutHandler.cpp
     Request.cpp
     RequestLine.cpp
     Response.cpp

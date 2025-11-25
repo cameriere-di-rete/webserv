@@ -10,17 +10,12 @@
 #include <sstream>
 
 #include "Body.hpp"
-#include "DeleteHandler.hpp"
-#include "EchoHandler.hpp"
-#include "HeadHandler.hpp"
+#include "HandlerRegistry.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
-#include "PostHandler.hpp"
-#include "PutHandler.hpp"
 #include "Server.hpp"
-#include "StaticFileHandler.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -221,36 +216,32 @@ void Connection::processResponse(const Location& location) {
   // reset response state
   response = Response();
 
-  const std::string& req_method = request.request_line.method;
+  // Build handler context
+  HandlerContext ctx;
+  ctx.request = &request;
+  ctx.location = &location;
 
-  if (req_method == "GET") {
+  // For GET/HEAD, resolve the filesystem path
+  const std::string& req_method = request.request_line.method;
+  if (req_method == "GET" || req_method == "HEAD") {
     std::string path;
     if (!resolvePathForLocation(location, path)) {
       return;  // resolvePathForLocation prepared an error response
     }
-    StaticFileHandler* h = new StaticFileHandler(path);
-    setHandler(h);
-  } else if (req_method == "HEAD") {
-    std::string path;
-    if (!resolvePathForLocation(location, path)) {
-      return;  // resolvePathForLocation prepared an error response
-    }
-    HeadHandler* h = new HeadHandler(path);
-    setHandler(h);
-  } else if (req_method == "POST") {
-    PostHandler* h = new PostHandler();
-    setHandler(h);
-  } else if (req_method == "PUT") {
-    PutHandler* h = new PutHandler();
-    setHandler(h);
-  } else if (req_method == "DELETE") {
-    DeleteHandler* h = new DeleteHandler();
-    setHandler(h);
-  } else {
-    // Method not implemented or unsupported
+    ctx.resolved_path = path;
+    ctx.is_directory = false;  // resolvePathForLocation handles directory->index
+  }
+
+  // Use the handler registry to find an appropriate handler
+  IHandler* handler = HandlerRegistry::instance().createHandler(ctx);
+  if (!handler) {
+    // No handler found for this request
+    LOG(INFO) << "No handler found for method: " << req_method;
     prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
     return;
   }
+
+  setHandler(handler);
 
   HandlerResult hr = active_handler->start(*this);
   if (hr == HR_WOULD_BLOCK) {

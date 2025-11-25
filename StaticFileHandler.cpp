@@ -7,6 +7,9 @@
 #include "constants.hpp"
 #include "file_utils.hpp"
 
+StaticFileHandler::StaticFileHandler()
+    : path_(), fi_(), start_offset_(0), end_offset_(-1), active_(false) {}
+
 StaticFileHandler::StaticFileHandler(const std::string& path)
     : path_(path), fi_(), start_offset_(0), end_offset_(-1), active_(false) {}
 
@@ -15,6 +18,19 @@ StaticFileHandler::~StaticFileHandler() {
   if (fi_.fd >= 0) {
     file_utils::closeFile(fi_);
   }
+}
+
+bool StaticFileHandler::canHandle(const HandlerContext& ctx) const {
+  // Handle GET requests for files (not directories without index)
+  if (!ctx.request) {
+    return false;
+  }
+  const std::string& method = ctx.request->request_line.method;
+  return method == "GET" && !ctx.resolved_path.empty() && !ctx.is_directory;
+}
+
+IHandler* StaticFileHandler::create(const HandlerContext& ctx) const {
+  return new StaticFileHandler(ctx.resolved_path);
 }
 
 HandlerResult StaticFileHandler::start(Connection& conn) {

@@ -3,11 +3,23 @@
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
+#include "Request.hpp"
 #include "constants.hpp"
 
 PostHandler::PostHandler() {}
 
 PostHandler::~PostHandler() {}
+
+bool PostHandler::canHandle(const HandlerContext& ctx) const {
+  if (!ctx.request) {
+    return false;
+  }
+  return ctx.request->request_line.method == "POST";
+}
+
+IHandler* PostHandler::create(const HandlerContext& /*ctx*/) const {
+  return new PostHandler();
+}
 
 HandlerResult PostHandler::start(Connection& conn) {
   LOG(DEBUG) << "PostHandler: processing POST request for fd=" << conn.fd;

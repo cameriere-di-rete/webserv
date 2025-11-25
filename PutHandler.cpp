@@ -3,11 +3,23 @@
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
+#include "Request.hpp"
 #include "constants.hpp"
 
 PutHandler::PutHandler() {}
 
 PutHandler::~PutHandler() {}
+
+bool PutHandler::canHandle(const HandlerContext& ctx) const {
+  if (!ctx.request) {
+    return false;
+  }
+  return ctx.request->request_line.method == "PUT";
+}
+
+IHandler* PutHandler::create(const HandlerContext& /*ctx*/) const {
+  return new PutHandler();
+}
 
 HandlerResult PutHandler::start(Connection& conn) {
   LOG(DEBUG) << "PutHandler: processing PUT request for fd=" << conn.fd;
