@@ -43,10 +43,10 @@ class Connection {
   // Returns http::S_0_UNKNOWN on success, or an http::Status code to send.
   http::Status validateRequestForLocation(const class Location& location);
   // Resolve the request URI to a filesystem path according to `location`.
-  // On success returns true and fills `out_path`. On failure it prepares
-  // an error response and returns false.
+  // On success returns true and fills `out_path` and `out_is_directory`.
+  // On failure it prepares an error response and returns false.
   bool resolvePathForLocation(const class Location& location,
-                              std::string& out_path);
+                              std::string& out_path, bool& out_is_directory);
   void setHandler(IHandler* h);
   void clearHandler();
 };

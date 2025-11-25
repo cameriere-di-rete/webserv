@@ -24,7 +24,7 @@ SOURCES	:=	main.cpp \
 			Response.cpp \
 			Server.cpp \
 			ServerManager.cpp \
-			StaticFileHandler.cpp \
+			FileHandler.cpp \
 			StatusLine.cpp \
 			utils.cpp \
 			DeleteHandler.cpp \

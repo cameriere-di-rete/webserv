@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags matching original Makefile
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 
-# Source files from original Makefile
+# Source files
 set(SOURCES
     main.cpp
     BlockNode.cpp
@@ -30,7 +30,7 @@ set(SOURCES
     Response.cpp
     Server.cpp
     ServerManager.cpp
-    StaticFileHandler.cpp
+    FileHandler.cpp
     StatusLine.cpp
     utils.cpp
     DeleteHandler.cpp

@@ -5,6 +5,7 @@ webserv
 # build
 *.o
 *.d
+.cache/
 
 # cmake
 build/
@@ -15,8 +16,9 @@ Makefile.bak
 
 # editors
 .swp
-
 .pid
 .log
+
+# GitHub Copilot
 _codeql_detected_source_root
-.cache/
+_codeql_build_dir/
