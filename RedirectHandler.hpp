@@ -1,8 +1,16 @@
 #pragma once
 
-#include "Connection.hpp"
+#include "IHandler.hpp"
 #include "Location.hpp"
 
-// Prepare a redirect response using the provided Location.
-// Returns 0 on success, non-zero on error.
-int HandlerRedirect(Connection& conn, const Location& location);
+class RedirectHandler : public IHandler {
+ public:
+	explicit RedirectHandler(const Location& location);
+	virtual ~RedirectHandler();
+
+	virtual HandlerResult start(Connection& conn);
+	virtual HandlerResult resume(Connection& conn);
+
+ private:
+	Location location_;
+};

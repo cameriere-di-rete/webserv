@@ -215,12 +215,21 @@ void Connection::processResponse(const Location& location) {
   }
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
-    // Delegate redirect response preparation to RedirectHandler
-    int redirectResult = HandlerRedirect(*this, location);
-    if (redirectResult != 0) {
+    // Delegate redirect response preparation to a RedirectHandler instance
+    RedirectHandler* rh = new RedirectHandler(location);
+    setHandler(rh);
+    HandlerResult hr = active_handler->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    } else if (hr == HR_ERROR) {
+      clearHandler();
       prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    } else {
+      // HR_DONE: response prepared in write_buffer
+      clearHandler();
+      return;
     }
-    return;
   }
 
   // reset response state
