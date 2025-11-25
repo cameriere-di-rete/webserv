@@ -56,6 +56,15 @@ re: fclean
 	@rm -f $(STAMP)
 	$(MAKE) all
 
+test:
+	@mkdir -p build_tests
+	@cmake -S . -B build_tests
+	@cmake --build build_tests --target runTests -- -j
+	@ctest --test-dir build_tests --output-on-failure
+
+clean-tests:
+	@rm -rf build_tests
+
 # Regenerate the auto-generated Makefile when CMake inputs change.
 $(STAMP): $(CMAKE_INPUTS)
 	@if command -v cmake >/dev/null 2>&1; then \
@@ -73,4 +82,4 @@ regenerate-stamp:
 
 regenerate: regenerate-stamp
 
-.PHONY: all clean fclean re regenerate-stamp regenerate
+.PHONY: all clean fclean re test clean-tests regenerate-stamp regenerate

@@ -9,6 +9,7 @@ webserv
 
 # cmake
 build/
+build_tests/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
