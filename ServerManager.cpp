@@ -52,7 +52,7 @@ void ServerManager::initServers(std::vector<Server>& servers) {
        ++it) {
     std::pair<in_addr_t, int> addr(it->host, it->port);
     if (listen_addresses.find(addr) != listen_addresses.end()) {
-      in_addr host_addr;
+      in_addr host_addr = {};
       host_addr.s_addr = it->host;
       LOG(ERROR) << "Duplicate listen address found: " << inet_ntoa(host_addr)
                  << ":" << it->port;
@@ -63,7 +63,7 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    in_addr host_addr;
+    in_addr host_addr = {};
     host_addr.s_addr = it->host;
     LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr) << ":"
                << it->port;

@@ -558,7 +558,7 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       Config::ListenInfo listen_info = parseListen(directive.args[0]);
       srv.port = listen_info.port;
       srv.host = listen_info.host;
-      in_addr addr;
+      in_addr addr = {};
       addr.s_addr = srv.host;
       LOG(DEBUG) << "Server listen: " << inet_ntoa(addr) << ":" << srv.port;
 

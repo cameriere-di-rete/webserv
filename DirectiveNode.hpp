@@ -10,6 +10,7 @@ class DirectiveNode {
                 const std::vector<std::string>& args_vec);
   DirectiveNode(const DirectiveNode& other);
   DirectiveNode& operator=(const DirectiveNode& other);
+  ~DirectiveNode();
 
   std::string name;
   std::vector<std::string> args;

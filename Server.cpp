@@ -70,7 +70,7 @@ Server& Server::operator=(const Server& other) {
 }
 
 void Server::init(void) {
-  in_addr host_addr;
+  in_addr host_addr = {};
   host_addr.s_addr = host;
   LOG(INFO) << "Initializing server on " << inet_ntoa(host_addr) << ":" << port
             << "...";
