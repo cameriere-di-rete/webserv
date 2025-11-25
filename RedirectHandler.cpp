@@ -2,7 +2,6 @@
 
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
-#include "RedirectHandler.hpp"
 #include "Response.hpp"
 #include "constants.hpp"
 
