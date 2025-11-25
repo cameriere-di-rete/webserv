@@ -24,16 +24,7 @@ std::ostringstream& Logger::stream() {
   return stream_;
 }
 
-// Map numeric LOG_LEVEL macro to the LogLevel enum. Define LOG_LEVEL in
-// constants.hpp (or via -DLOG_LEVEL=N). If LOG_LEVEL is not defined here we
-// default to INFO.
-#ifndef LOG_LEVEL
-#define LOG_LEVEL Logger::INFO
-#endif
-
-Logger::LogLevel Logger::level_ = static_cast<Logger::LogLevel>(
-    (LOG_LEVEL >= Logger::DEBUG && LOG_LEVEL <= Logger::ERROR) ? LOG_LEVEL
-                                                               : Logger::INFO);
+Logger::LogLevel Logger::level_ = Logger::INFO;
 
 void Logger::setLevel(LogLevel level) {
   level_ = level;
