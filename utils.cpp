@@ -23,19 +23,20 @@ int set_nonblocking(int file_descriptor) {
 std::string trim_copy(const std::string& str) {
   std::string res = str;
   // left trim
-  std::string::size_type i = 0;
-  while (i < res.size() &&
-         (std::isspace(static_cast<unsigned char>(res[i])) != 0)) {
-    ++i;
+  std::string::size_type idx = 0;
+  while (idx < res.size() &&
+         (std::isspace(static_cast<unsigned char>(res[idx])) != 0)) {
+    ++idx;
   }
-  res.erase(0, i);
+  res.erase(0, idx);
   // right trim
   if (!res.empty()) {
-    std::string::size_type j = res.size() - 1;
-    while (j > 0 && (std::isspace(static_cast<unsigned char>(res[j])) != 0)) {
-      --j;
+    std::string::size_type jdx = res.size() - 1;
+    while (jdx > 0 &&
+           (std::isspace(static_cast<unsigned char>(res[jdx])) != 0)) {
+      --jdx;
     }
-    res.erase(j + 1);
+    res.erase(jdx + 1);
   }
   return res;
 }

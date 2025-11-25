@@ -180,7 +180,7 @@ int ServerManager::run() {
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int num_events = epoll_wait(efd_, &events[0], MAX_EVENTS, -1);
+    int num_events = epoll_wait(efd_, events.data(), MAX_EVENTS, -1);
     if (num_events < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
