@@ -72,8 +72,8 @@ Server& Server::operator=(const Server& other) {
 void Server::init(void) {
   in_addr host_addr;
   host_addr.s_addr = host;
-  LOG(INFO) << "Initializing server on " << inet_ntoa(host_addr) << ":"
-            << port << "...";
+  LOG(INFO) << "Initializing server on " << inet_ntoa(host_addr) << ":" << port
+            << "...";
 
   fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
@@ -103,8 +103,7 @@ void Server::init(void) {
     LOG_PERROR(ERROR, "bind");
     throw std::runtime_error("bind");
   }
-  LOG(DEBUG) << "Socket bound to " << inet_ntoa(host_addr) << ":"
-             << port;
+  LOG(DEBUG) << "Socket bound to " << inet_ntoa(host_addr) << ":" << port;
 
   if (listen(fd, MAX_CONNECTIONS_PER_SERVER) < 0) {
     disconnect();

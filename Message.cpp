@@ -14,8 +14,10 @@ bool ci_equal_copy(const std::string& str_a, const std::string& str_b) {
   for (std::string::size_type i = 0; i < str_a.size(); ++i) {
     char char_a = str_a[i];
     char char_b = str_b[i];
-    char_a = static_cast<char>(std::tolower(static_cast<unsigned char>(char_a)));
-    char_b = static_cast<char>(std::tolower(static_cast<unsigned char>(char_b)));
+    char_a =
+        static_cast<char>(std::tolower(static_cast<unsigned char>(char_a)));
+    char_b =
+        static_cast<char>(std::tolower(static_cast<unsigned char>(char_b)));
     if (char_a != char_b) {
       return false;
     }

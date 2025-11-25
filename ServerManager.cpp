@@ -54,8 +54,8 @@ void ServerManager::initServers(std::vector<Server>& servers) {
     if (listen_addresses.find(addr) != listen_addresses.end()) {
       in_addr host_addr;
       host_addr.s_addr = it->host;
-      LOG(ERROR) << "Duplicate listen address found: "
-                 << inet_ntoa(host_addr) << ":" << it->port;
+      LOG(ERROR) << "Duplicate listen address found: " << inet_ntoa(host_addr)
+                 << ":" << it->port;
       throw std::runtime_error("Duplicate listen address in configuration");
     }
     listen_addresses.insert(addr);
@@ -65,13 +65,13 @@ void ServerManager::initServers(std::vector<Server>& servers) {
        ++it) {
     in_addr host_addr;
     host_addr.s_addr = it->host;
-    LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr)
-               << ":" << it->port;
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr) << ":"
+               << it->port;
     it->init();
     /* store by listening fd */
     servers_[it->fd] = *it;
-    LOG(DEBUG) << "Server registered (" << inet_ntoa(host_addr)
-               << ":" << it->port << ") with fd: " << it->fd;
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(host_addr) << ":"
+               << it->port << ") with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
   }
@@ -234,7 +234,8 @@ int ServerManager::run() {
         int status = conn.handleRead();
 
         if (status < 0) {
-          LOG(DEBUG) << "handleRead failed, closing connection fd: " << event_fd;
+          LOG(DEBUG) << "handleRead failed, closing connection fd: "
+                     << event_fd;
           close(event_fd);
           connections_.erase(event_fd);
           continue;

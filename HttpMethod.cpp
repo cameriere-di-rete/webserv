@@ -37,7 +37,8 @@ Method stringToMethod(const std::string& method_str) {
   if (method_str == "HEAD") {
     return HEAD;
   }
-  throw std::invalid_argument(std::string("Unknown HTTP method: ") + method_str);
+  throw std::invalid_argument(std::string("Unknown HTTP method: ") +
+                              method_str);
 }
 
 }  // namespace http
