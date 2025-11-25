@@ -9,27 +9,22 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Compiler flags matching original Makefile
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 
-# Source files from original Makefile
+# Source files
 set(SOURCES
     main.cpp
     BlockNode.cpp
     Body.cpp
     Config.cpp
     Connection.cpp
-    DeleteHandler.cpp
     DirectiveNode.cpp
     EchoHandler.cpp
     file_utils.cpp
-    HandlerRegistry.cpp
     Header.cpp
-    HeadHandler.cpp
     HttpMethod.cpp
     HttpStatus.cpp
     Location.cpp
     Logger.cpp
     Message.cpp
-    PostHandler.cpp
-    PutHandler.cpp
     Request.cpp
     RequestLine.cpp
     Response.cpp

@@ -5,33 +5,9 @@
 #include <vector>
 
 #include "Config.hpp"
-#include "DeleteHandler.hpp"
-#include "HandlerRegistry.hpp"
-#include "HeadHandler.hpp"
 #include "Logger.hpp"
-#include "PostHandler.hpp"
-#include "PutHandler.hpp"
 #include "ServerManager.hpp"
-#include "StaticFileHandler.hpp"
 #include "utils.hpp"
-
-// Register all handler prototypes with the registry.
-// Handlers are checked in registration order; the first matching handler is used.
-// File-based handlers (GET/HEAD) are registered first because they have more
-// specific matching criteria (method + resolved path). Method-only handlers
-// (POST/PUT/DELETE) are registered after, serving as fallbacks for those methods.
-static void registerHandlers() {
-  HandlerRegistry& registry = HandlerRegistry::instance();
-
-  // File-based handlers: require method + valid resolved path
-  registry.registerHandler(new StaticFileHandler());  // GET + file
-  registry.registerHandler(new HeadHandler());        // HEAD + file
-
-  // Method-only handlers: match on HTTP method
-  registry.registerHandler(new PostHandler());    // POST
-  registry.registerHandler(new PutHandler());     // PUT
-  registry.registerHandler(new DeleteHandler());  // DELETE
-}
 
 int main(int argc, char** argv) {
   // run `./webserv -l:N` to choose the log level
@@ -52,9 +28,6 @@ int main(int argc, char** argv) {
   }
 
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
-
-  // Register all request handlers
-  registerHandlers();
 
   ServerManager sm;
   try {

@@ -9,17 +9,6 @@
 EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}
 
-bool EchoHandler::canHandle(const HandlerContext& /*ctx*/) const {
-  // EchoHandler is a debug/test handler that echoes request body back.
-  // It always returns false because it should only be used when explicitly
-  // instantiated, not through the handler registry's automatic selection.
-  return false;
-}
-
-IHandler* EchoHandler::create(const HandlerContext& /*ctx*/) const {
-  return new EchoHandler();
-}
-
 HandlerResult EchoHandler::start(Connection& conn) {
   // Prepare a simple 200 OK response that echoes the request body
   conn.response.status_line.version = HTTP_VERSION;

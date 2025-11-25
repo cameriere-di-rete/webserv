@@ -10,12 +10,12 @@
 #include <sstream>
 
 #include "Body.hpp"
-#include "HandlerRegistry.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
 #include "Server.hpp"
+#include "StaticFileHandler.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -203,45 +203,46 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  if (location.cgi) {
-    // handleCGI();
-    return;
-  }
+  // Resource-based handler selection:
+  // 1. Redirect handler (if configured) - TODO: implement in future PR
+  // 2. CGI handler (if configured and matching extension) - TODO: implement in future PR
+  // 3. Directory handler (if path is directory) - TODO: implement in future PR
+  // 4. File handler (default for static files)
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
-    // handleRedirect();
+    // TODO: RedirectHandler - will be implemented in future PR
+    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
     return;
   }
 
-  // reset response state
+  if (location.cgi) {
+    // TODO: CGIHandler - will be implemented in future PR
+    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+    return;
+  }
+
+  // Reset response state
   response = Response();
 
-  // Build handler context
-  HandlerContext ctx;
-  ctx.request = &request;
-  ctx.location = &location;
-
-  // For GET/HEAD, resolve the filesystem path
-  const std::string& req_method = request.request_line.method;
-  if (req_method == "GET" || req_method == "HEAD") {
-    std::string path;
-    if (!resolvePathForLocation(location, path)) {
-      return;  // resolvePathForLocation prepared an error response
-    }
-    ctx.resolved_path = path;
-    // resolvePathForLocation already resolved directories to their index files,
-    // so the path is always a file at this point (is_directory stays false).
+  // Resolve the filesystem path for the request
+  std::string resolved_path;
+  bool is_directory = false;
+  if (!resolvePathForLocation(location, resolved_path, is_directory)) {
+    return;  // resolvePathForLocation prepared an error response
   }
 
-  // Use the handler registry to find an appropriate handler
-  IHandler* handler = HandlerRegistry::instance().createHandler(ctx);
-  if (!handler) {
-    // No handler found for this request
-    LOG(INFO) << "No handler found for method: " << req_method;
-    prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
+  // Directory handling - TODO: DirectoryHandler in future PR
+  if (is_directory) {
+    if (location.autoindex) {
+      prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+    } else {
+      prepareErrorResponse(http::S_403_FORBIDDEN);
+    }
     return;
   }
 
+  // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
+  IHandler* handler = new FileHandler(resolved_path);
   setHandler(handler);
 
   HandlerResult hr = active_handler->start(*this);
@@ -295,12 +296,21 @@ http::Status Connection::validateRequestForLocation(const Location& location) {
 }
 
 bool Connection::resolvePathForLocation(const Location& location,
-                                        std::string& out_path) {
+                                        std::string& out_path,
+                                        bool& out_is_directory) {
+  out_is_directory = false;
+
   // Use the request URI (strip query string)
   std::string uri = request.request_line.uri;
   std::size_t q = uri.find('?');
   if (q != std::string::npos) {
     uri = uri.substr(0, q);
+  }
+
+  // Basic path traversal protection - check early
+  if (uri.find("..") != std::string::npos) {
+    prepareErrorResponse(http::S_403_FORBIDDEN);
+    return false;
   }
 
   // Relative path inside the location
@@ -340,6 +350,7 @@ bool Connection::resolvePathForLocation(const Location& location,
     }
   }
 
+  // Try to resolve directory to index file
   if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
     bool found_index = false;
     for (std::set<std::string>::const_iterator it = location.index.begin();
@@ -352,18 +363,11 @@ bool Connection::resolvePathForLocation(const Location& location,
       }
     }
     if (!found_index) {
-      if (location.autoindex) {
-        prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-      } else {
-        prepareErrorResponse(http::S_404_NOT_FOUND);
-      }
-      return false;
+      // No index file found - this is a directory request
+      out_path = path;
+      out_is_directory = true;
+      return true;  // Let caller decide what to do with directory
     }
-  }
-
-  if (path.find("..") != std::string::npos) {
-    prepareErrorResponse(http::S_403_FORBIDDEN);
-    return false;
   }
 
   out_path = path;

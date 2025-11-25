@@ -1,36 +1,24 @@
 #pragma once
 
-#include <string>
-
 class Connection;
-class Request;
-class Location;
 
 enum HandlerResult { HR_DONE = 0, HR_WOULD_BLOCK = 1, HR_ERROR = -1 };
 
-// Context passed to handlers containing resolved request information
-struct HandlerContext {
-  const Request* request;
-  const Location* location;
-  std::string resolved_path;  // Filesystem path for file-based handlers
-  bool is_directory;
-
-  HandlerContext()
-      : request(NULL), location(NULL), resolved_path(), is_directory(false) {}
-};
-
+// Base interface for all request handlers.
+// Handlers are organized by resource type, not HTTP method.
+// Each handler manages a specific type of resource and handles
+// all applicable HTTP methods for that resource internally.
 class IHandler {
  public:
   virtual ~IHandler() {}
 
-  // Check if this handler can process the given request context
-  // Returns true if this handler should process the request
-  virtual bool canHandle(const HandlerContext& ctx) const = 0;
-
-  // Create a new handler instance configured for the given context
-  // Caller takes ownership of returned pointer
-  virtual IHandler* create(const HandlerContext& ctx) const = 0;
-
+  // Start processing the request. Called once when handler is first invoked.
+  // Returns HR_DONE if complete, HR_WOULD_BLOCK if needs to continue later,
+  // HR_ERROR on failure.
   virtual HandlerResult start(Connection& conn) = 0;
+
+  // Continue processing after I/O is ready (for streaming, CGI, etc.)
+  // Returns HR_DONE when complete, HR_WOULD_BLOCK if more work needed,
+  // HR_ERROR on failure.
   virtual HandlerResult resume(Connection& conn) = 0;
 };
