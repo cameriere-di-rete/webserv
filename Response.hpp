@@ -4,14 +4,14 @@
 #include "StatusLine.hpp"
 
 class Response : public Message {
-public:
+ public:
   Response();
-  Response(const Response &other);
-  Response &operator=(const Response &other);
+  Response(const Response& other);
+  Response& operator=(const Response& other);
   virtual ~Response();
 
   StatusLine status_line;
 
   virtual std::string startLine() const;
-  bool parseStartAndHeaders(const std::vector<std::string> &lines);
+  bool parseStartAndHeaders(const std::vector<std::string>& lines);
 };

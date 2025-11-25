@@ -1,4 +1,4 @@
-name: Compilation Check
+name: Build Check
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Compile project
+      - name: Build project
         run: make
 
       - name: Verify binary was created
