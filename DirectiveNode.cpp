@@ -16,5 +16,3 @@ DirectiveNode& DirectiveNode::operator=(const DirectiveNode& other) {
   }
   return *this;
 }
-
-DirectiveNode::~DirectiveNode() {}
