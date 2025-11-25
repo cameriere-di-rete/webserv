@@ -29,8 +29,8 @@ FileHandler::~FileHandler() {
 HandlerResult FileHandler::start(Connection& conn) {
   const std::string& method = conn.request.request_line.method;
 
-  LOG(DEBUG) << "FileHandler: processing " << method << " request for fd="
-             << conn.fd << " path=" << path_;
+  LOG(DEBUG) << "FileHandler: processing " << method
+             << " request for fd=" << conn.fd << " path=" << path_;
 
   if (method == "GET") {
     return handleGet(conn);
@@ -107,8 +107,8 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
   FileInfo fi;
   off_t start = 0, end = 0;
 
-  int r = file_utils::prepareFileResponse(path_, NULL, conn.response, fi,
-                                          start, end);
+  int r = file_utils::prepareFileResponse(path_, NULL, conn.response, fi, start,
+                                          end);
 
   if (r == -1) {
     conn.prepareErrorResponse(http::S_404_NOT_FOUND);
@@ -143,7 +143,8 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
   struct stat st;
   bool existed = (stat(path_.c_str(), &st) == 0);
 
-  // Create/overwrite the file with restrictive permissions (owner read/write only)
+  // Create/overwrite the file with restrictive permissions (owner read/write
+  // only)
   int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");

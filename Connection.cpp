@@ -10,12 +10,12 @@
 #include <sstream>
 
 #include "Body.hpp"
+#include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
 #include "Server.hpp"
-#include "FileHandler.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -205,7 +205,8 @@ void Connection::processResponse(const Location& location) {
 
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
-  // 2. CGI handler (if configured and matching extension) - TODO: implement in future PR
+  // 2. CGI handler (if configured and matching extension) - TODO: implement in
+  // future PR
   // 3. Directory handler (if path is directory) - TODO: implement in future PR
   // 4. File handler (default for static files)
 

@@ -8,7 +8,8 @@
 class Connection;
 
 // FileHandler handles static file operations for GET, HEAD, PUT, and DELETE.
-// This is a resource-based handler that manages all HTTP methods for static files.
+// This is a resource-based handler that manages all HTTP methods for static
+// files.
 class FileHandler : public IHandler {
  public:
   explicit FileHandler(const std::string& path);
