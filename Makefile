@@ -12,7 +12,6 @@ SOURCES	:=	main.cpp \
 			Connection.cpp \
 			DirectiveNode.cpp \
 			EchoHandler.cpp \
-			FileHandler.cpp \
 			file_utils.cpp \
 			Header.cpp \
 			HttpMethod.cpp \
@@ -20,14 +19,16 @@ SOURCES	:=	main.cpp \
 			Location.cpp \
 			Logger.cpp \
 			Message.cpp \
-			PostUploadHandler.cpp \
 			Request.cpp \
 			RequestLine.cpp \
 			Response.cpp \
 			Server.cpp \
 			ServerManager.cpp \
+			FileHandler.cpp \
 			StatusLine.cpp \
-			utils.cpp
+			utils.cpp \
+			RedirectHandler.cpp \
+			PostUploadHandler.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))

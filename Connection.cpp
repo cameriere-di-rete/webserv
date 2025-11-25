@@ -17,6 +17,7 @@
 #include "Location.hpp"
 #include "Logger.hpp"
 #include "PostUploadHandler.hpp"
+#include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
 
@@ -91,7 +92,7 @@ int Connection::handleRead() {
     }
 
     if (r == 0) {
-      LOG(INFO) << "Client disconnected (fd: " << fd << ")"; 
+      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
       return -1;
     }
 
@@ -103,14 +104,14 @@ int Connection::handleRead() {
       std::size_t pos = read_buffer.find(CRLF CRLF);
       if (pos != std::string::npos) {
         headers_end_pos = pos;
-        
+
         // Parse headers to check if we need to read body
         std::string headers_part = read_buffer.substr(0, headers_end_pos);
         if (!request.parseStartAndHeaders(headers_part, headers_end_pos)) {
           LOG(ERROR) << "Failed to parse request headers";
           return -1;
         }
-        
+
         // Check if request has body (Content-Length header)
         std::string content_length;
         if (!request.getHeader("Content-Length", content_length)) {
@@ -118,25 +119,27 @@ int Connection::handleRead() {
           body_complete = true;
           break;
         }
-        
+
         // Continue to body parsing below
       } else {
         // Headers not complete yet, continue reading
         continue;
       }
     }
-    
+
     // Headers are complete, now check if body is complete
     if (!body_complete) {
       std::string content_length;
       if (request.getHeader("Content-Length", content_length)) {
-        size_t expected_length = static_cast<size_t>(atol(content_length.c_str()));
-        size_t headers_size = headers_end_pos + 4; // +4 for CRLF CRLF
+        size_t expected_length =
+            static_cast<size_t>(atol(content_length.c_str()));
+        size_t headers_size = headers_end_pos + 4;  // +4 for CRLF CRLF
         size_t current_body_size = read_buffer.size() - headers_size;
-        
+
         if (current_body_size >= expected_length) {
           // Body is complete, extract it
-          std::string body_data = read_buffer.substr(headers_size, expected_length);
+          std::string body_data =
+              read_buffer.substr(headers_size, expected_length);
           request.getBody().data = body_data;
           body_complete = true;
           break;
@@ -150,7 +153,8 @@ int Connection::handleRead() {
     }
   }
   return 0;
-}int Connection::handleWrite() {
+}
+int Connection::handleWrite() {
   while (write_offset < write_buffer.size()) {
     ssize_t w =
         send(fd, write_buffer.c_str() + write_offset,
@@ -259,9 +263,21 @@ void Connection::processResponse(const Location& location) {
   // 4. File handler (default for static files)
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
-    // TODO: RedirectHandler - will be implemented in future PR
-    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-    return;
+    // Delegate redirect response preparation to a RedirectHandler instance
+    RedirectHandler* rh = new RedirectHandler(location);
+    setHandler(rh);
+    HandlerResult hr = active_handler->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    } else {
+      // HR_DONE: response prepared in write_buffer
+      clearHandler();
+      return;
+    }
   }
 
   if (location.cgi) {
