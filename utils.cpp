@@ -34,7 +34,7 @@ std::string trim_copy(const std::string& s) {
     while (j > 0 && std::isspace(static_cast<unsigned char>(res[j]))) {
       --j;
     }
-    res.erase(j);
+    res.erase(j + 1);
   }
   return res;
 }
