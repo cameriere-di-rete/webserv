@@ -52,10 +52,10 @@ void ServerManager::initServers(std::vector<Server>& servers) {
        ++it) {
     std::pair<in_addr_t, int> addr(it->host, it->port);
     if (listen_addresses.find(addr) != listen_addresses.end()) {
-      in_addr host_addr;
+      in_addr host_addr = {};
       host_addr.s_addr = it->host;
-      LOG(ERROR) << "Duplicate listen address found: "
-                 << inet_ntoa(host_addr) << ":" << it->port;
+      LOG(ERROR) << "Duplicate listen address found: " << inet_ntoa(host_addr)
+                 << ":" << it->port;
       throw std::runtime_error("Duplicate listen address in configuration");
     }
     listen_addresses.insert(addr);
@@ -63,15 +63,15 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    in_addr host_addr;
+    in_addr host_addr = {};
     host_addr.s_addr = it->host;
-    LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr)
-               << ":" << it->port;
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr) << ":"
+               << it->port;
     it->init();
     /* store by listening fd */
     servers_[it->fd] = *it;
-    LOG(DEBUG) << "Server registered (" << inet_ntoa(host_addr)
-               << ":" << it->port << ") with fd: " << it->fd;
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(host_addr) << ":"
+               << it->port << ") with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
   }
@@ -176,11 +176,11 @@ int ServerManager::run() {
   }
 
   /* event loop */
-  struct epoll_event events[MAX_EVENTS];
+  std::vector<struct epoll_event> events(MAX_EVENTS);
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int num_events = epoll_wait(efd_, events, MAX_EVENTS, -1);
+    int num_events = epoll_wait(efd_, &events[0], MAX_EVENTS, -1);
     if (num_events < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
@@ -197,7 +197,7 @@ int ServerManager::run() {
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
     for (int i = 0; i < num_events; ++i) {
-      int event_fd = events[i].data.fd;
+      int event_fd = events[static_cast<size_t>(i)].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
       if (event_fd == sfd_) {
@@ -226,7 +226,7 @@ int ServerManager::run() {
       }
 
       Connection& conn = conn_it->second;
-      uint32_t event_mask = events[i].events;
+      uint32_t event_mask = events[static_cast<size_t>(i)].events;
 
       /* readable */
       if ((event_mask & EPOLLIN) != 0U) {
@@ -234,7 +234,8 @@ int ServerManager::run() {
         int status = conn.handleRead();
 
         if (status < 0) {
-          LOG(DEBUG) << "handleRead failed, closing connection fd: " << event_fd;
+          LOG(DEBUG) << "handleRead failed, closing connection fd: "
+                     << event_fd;
           close(event_fd);
           connections_.erase(event_fd);
           continue;
