@@ -3,16 +3,22 @@ project(MyTests)
 
 enable_testing()
 
-# Fetch GoogleTest instead of requiring system installation
-include(FetchContent)
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG v1.14.0
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+# Try to find local GTest installation first, fallback to FetchContent
+find_package(GTest QUIET)
+if(NOT GTest_FOUND)
+  message(STATUS "GTest not found locally, fetching from GitHub...")
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+else()
+  message(STATUS "Using locally installed GTest")
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR})
 
