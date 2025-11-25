@@ -35,7 +35,6 @@ int main(int argc, char** argv) {
 
     Config cfg;
     cfg.parseFile(std::string(path));
-    LOG(INFO) << "Configuration file parsed successfully";
 
     cfg.debug();
 
