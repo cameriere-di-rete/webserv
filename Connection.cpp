@@ -216,7 +216,10 @@ void Connection::processResponse(const Location& location) {
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to RedirectHandler
-    HandlerRedirect(*this, location);
+    int redirectResult = HandlerRedirect(*this, location);
+    if (redirectResult != 0) {
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    }
     return;
   }
 
