@@ -4,6 +4,9 @@ on:
   issue_comment:
     types: [created]
 
+concurrency:
+  group: format-${{ github.event.issue.number }}
+  cancel-in-progress: true
 jobs:
   format:
     # Only run on pull request comments
