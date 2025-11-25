@@ -8,8 +8,6 @@ Checks: >
   readability-*,
   cppcoreguidelines-*,
   portability-*
-  readability-braces-around-statements
-
 # Don't treat any warnings as errors by default (change if desired)
 # WarningsAsErrors: ''
 
