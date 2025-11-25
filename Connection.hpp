@@ -28,7 +28,6 @@ class Connection {
   std::string write_buffer;
   std::size_t write_offset;
   std::size_t headers_end_pos;
-  bool body_complete;
   bool write_ready;
   Request request;
   Response response;
