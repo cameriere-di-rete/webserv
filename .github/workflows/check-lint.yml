@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Fetch dependencies with CMake
+        run: |
+          cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          # This fetches GoogleTest and generates compile_commands.json
+
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
         env:
@@ -22,6 +27,10 @@ jobs:
           tidy-checks: '' # Use .clang-tidy config file
           # only 'update' a single comment in a pull request thread.
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          # Use compilation database for clang-tidy
+          database: 'build'
+          # Enable step summary for linter output
+          step-summary: true
 
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed > 0

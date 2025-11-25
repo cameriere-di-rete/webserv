@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+
 project(webserv)
 
 # Set C++ standard to C++98 to match original Makefile
@@ -56,3 +57,7 @@ add_custom_target(generate-makefile
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Generating standalone Makefile from CMakeLists.txt"
 )
+
+enable_testing()
+
+add_subdirectory(tests)
