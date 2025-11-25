@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 
@@ -15,6 +16,7 @@
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
+#include "PostUploadHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
 
@@ -23,6 +25,7 @@ Connection::Connection()
       server_fd(-1),
       write_offset(0),
       headers_end_pos(std::string::npos),
+      body_complete(false),
       write_ready(false),
       request(),
       response(),
@@ -33,6 +36,7 @@ Connection::Connection(int fd)
       server_fd(-1),
       write_offset(0),
       headers_end_pos(std::string::npos),
+      body_complete(false),
       write_ready(false),
       request(),
       response(),
@@ -45,6 +49,7 @@ Connection::Connection(const Connection& other)
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
       headers_end_pos(other.headers_end_pos),
+      body_complete(other.body_complete),
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
@@ -62,6 +67,7 @@ Connection& Connection::operator=(const Connection& other) {
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
     headers_end_pos = other.headers_end_pos;
+    body_complete = other.body_complete;
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
@@ -85,24 +91,66 @@ int Connection::handleRead() {
     }
 
     if (r == 0) {
-      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
+      LOG(INFO) << "Client disconnected (fd: " << fd << ")"; 
       return -1;
     }
 
     // Add new data to persistent buffer
     read_buffer.append(buf, r);
 
-    // Check if the HTTP request headers are complete
-    std::size_t pos = read_buffer.find(CRLF CRLF);
-    if (pos != std::string::npos) {
-      headers_end_pos = pos;
-      break;
+    // First, check if the HTTP request headers are complete
+    if (headers_end_pos == std::string::npos) {
+      std::size_t pos = read_buffer.find(CRLF CRLF);
+      if (pos != std::string::npos) {
+        headers_end_pos = pos;
+        
+        // Parse headers to check if we need to read body
+        std::string headers_part = read_buffer.substr(0, headers_end_pos);
+        if (!request.parseStartAndHeaders(headers_part, headers_end_pos)) {
+          LOG(ERROR) << "Failed to parse request headers";
+          return -1;
+        }
+        
+        // Check if request has body (Content-Length header)
+        std::string content_length;
+        if (!request.getHeader("Content-Length", content_length)) {
+          // No Content-Length header, assume no body
+          body_complete = true;
+          break;
+        }
+        
+        // Continue to body parsing below
+      } else {
+        // Headers not complete yet, continue reading
+        continue;
+      }
+    }
+    
+    // Headers are complete, now check if body is complete
+    if (!body_complete) {
+      std::string content_length;
+      if (request.getHeader("Content-Length", content_length)) {
+        size_t expected_length = static_cast<size_t>(atol(content_length.c_str()));
+        size_t headers_size = headers_end_pos + 4; // +4 for CRLF CRLF
+        size_t current_body_size = read_buffer.size() - headers_size;
+        
+        if (current_body_size >= expected_length) {
+          // Body is complete, extract it
+          std::string body_data = read_buffer.substr(headers_size, expected_length);
+          request.getBody().data = body_data;
+          body_complete = true;
+          break;
+        }
+        // Body not complete yet, continue reading
+      } else {
+        // No Content-Length, assume no body
+        body_complete = true;
+        break;
+      }
     }
   }
   return 0;
-}
-
-int Connection::handleWrite() {
+}int Connection::handleWrite() {
   while (write_offset < write_buffer.size()) {
     ssize_t w =
         send(fd, write_buffer.c_str() + write_offset,
@@ -225,26 +273,34 @@ void Connection::processResponse(const Location& location) {
   // Reset response state
   response = Response();
 
-  // Resolve the filesystem path for the request
-  std::string resolved_path;
-  bool is_directory = false;
-  if (!resolvePathForLocation(location, resolved_path, is_directory)) {
-    return;  // resolvePathForLocation prepared an error response
-  }
-
-  // Directory handling - TODO: DirectoryHandler in future PR
-  if (is_directory) {
-    if (location.autoindex) {
-      prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-    } else {
-      prepareErrorResponse(http::S_403_FORBIDDEN);
+  // Check if this is a POST request that needs file upload handling
+  const std::string& method = request.request_line.method;
+  if (method == "POST") {
+    // Use PostUploadHandler for POST requests with file upload support
+    IHandler* handler = new PostUploadHandler();
+    setHandler(handler);
+  } else {
+    // Resolve the filesystem path for file-based operations
+    std::string resolved_path;
+    bool is_directory = false;
+    if (!resolvePathForLocation(location, resolved_path, is_directory)) {
+      return;  // resolvePathForLocation prepared an error response
     }
-    return;
-  }
 
-  // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  IHandler* handler = new FileHandler(resolved_path);
-  setHandler(handler);
+    // Directory handling
+    if (is_directory) {
+      if (location.autoindex) {
+        prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+      } else {
+        prepareErrorResponse(http::S_403_FORBIDDEN);
+      }
+      return;
+    }
+
+    // FileHandler handles GET, HEAD, PUT, DELETE for static files
+    IHandler* handler = new FileHandler(resolved_path);
+    setHandler(handler);
+  }
 
   HandlerResult hr = active_handler->start(*this);
   if (hr == HR_WOULD_BLOCK) {
