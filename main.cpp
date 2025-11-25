@@ -16,21 +16,21 @@
 #include "utils.hpp"
 
 // Register all handler prototypes with the registry.
-// Order matters: more specific handlers should come before generic ones.
+// Handlers are checked in registration order; the first matching handler is used.
+// File-based handlers (GET/HEAD) are registered first because they have more
+// specific matching criteria (method + resolved path). Method-only handlers
+// (POST/PUT/DELETE) are registered after, serving as fallbacks for those methods.
 static void registerHandlers() {
   HandlerRegistry& registry = HandlerRegistry::instance();
 
-  // Register handlers in order of specificity
-  // GET requests for static files
-  registry.registerHandler(new StaticFileHandler());
-  // HEAD requests for file metadata
-  registry.registerHandler(new HeadHandler());
-  // POST requests
-  registry.registerHandler(new PostHandler());
-  // PUT requests
-  registry.registerHandler(new PutHandler());
-  // DELETE requests
-  registry.registerHandler(new DeleteHandler());
+  // File-based handlers: require method + valid resolved path
+  registry.registerHandler(new StaticFileHandler());  // GET + file
+  registry.registerHandler(new HeadHandler());        // HEAD + file
+
+  // Method-only handlers: match on HTTP method
+  registry.registerHandler(new PostHandler());    // POST
+  registry.registerHandler(new PutHandler());     // PUT
+  registry.registerHandler(new DeleteHandler());  // DELETE
 }
 
 int main(int argc, char** argv) {

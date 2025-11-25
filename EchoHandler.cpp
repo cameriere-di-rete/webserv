@@ -10,8 +10,9 @@ EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}
 
 bool EchoHandler::canHandle(const HandlerContext& /*ctx*/) const {
-  // EchoHandler is a fallback/debug handler, typically not used in production
-  // It can handle any request if explicitly selected
+  // EchoHandler is a debug/test handler that echoes request body back.
+  // It always returns false because it should only be used when explicitly
+  // instantiated, not through the handler registry's automatic selection.
   return false;
 }
 

@@ -229,7 +229,8 @@ void Connection::processResponse(const Location& location) {
       return;  // resolvePathForLocation prepared an error response
     }
     ctx.resolved_path = path;
-    ctx.is_directory = false;  // resolvePathForLocation handles directory->index
+    // resolvePathForLocation already resolved directories to their index files,
+    // so the path is always a file at this point (is_directory stays false).
   }
 
   // Use the handler registry to find an appropriate handler
