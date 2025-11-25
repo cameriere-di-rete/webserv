@@ -5,6 +5,8 @@ webserv
 # build
 *.o
 *.d
+build/
+build_tests/
 
 # cmake
 build/
