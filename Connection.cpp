@@ -15,7 +15,7 @@
 #include "Location.hpp"
 #include "Logger.hpp"
 #include "Server.hpp"
-#include "StaticFileHandler.hpp"
+#include "FileHandler.hpp"
 #include "constants.hpp"
 
 Connection::Connection()

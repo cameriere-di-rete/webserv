@@ -1,4 +1,4 @@
-#include "StaticFileHandler.hpp"
+#include "FileHandler.hpp"
 
 #include <fcntl.h>
 #include <sys/stat.h>
