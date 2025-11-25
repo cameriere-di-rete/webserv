@@ -33,11 +33,7 @@ set(SOURCES
     FileHandler.cpp
     StatusLine.cpp
     utils.cpp
-    DeleteHandler.cpp
-    HeadHandler.cpp
     RedirectHandler.cpp
-    PostHandler.cpp
-    PutHandler.cpp
 )
 
 # Create executable

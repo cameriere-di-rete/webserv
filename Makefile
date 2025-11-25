@@ -27,11 +27,7 @@ SOURCES	:=	main.cpp \
 			FileHandler.cpp \
 			StatusLine.cpp \
 			utils.cpp \
-			DeleteHandler.cpp \
-			HeadHandler.cpp \
-			RedirectHandler.cpp \
-			PostHandler.cpp \
-			PutHandler.cpp
+			RedirectHandler.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
