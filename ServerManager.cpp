@@ -176,11 +176,11 @@ int ServerManager::run() {
   }
 
   /* event loop */
-  struct epoll_event events[MAX_EVENTS];
+  std::vector<struct epoll_event> events(MAX_EVENTS);
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int num_events = epoll_wait(efd_, events, MAX_EVENTS, -1);
+    int num_events = epoll_wait(efd_, &events[0], MAX_EVENTS, -1);
     if (num_events < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
@@ -197,7 +197,7 @@ int ServerManager::run() {
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
     for (int i = 0; i < num_events; ++i) {
-      int event_fd = events[i].data.fd;
+      int event_fd = events.at(static_cast<size_t>(i)).data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
       if (event_fd == sfd_) {
@@ -226,7 +226,7 @@ int ServerManager::run() {
       }
 
       Connection& conn = conn_it->second;
-      uint32_t event_mask = events[i].events;
+      uint32_t event_mask = events.at(static_cast<size_t>(i)).events;
 
       /* readable */
       if ((event_mask & EPOLLIN) != 0U) {

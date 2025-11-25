@@ -98,7 +98,9 @@ void Server::init(void) {
   addr.sin_addr.s_addr = host;
   addr.sin_port = htons(port);
 
-  if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
+  // Required for POSIX socket API
+  if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr),  // NOLINT
+           sizeof(addr)) < 0) {
     disconnect();
     LOG_PERROR(ERROR, "bind");
     throw std::runtime_error("bind");
