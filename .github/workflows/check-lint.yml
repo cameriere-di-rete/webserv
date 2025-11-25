@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Fetch dependencies with CMake
+        run: |
+          cmake -B build -S .
+          # This fetches GoogleTest and makes headers available
+
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
         env:
@@ -22,8 +27,8 @@ jobs:
           tidy-checks: '' # Use .clang-tidy config file
           # only 'update' a single comment in a pull request thread.
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
-          # Ignore test files for clang-tidy (gtest headers not available in CI)
-          ignore-tidy: 'tests|*_test.cpp'
+          # Pass include path to clang-tidy so it can find gtest headers
+          extra-arg: '-I build/_deps/googletest-src/googletest/include'
 
       - name: Fail fast?!
         if: steps.linter.outputs.checks-failed > 0
