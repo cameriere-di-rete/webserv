@@ -36,6 +36,8 @@ HandlerResult FileHandler::start(Connection& conn) {
     return handleGet(conn);
   } else if (method == "HEAD") {
     return handleHead(conn);
+  } else if (method == "POST") {
+    return handlePost(conn);
   } else if (method == "PUT") {
     return handlePut(conn);
   } else if (method == "DELETE") {
@@ -128,6 +130,37 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
   header_stream << CRLF;
   conn.write_buffer = header_stream.str();
 
+  return HR_DONE;
+}
+
+HandlerResult FileHandler::handlePost(Connection& conn) {
+  // Basic path traversal protection
+  if (path_.find("..") != std::string::npos) {
+    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
+
+  // Simple POST implementation: echo back the POST data with success message
+  conn.response.status_line.version = HTTP_VERSION;
+  conn.response.status_line.status_code = http::S_201_CREATED;
+  conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
+
+  std::ostringstream resp_body;
+  resp_body << "POST request processed successfully" << CRLF;
+  resp_body << "URI: " << conn.request.request_line.uri << CRLF;
+  resp_body << "Content received: " << conn.request.getBody().size() << " bytes"
+            << CRLF;
+  resp_body << "Data:" << CRLF << conn.request.getBody().data;
+
+  conn.response.getBody().data = resp_body.str();
+  conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+
+  std::ostringstream len;
+  len << conn.response.getBody().size();
+  conn.response.addHeader("Content-Length", len.str());
+
+  conn.write_buffer = conn.response.serialize();
   return HR_DONE;
 }
 

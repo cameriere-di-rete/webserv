@@ -7,7 +7,7 @@
 
 class Connection;
 
-// FileHandler handles static file operations for GET, HEAD, PUT, and DELETE.
+// FileHandler handles static file operations for GET, HEAD, POST, PUT, DELETE.
 // This is a resource-based handler that manages all HTTP methods for static
 // files.
 class FileHandler : public IHandler {
@@ -22,6 +22,7 @@ class FileHandler : public IHandler {
   // Internal method handlers
   HandlerResult handleGet(Connection& conn);
   HandlerResult handleHead(Connection& conn);
+  HandlerResult handlePost(Connection& conn);
   HandlerResult handlePut(Connection& conn);
   HandlerResult handleDelete(Connection& conn);
 
