@@ -307,8 +307,16 @@ bool Connection::resolvePathForLocation(const Location& location,
     uri = uri.substr(0, q);
   }
 
-  // Basic path traversal protection - check early
-  if (uri.find("..") != std::string::npos) {
+  // Path traversal protection: check for ".." sequences
+  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
+  // by checking the raw URI and rejecting suspicious patterns.
+  // Note: A proper implementation would URL-decode first, then validate.
+  if (uri.find("..") != std::string::npos ||
+      uri.find("%2e%2e") != std::string::npos ||
+      uri.find("%2E%2E") != std::string::npos ||
+      uri.find("%2e%2E") != std::string::npos ||
+      uri.find("%2E%2e") != std::string::npos) {
+    LOG(INFO) << "Path traversal attempt blocked: " << uri;
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }

@@ -132,15 +132,19 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePut(Connection& conn) {
-  // Basic path traversal protection
+  // Basic path traversal protection (URL decoding happens before this point)
   if (path_.find("..") != std::string::npos) {
     LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
     return HR_DONE;
   }
 
-  // Try to create/overwrite the file
-  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  // Check if file existed before we create/overwrite it
+  struct stat st;
+  bool existed = (stat(path_.c_str(), &st) == 0);
+
+  // Create/overwrite the file with restrictive permissions (owner read/write only)
+  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
@@ -157,10 +161,6 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
-
-  // Check if file was created or replaced
-  struct stat st;
-  bool existed = (stat(path_.c_str(), &st) == 0);
 
   conn.response.status_line.version = HTTP_VERSION;
   if (existed) {
