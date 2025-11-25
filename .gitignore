@@ -20,3 +20,4 @@ Makefile.bak
 .log
 _codeql_detected_source_root
 .cache/
+_codeql_build_dir/
