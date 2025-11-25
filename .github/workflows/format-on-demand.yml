@@ -85,7 +85,7 @@ jobs:
           reactions: hooray
 
       - name: Add reaction if no changes needed
-        if: steps.check-changes.outputs.has_changes != 'true'
+        if: steps.check-changes.outputs.has_changes == 'false'
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ github.event.comment.id }}
