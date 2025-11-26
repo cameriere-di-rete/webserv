@@ -11,7 +11,7 @@ OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
 
 # Files that, when changed, should trigger regenerating the Makefile
-CMAKE_INPUTS := CMakeLists.txt generate_makefile.cmake Makefile.in
+CMAKE_INPUTS := CMakeLists.txt cmake/generate_makefile.cmake cmake/Makefile.in
 STAMP := build/.cmake_stamp
 
 all: $(STAMP) $(NAME)

@@ -22,8 +22,12 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp)
-target_link_libraries(runTests GTest::gtest GTest::gtest_main pthread)
+# Build tests by linking against the library target `webserv_lib` so we don't recompile sources
+add_executable(runTests test_main.cpp ../src/utils/utils_test.cpp)
+target_link_libraries(runTests PRIVATE GTest::gtest_main webserv_lib pthread)
+
+# Ensure the test target can find headers moved into `src/*`
+target_include_directories(runTests PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src/core ${CMAKE_SOURCE_DIR}/src/http ${CMAKE_SOURCE_DIR}/src/config ${CMAKE_SOURCE_DIR}/src/utils ${CMAKE_SOURCE_DIR}/src/handlers ${CMAKE_SOURCE_DIR}/include)
 
 target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)
 target_compile_features(runTests PRIVATE cxx_std_11)

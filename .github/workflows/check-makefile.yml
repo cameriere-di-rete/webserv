@@ -5,9 +5,9 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - 'Makefile'
-      - 'Makefile.in'
       - 'CMakeLists.txt'
-      - 'generate_makefile.cmake'
+      - 'cmake/Makefile.in'
+      - 'cmake/generate_makefile.cmake'
 
 jobs:
   check-makefile:
