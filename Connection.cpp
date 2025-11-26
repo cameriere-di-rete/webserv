@@ -367,7 +367,7 @@ bool Connection::resolvePathForLocation(const Location& location,
   bool path_is_dir = false;
   if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
     path_is_dir = true;
-    if (path[path.size() - 1] != '/') {
+    if (!path.empty() && path[path.size() - 1] != '/') {
       path += '/';
     }
   }
