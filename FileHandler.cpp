@@ -191,13 +191,19 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
     return HR_DONE;
   }
 
-  // Check if file existed before we create/overwrite it
-  struct stat st;
-  bool existed = (stat(path_.c_str(), &st) == 0);
-
-  // Create/overwrite the file with restrictive permissions (owner read/write
-  // only)
-  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  // Atomically determine if file is being created or overwritten using O_EXCL.
+  // First attempt to create exclusively (O_CREAT | O_EXCL), which fails if file
+  // exists. If it fails with EEXIST, the file already exists and we overwrite.
+  bool created = false;
+  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd >= 0) {
+    // File was created (did not exist before)
+    created = true;
+  } else if (errno == EEXIST) {
+    // File already exists, open for overwriting (include O_CREAT for
+    // robustness in case file is deleted between the two open calls)
+    fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  }
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
@@ -226,12 +232,12 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
   }
 
   conn.response.status_line.version = HTTP_VERSION;
-  if (existed) {
-    conn.response.status_line.status_code = http::S_200_OK;
-    conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  } else {
+  if (created) {
     conn.response.status_line.status_code = http::S_201_CREATED;
     conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
+  } else {
+    conn.response.status_line.status_code = http::S_200_OK;
+    conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
   }
 
   std::ostringstream resp_body;
