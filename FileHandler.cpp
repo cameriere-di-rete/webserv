@@ -86,6 +86,8 @@ HandlerResult FileHandler::handleGet(Connection& conn) {
   }
   if (r == -2) {
     // Invalid range: prepareFileResponse already filled response
+    // serialize and send the prepared error response
+    conn.write_buffer = conn.response.serialize();
     return HR_DONE;
   }
 
@@ -109,17 +111,28 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
   FileInfo fi;
   off_t start = 0, end = 0;
 
-  int r = file_utils::prepareFileResponse(path_, NULL, conn.response, fi, start,
-                                          end);
+  std::string range;
+  const std::string* rangePtr = NULL;
+  if (conn.request.getHeader("Range", range)) {
+    rangePtr = &range;
+  }
+
+  int r = file_utils::prepareFileResponse(path_, rangePtr, conn.response, fi,
+                                          start, end);
 
   if (r == -1) {
     conn.prepareErrorResponse(http::S_404_NOT_FOUND);
-  } else if (r == -2) {
-    // Invalid range: prepareFileResponse already filled the response
-  } else {
-    // Success - close the file since we don't need to send body
-    file_utils::closeFile(fi);
+    return HR_DONE;
   }
+  if (r == -2) {
+    // Invalid range: prepareFileResponse already filled response.
+    // serialize and send the prepared error response (416)
+    conn.write_buffer = conn.response.serialize();
+    return HR_DONE;
+  }
+
+  // Success - close the file since we don't need to send body
+  file_utils::closeFile(fi);
 
   // HEAD response has headers but no body
   conn.response.getBody().data = "";
@@ -165,7 +178,9 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePut(Connection& conn) {
-  // Basic path traversal protection (URL decoding happens before this point)
+  // Basic path traversal protection (path has already been validated in
+  // resolvePathForLocation; both raw ".." and URL-encoded variants
+  // (e.g. "%2e%2e") are checked there without requiring decoding here)
   if (path_.find("..") != std::string::npos) {
     LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
