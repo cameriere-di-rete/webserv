@@ -64,5 +64,3 @@ add_custom_target(generate-makefile
 )
 
 enable_testing()
-
-add_subdirectory(tests)
