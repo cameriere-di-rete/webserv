@@ -11,6 +11,8 @@ SOURCES	:=	main.cpp \
 			Config.cpp \
 			Connection.cpp \
 			DirectiveNode.cpp \
+			EchoHandler.cpp \
+			file_utils.cpp \
 			Header.cpp \
 			HttpMethod.cpp \
 			HttpStatus.cpp \
@@ -22,8 +24,10 @@ SOURCES	:=	main.cpp \
 			Response.cpp \
 			Server.cpp \
 			ServerManager.cpp \
+			FileHandler.cpp \
 			StatusLine.cpp \
-			utils.cpp
+			utils.cpp \
+			RedirectHandler.cpp
 
 OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))

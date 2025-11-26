@@ -20,6 +20,11 @@ void initDefaultHttpMethods(std::set<http::Method>& methods);
 // ERROR)
 int parseLogLevelFlag(const std::string& arg);
 
+// Safely parse a string to a long long integer using strtoll with error
+// checking. Returns true on success with value stored in `out`, false on
+// failure (empty string, invalid characters, or out of range).
+bool safeStrtoll(const std::string& s, long long& out);
+
 // Parse program arguments and fill `path` and `logLevel`.
 // This was moved out of main to keep main shorter and clearer.
 void processArgs(int argc, char** argv, std::string& path, int& logLevel);

@@ -1,6 +1,8 @@
 #include "Connection.hpp"
 
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <cerrno>
 #include <cstdio>
@@ -8,10 +10,12 @@
 #include <sstream>
 
 #include "Body.hpp"
+#include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "Logger.hpp"
+#include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
 
@@ -22,7 +26,8 @@ Connection::Connection()
       headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
-      response() {}
+      response(),
+      active_handler(NULL) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -31,7 +36,8 @@ Connection::Connection(int fd)
       headers_end_pos(std::string::npos),
       write_ready(false),
       request(),
-      response() {}
+      response(),
+      active_handler(NULL) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -42,9 +48,12 @@ Connection::Connection(const Connection& other)
       headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
       request(other.request),
-      response(other.response) {}
+      response(other.response),
+      active_handler(NULL) {}
 
-Connection::~Connection() {}
+Connection::~Connection() {
+  clearHandler();
+}
 
 Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
@@ -57,6 +66,7 @@ Connection& Connection::operator=(const Connection& other) {
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
+    clearHandler();
   }
   return *this;
 }
@@ -113,6 +123,20 @@ int Connection::handleWrite() {
     write_offset += static_cast<size_t>(w);
   }
 
+  // If there's an active handler, ask it to resume (streaming, CGI, etc.)
+  if (active_handler) {
+    HandlerResult hr = active_handler->resume(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      return 1;
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      return -1;
+    } else {
+      // HR_DONE
+      clearHandler();
+    }
+  }
+
   // All data sent successfully
   return 0;
 }
@@ -134,6 +158,18 @@ void Connection::prepareErrorResponse(http::Status status) {
   oss << response.getBody().size();
   response.addHeader("Content-Length", oss.str());
   write_buffer = response.serialize();
+}
+
+void Connection::setHandler(IHandler* h) {
+  clearHandler();
+  active_handler = h;
+}
+
+void Connection::clearHandler() {
+  if (active_handler) {
+    delete active_handler;
+    active_handler = NULL;
+  }
 }
 
 void Connection::processRequest(const Server& server) {
@@ -161,11 +197,86 @@ void Connection::processRequest(const Server& server) {
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
+  // Reset response state at the beginning to ensure all handlers start clean
+  response = Response();
+
+  // Validate protocol version and allowed method for this location.
+  http::Status vstat = validateRequestForLocation(location);
+  if (vstat != http::S_0_UNKNOWN) {
+    prepareErrorResponse(vstat);
+    return;
+  }
+
+  // Resource-based handler selection:
+  // 1. Redirect handler (if configured) - TODO: implement in future PR
+  // 2. CGI handler (if configured and matching extension) - TODO: implement in
+  // future PR
+  // 3. Directory handler (if path is directory) - TODO: implement in future PR
+  // 4. File handler (default for static files)
+
+  if (location.redirect_code != http::S_0_UNKNOWN) {
+    // Delegate redirect response preparation to a RedirectHandler instance
+    RedirectHandler* rh = new RedirectHandler(location);
+    setHandler(rh);
+    HandlerResult hr = active_handler->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    } else {
+      // HR_DONE: response prepared in write_buffer
+      clearHandler();
+      return;
+    }
+  }
+
+  if (location.cgi) {
+    // TODO: CGIHandler - will be implemented in future PR
+    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+    return;
+  }
+
+  // Resolve the filesystem path for the request
+  std::string resolved_path;
+  bool is_directory = false;
+  if (!resolvePathForLocation(location, resolved_path, is_directory)) {
+    return;  // resolvePathForLocation prepared an error response
+  }
+
+  // Directory handling - TODO: DirectoryHandler in future PR
+  if (is_directory) {
+    if (location.autoindex) {
+      prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+    } else {
+      prepareErrorResponse(http::S_403_FORBIDDEN);
+    }
+    return;
+  }
+
+  // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
+  IHandler* handler = new FileHandler(resolved_path);
+  setHandler(handler);
+
+  HandlerResult hr = active_handler->start(*this);
+  if (hr == HR_WOULD_BLOCK) {
+    return;  // handler will continue later
+  } else if (hr == HR_ERROR) {
+    clearHandler();
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return;
+  } else {
+    // HR_DONE: response prepared in write_buffer, handler cleared
+    clearHandler();
+  }
+}
+
+http::Status Connection::validateRequestForLocation(const Location& location) {
   // 1. Check HTTP protocol version
   if (request.request_line.version != HTTP_VERSION) {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
-    prepareErrorResponse(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
-    return;
+    return http::S_505_HTTP_VERSION_NOT_SUPPORTED;
   }
 
   // 2. Check HTTP method
@@ -173,10 +284,8 @@ void Connection::processResponse(const Location& location) {
   try {
     method = http::stringToMethod(request.request_line.method);
   } catch (const std::invalid_argument&) {
-    // Method not in implemented_methods
     LOG(INFO) << "Not implemented method: " << request.request_line.method;
-    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-    return;
+    return http::S_501_NOT_IMPLEMENTED;
   }
 
   // Check if method is allowed in this location
@@ -194,20 +303,95 @@ void Connection::processResponse(const Location& location) {
       allow_header += http::methodToString(*it);
     }
     response.addHeader("Allow", allow_header);
-    prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
-    return;
+    return http::S_405_METHOD_NOT_ALLOWED;
   }
 
-  // For now, just return a simple 200 OK response
-  // TODO: Implement redirect, CGI, file and directory handling
-  LOG(DEBUG) << "Request validation passed, sending 200 OK";
-  response.status_line.version = HTTP_VERSION;
-  response.status_line.status_code = http::S_200_OK;
-  response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  response.setBody(Body(read_buffer));
-  std::ostringstream oss2;
-  oss2 << response.getBody().size();
-  response.addHeader("Content-Length", oss2.str());
-  response.addHeader("Content-Type", "text/plain; charset=utf-8");
-  write_buffer = response.serialize();
+  return http::S_0_UNKNOWN;  // OK
+}
+
+bool Connection::resolvePathForLocation(const Location& location,
+                                        std::string& out_path,
+                                        bool& out_is_directory) {
+  out_is_directory = false;
+
+  // Use the request URI (strip query string)
+  std::string uri = request.request_line.uri;
+  std::size_t q = uri.find('?');
+  if (q != std::string::npos) {
+    uri = uri.substr(0, q);
+  }
+
+  // Path traversal protection: check for ".." sequences
+  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
+  // by checking the raw URI and rejecting suspicious patterns.
+  // Note: A proper implementation would URL-decode first, then validate.
+  if (uri.find("..") != std::string::npos ||
+      uri.find("%2e%2e") != std::string::npos ||
+      uri.find("%2E%2E") != std::string::npos ||
+      uri.find("%2e%2E") != std::string::npos ||
+      uri.find("%2E%2e") != std::string::npos) {
+    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+    prepareErrorResponse(http::S_403_FORBIDDEN);
+    return false;
+  }
+
+  // Relative path inside the location
+  std::string rel = uri;
+  if (!location.path.empty() && location.path != "/") {
+    if (rel.find(location.path) == 0) {
+      rel = rel.substr(location.path.size());
+      if (rel.empty()) {
+        rel = "/";
+      }
+    }
+  }
+
+  if (location.root.empty()) {
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return false;
+  }
+  std::string root = location.root;
+
+  std::string path;
+  if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
+      rel[0] == '/') {
+    path = root + rel.substr(1);
+  } else if (!root.empty() && root[root.size() - 1] != '/' && !rel.empty() &&
+             rel[0] != '/') {
+    path = root + "/" + rel;
+  } else {
+    path = root + rel;
+  }
+
+  struct stat st;
+  bool path_is_dir = false;
+  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+    path_is_dir = true;
+    if (!path.empty() && path[path.size() - 1] != '/') {
+      path += '/';
+    }
+  }
+
+  // Try to resolve directory to index file
+  if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+    bool found_index = false;
+    for (std::set<std::string>::const_iterator it = location.index.begin();
+         it != location.index.end(); ++it) {
+      std::string cand = path + *it;
+      if (stat(cand.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+        path = cand;
+        found_index = true;
+        break;
+      }
+    }
+    if (!found_index) {
+      // No index file found - this is a directory request
+      out_path = path;
+      out_is_directory = true;
+      return true;  // Let caller decide what to do with directory
+    }
+  }
+
+  out_path = path;
+  return true;
 }
