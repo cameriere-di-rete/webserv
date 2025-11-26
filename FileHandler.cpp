@@ -182,15 +182,6 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePut(Connection& conn) {
-  // Basic path traversal protection (path has already been validated in
-  // resolvePathForLocation; both raw ".." and URL-encoded variants
-  // (e.g. "%2e%2e") are checked there without requiring decoding here)
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Check if file existed before we create/overwrite it
   struct stat st;
   bool existed = (stat(path_.c_str(), &st) == 0);
