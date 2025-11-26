@@ -7,25 +7,43 @@ CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 NAME	:=	webserv
 SOURCES	:=	@SOURCES_LIST@
 
-OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
-DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
+# Store object and dependency files under build/ to keep the source tree clean
+OBJDIR := build/obj
+DEPDIR := build/dep
+
+# Default include paths so the generated Makefile can compile sources in-place
+# (keeps `#include "Foo.hpp"` working when headers are next to sources)
+INCLUDES := -I. -Isrc -Isrc/core -Isrc/http -Isrc/config -Isrc/utils -Isrc/handlers
+
+OBJECTS	:=	$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
+DEPENDS	:=	$(patsubst %.cpp,$(DEPDIR)/%.d,$(SOURCES))
+
+# Directories to create before building so compilers can write .o/.d files safely
+PREPARE_DIRS := $(sort $(dir $(OBJECTS)) $(dir $(DEPENDS)))
+
+.PHONY: prepare
+prepare:
+	@mkdir -p $(PREPARE_DIRS)
 
 # Files that, when changed, should trigger regenerating the Makefile
 CMAKE_INPUTS := CMakeLists.txt cmake/generate_makefile.cmake cmake/Makefile.in
 STAMP := build/.cmake_stamp
 
-all: $(STAMP) $(NAME)
+all: prepare $(STAMP) $(NAME)
 
 $(NAME): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 -include $(DEPENDS)
 
-%.o: %.cpp Makefile
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+$(OBJDIR)/%.o: %.cpp Makefile
+	@dep=$(patsubst $(OBJDIR)/%.o,$(DEPDIR)/%.d,$@); \
+	mkdir -p $(dir $@) $$(dir $$dep); \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -MMD -MP -MF $$dep -c $< -o $@
 
 clean:
 	$(RM) $(OBJECTS) $(DEPENDS)
+	@rm -rf $(OBJDIR) $(DEPDIR)
 
 fclean: clean
 	$(RM) $(NAME) $(STAMP)
@@ -35,13 +53,13 @@ re: fclean
 	$(MAKE) all
 
 test:
-	@mkdir -p build_tests
-	@cmake -S . -B build_tests
-	@cmake --build build_tests --target runTests -- -j
-	@ctest --test-dir build_tests --output-on-failure
+	@mkdir -p build
+	@cmake -S . -B build
+	@cmake --build build --target runTests -- -j
+	@ctest --test-dir build --output-on-failure
 
 clean-tests:
-	@rm -rf build_tests
+	@rm -rf build/Testing
 
 # Regenerate the auto-generated Makefile when CMake inputs change.
 $(STAMP): $(CMAKE_INPUTS)

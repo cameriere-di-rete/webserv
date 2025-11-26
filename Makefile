@@ -5,49 +5,67 @@ CXX			:=	c++
 CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
-SOURCES	:=	main.cpp \
-			BlockNode.cpp \
-			Body.cpp \
-			Config.cpp \
-			Connection.cpp \
-			DirectiveNode.cpp \
-			EchoHandler.cpp \
-			file_utils.cpp \
-			Header.cpp \
-			HttpMethod.cpp \
-			HttpStatus.cpp \
-			Location.cpp \
-			Logger.cpp \
-			Message.cpp \
-			Request.cpp \
-			RequestLine.cpp \
-			Response.cpp \
-			Server.cpp \
-			ServerManager.cpp \
-			FileHandler.cpp \
-			StatusLine.cpp \
-			utils.cpp \
-			RedirectHandler.cpp
+SOURCES	:=	src/config/BlockNode.cpp \
+			src/config/Config.cpp \
+			src/config/DirectiveNode.cpp \
+			src/config/Location.cpp \
+			src/core/Connection.cpp \
+			src/core/main.cpp \
+			src/core/Server.cpp \
+			src/core/ServerManager.cpp \
+			src/handlers/EchoHandler.cpp \
+			src/handlers/FileHandler.cpp \
+			src/handlers/RedirectHandler.cpp \
+			src/http/Body.cpp \
+			src/http/Header.cpp \
+			src/http/HttpMethod.cpp \
+			src/http/HttpStatus.cpp \
+			src/http/Message.cpp \
+			src/http/Request.cpp \
+			src/http/RequestLine.cpp \
+			src/http/Response.cpp \
+			src/http/StatusLine.cpp \
+			src/utils/file_utils.cpp \
+			src/utils/Logger.cpp \
+			src/utils/utils.cpp
 
-OBJECTS	:=	$(patsubst %.cpp,%.o,$(SOURCES))
-DEPENDS	:=	$(patsubst %.cpp,%.d,$(SOURCES))
+# Store object and dependency files under build/ to keep the source tree clean
+OBJDIR := build/obj
+DEPDIR := build/dep
+
+# Default include paths so the generated Makefile can compile sources in-place
+# (keeps `#include "Foo.hpp"` working when headers are next to sources)
+INCLUDES := -I. -Isrc -Isrc/core -Isrc/http -Isrc/config -Isrc/utils -Isrc/handlers
+
+OBJECTS	:=	$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
+DEPENDS	:=	$(patsubst %.cpp,$(DEPDIR)/%.d,$(SOURCES))
+
+# Directories to create before building so compilers can write .o/.d files safely
+PREPARE_DIRS := $(sort $(dir $(OBJECTS)) $(dir $(DEPENDS)))
+
+.PHONY: prepare
+prepare:
+	@mkdir -p $(PREPARE_DIRS)
 
 # Files that, when changed, should trigger regenerating the Makefile
 CMAKE_INPUTS := CMakeLists.txt cmake/generate_makefile.cmake cmake/Makefile.in
 STAMP := build/.cmake_stamp
 
-all: $(STAMP) $(NAME)
+all: prepare $(STAMP) $(NAME)
 
 $(NAME): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 -include $(DEPENDS)
 
-%.o: %.cpp Makefile
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+$(OBJDIR)/%.o: %.cpp Makefile
+	@dep=$(patsubst $(OBJDIR)/%.o,$(DEPDIR)/%.d,$@); \
+	mkdir -p $(dir $@) $$(dir $$dep); \
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -MMD -MP -MF $$dep -c $< -o $@
 
 clean:
 	$(RM) $(OBJECTS) $(DEPENDS)
+	@rm -rf $(OBJDIR) $(DEPDIR)
 
 fclean: clean
 	$(RM) $(NAME) $(STAMP)
@@ -57,13 +75,13 @@ re: fclean
 	$(MAKE) all
 
 test:
-	@mkdir -p build_tests
-	@cmake -S . -B build_tests
-	@cmake --build build_tests --target runTests -- -j
-	@ctest --test-dir build_tests --output-on-failure
+	@mkdir -p build
+	@cmake -S . -B build
+	@cmake --build build --target runTests -- -j
+	@ctest --test-dir build --output-on-failure
 
 clean-tests:
-	@rm -rf build_tests
+	@rm -rf build/Testing
 
 # Regenerate the auto-generated Makefile when CMake inputs change.
 $(STAMP): $(CMAKE_INPUTS)
