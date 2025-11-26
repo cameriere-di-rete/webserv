@@ -140,7 +140,7 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
     if (second.empty()) {
       return false;
     }
-    long suffix = atol(second.c_str());
+    off_t suffix = atoll(second.c_str());
     if (suffix <= 0) {
       return false;
     }
