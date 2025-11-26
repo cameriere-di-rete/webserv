@@ -197,6 +197,9 @@ void Connection::processRequest(const Server& server) {
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
+  // Reset response state at the beginning to ensure all handlers start clean
+  response = Response();
+
   // Validate protocol version and allowed method for this location.
   http::Status vstat = validateRequestForLocation(location);
   if (vstat != http::S_0_UNKNOWN) {
@@ -234,9 +237,6 @@ void Connection::processResponse(const Location& location) {
     prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
     return;
   }
-
-  // Reset response state
-  response = Response();
 
   // Resolve the filesystem path for the request
   std::string resolved_path;

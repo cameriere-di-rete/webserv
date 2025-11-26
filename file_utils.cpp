@@ -14,6 +14,7 @@
 #include "Logger.hpp"
 #include "Response.hpp"
 #include "constants.hpp"
+#include "utils.hpp"
 
 namespace file_utils {
 
@@ -140,10 +141,11 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
     if (second.empty()) {
       return false;
     }
-    off_t suffix = atoll(second.c_str());
-    if (suffix <= 0) {
+    long long suffix_val;
+    if (!safeStrtoll(second, suffix_val) || suffix_val <= 0) {
       return false;
     }
+    off_t suffix = static_cast<off_t>(suffix_val);
     if (suffix > file_size) {
       suffix = file_size;
     }
@@ -152,12 +154,20 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
     return true;
   }
 
-  off_t start = atoll(first.c_str());
+  long long start_val;
+  if (!safeStrtoll(first, start_val)) {
+    return false;
+  }
+  off_t start = static_cast<off_t>(start_val);
   off_t end = -1;
   if (second.empty()) {
     end = file_size - 1;
   } else {
-    end = atoll(second.c_str());
+    long long end_val;
+    if (!safeStrtoll(second, end_val)) {
+      return false;
+    }
+    end = static_cast<off_t>(end_val);
   }
 
   if (start < 0 || (file_size > 0 && start >= file_size)) {
