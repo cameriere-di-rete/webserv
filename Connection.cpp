@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "AutoindexHandler.hpp"
 #include "Body.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
@@ -197,9 +198,6 @@ void Connection::processRequest(const Server& server) {
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
-  // Reset response state at the beginning to ensure all handlers start clean
-  response = Response();
-
   // Validate protocol version and allowed method for this location.
   http::Status vstat = validateRequestForLocation(location);
   if (vstat != http::S_0_UNKNOWN) {
@@ -238,6 +236,9 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // Reset response state
+  response = Response();
+
   // Resolve the filesystem path for the request
   std::string resolved_path;
   bool is_directory = false;
@@ -245,14 +246,28 @@ void Connection::processResponse(const Location& location) {
     return;  // resolvePathForLocation prepared an error response
   }
 
-  // Directory handling - TODO: DirectoryHandler in future PR
+  // Directory handling
   if (is_directory) {
     if (location.autoindex) {
-      prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
+      // Delegate to AutoindexHandler (produces directory listing)
+      AutoindexHandler* ah = new AutoindexHandler(resolved_path);
+      setHandler(ah);
+      HandlerResult hr = active_handler->start(*this);
+      if (hr == HR_WOULD_BLOCK) {
+        return;  // handler will continue later
+      } else if (hr == HR_ERROR) {
+        clearHandler();
+        prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+        return;
+      } else {
+        // HR_DONE: response prepared in write_buffer
+        clearHandler();
+        return;
+      }
     } else {
       prepareErrorResponse(http::S_403_FORBIDDEN);
+      return;
     }
-    return;
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
