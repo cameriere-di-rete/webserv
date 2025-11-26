@@ -211,6 +211,8 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 
   if (written < 0 || static_cast<size_t>(written) != body.size()) {
     LOG_PERROR(ERROR, "FileHandler: Failed to write file for PUT");
+    // Remove incomplete file to avoid accumulation of partial files
+    unlink(path_.c_str());
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
