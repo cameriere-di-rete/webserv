@@ -30,8 +30,7 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 // Parameters:
 // - path: filesystem path
 // - rangeHeader: pointer to Range header string or NULL
-// - outResponse: Response to fill (status line + headers + optional short body
-// for errors)
+// - outResponse: Response to fill (status line + headers on success; no response prepared on error)
 // - outFile: FileInfo to fill (fd and size)
 // - out_start/out_end: byte range to serve (inclusive)
 // Return: 0 = success (response prepared), -1 = file not found, -2 = invalid
