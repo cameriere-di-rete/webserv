@@ -198,20 +198,13 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
       LOG(DEBUG) << "file_utils: prepareFileResponse - invalid range '"
                  << *rangeHeader << "' for file=" << path
                  << " size=" << file_size;
-      outResponse.status_line.version = HTTP_VERSION;
-      outResponse.status_line.status_code = static_cast<http::Status>(416);
-      outResponse.status_line.reason = "Range Not Satisfiable";
-      std::ostringstream body;
-      body << "416 Range Not Satisfiable";
-      outResponse.getBody().data = body.str();
-      {
-        std::ostringstream tmp;
-        tmp << outResponse.getBody().size();
-        outResponse.addHeader("Content-Length", tmp.str());
-      }
-      std::ostringstream cr;
-      cr << "bytes */" << file_size;
-      outResponse.addHeader("Content-Range", cr.str());
+      // Signal to the caller that the Range header was invalid. Do not
+      // prepare an error response here so callers (e.g. Connection) can
+      // produce error pages using their standard helper. To allow the
+      // caller to add a proper Content-Range header, return the file size
+      // via out_end (out_start set to -1).
+      out_start = -1;
+      out_end = file_size;
       closeFile(outFile);
       return -2;
     }
@@ -227,8 +220,9 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
 
   if (is_partial) {
     outResponse.status_line.version = HTTP_VERSION;
-    outResponse.status_line.status_code = static_cast<http::Status>(206);
-    outResponse.status_line.reason = "Partial Content";
+    outResponse.status_line.status_code = http::S_206_PARTIAL_CONTENT;
+    outResponse.status_line.reason =
+        http::reasonPhrase(http::S_206_PARTIAL_CONTENT);
     off_t len = out_end - out_start + 1;
     {
       std::ostringstream tmp;

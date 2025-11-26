@@ -85,9 +85,11 @@ HandlerResult FileHandler::handleGet(Connection& conn) {
     return HR_DONE;
   }
   if (r == -2) {
-    // Invalid range: prepareFileResponse already filled response
-    // serialize and send the prepared error response
-    conn.write_buffer = conn.response.serialize();
+    // Invalid range: caller should prepare a 416 response using Connection
+    std::ostringstream cr;
+    cr << "bytes */" << out_end;  // out_end carries file_size on -2
+    conn.response.addHeader("Content-Range", cr.str());
+    conn.prepareErrorResponse(http::S_416_RANGE_NOT_SATISFIABLE);
     return HR_DONE;
   }
 
@@ -125,9 +127,11 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
     return HR_DONE;
   }
   if (r == -2) {
-    // Invalid range: prepareFileResponse already filled response.
-    // serialize and send the prepared error response (416)
-    conn.write_buffer = conn.response.serialize();
+    // Invalid range: caller should prepare a 416 response using Connection
+    std::ostringstream cr;
+    cr << "bytes */" << end;  // end carries file_size on -2
+    conn.response.addHeader("Content-Range", cr.str());
+    conn.prepareErrorResponse(http::S_416_RANGE_NOT_SATISFIABLE);
     return HR_DONE;
   }
 
