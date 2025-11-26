@@ -1,10 +1,13 @@
 #include "AutoindexHandler.hpp"
 
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 
 #include <algorithm>
 #include <sstream>
+// no <memory> (unique_ptr) because project targets C++98; use a small RAII
+// guard instead
 
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
@@ -46,12 +49,16 @@ AutoindexHandler::AutoindexHandler(const std::string& dirpath)
 AutoindexHandler::~AutoindexHandler() {}
 
 HandlerResult AutoindexHandler::start(Connection& conn) {
-  DIR* d = opendir(dirpath_.c_str());
-  if (!d) {
+  DIR* raw_d = opendir(dirpath_.c_str());
+  if (!raw_d) {
     LOG_PERROR(ERROR, "opendir");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_ERROR;
   }
+
+  // RAII wrapper: ensure directory is closed on all exits (including
+  // exceptions)
+  DirGuard d(raw_d);
 
   std::ostringstream body;
   body << "<html>" << CRLF;
@@ -62,14 +69,24 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   body << "<ul>" << CRLF;
 
   // Collect entries first so we can sort them alphabetically
+  // According to POSIX, readdir() may return NULL either on end-of-directory
+  // or on error. To distinguish the two cases we must set errno = 0
+  // before the loop and check errno after the loop.
   std::vector<std::string> entries;
   struct dirent* ent;
-  while ((ent = readdir(d)) != NULL) {
+  errno = 0;
+  while ((ent = readdir(d.get())) != NULL) {
     std::string name = ent->d_name;
     if (name == "." || name == "..") {
       continue;
     }
     entries.push_back(name);
+  }
+
+  if (errno != 0) {
+    LOG_PERROR(ERROR, "readdir");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_ERROR;
   }
 
   // sort alphabetically (lexicographical, case-sensitive)
@@ -86,9 +103,14 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
     }
     fullpath += name;
     struct stat st;
-    if (stat(fullpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-      href += '/';
+    if (stat(fullpath.c_str(), &st) == 0) {
+      if (S_ISDIR(st.st_mode)) {
+        href += '/';
+      }
+    } else {
+      LOG_PERROR(ERROR, ("stat failed for: " + fullpath).c_str());
     }
+
     std::string escaped = escapeHtml(href);
     body << "<li><a href=\"" << escaped << "\">" << escaped << "</a></li>"
          << CRLF;
@@ -97,8 +119,6 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   body << "</ul>" << CRLF;
   body << "</body>" << CRLF;
   body << "</html>" << CRLF;
-
-  closedir(d);
 
   conn.response = Response();
   conn.response.status_line.version = HTTP_VERSION;
@@ -117,5 +137,5 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
 
 HandlerResult AutoindexHandler::resume(Connection& conn) {
   (void)conn;
-  return HR_ERROR;
+  return HR_DONE;
 }
