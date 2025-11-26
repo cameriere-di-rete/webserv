@@ -221,7 +221,7 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
   std::ostringstream resp_body;
   resp_body << "PUT request processed successfully" << CRLF;
   resp_body << "Resource: " << path_ << CRLF;
-  resp_body << "Bytes written: " << written << CRLF;
+  resp_body << "Bytes written: " << total_written << CRLF;
 
   conn.response.getBody().data = resp_body.str();
   conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
