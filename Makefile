@@ -8,6 +8,7 @@ NAME	:=	webserv
 SOURCES	:=	main.cpp \
 			BlockNode.cpp \
 			Body.cpp \
+			CgiHandler.cpp \
 			Config.cpp \
 			Connection.cpp \
 			DirectiveNode.cpp \

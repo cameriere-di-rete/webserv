@@ -286,6 +286,14 @@ int ServerManager::run() {
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
+
+      // Extract body from read_buffer (after "\r\n\r\n")
+      std::size_t body_start = conn.headers_end_pos + 4;
+      if (body_start < conn.read_buffer.size()) {
+        std::string body_data = conn.read_buffer.substr(body_start);
+        conn.request.getBody().data = body_data;
+      }
+
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
                  << " " << conn.request.request_line.uri;
 
