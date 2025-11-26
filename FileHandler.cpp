@@ -151,13 +151,6 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePost(Connection& conn) {
-  // Basic path traversal protection
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Simple POST implementation: echo back the POST data with success message
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_201_CREATED;
@@ -182,15 +175,6 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePut(Connection& conn) {
-  // Basic path traversal protection (path has already been validated in
-  // resolvePathForLocation; both raw ".." and URL-encoded variants
-  // (e.g. "%2e%2e") are checked there without requiring decoding here)
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Atomically determine if file is being created or overwritten using O_EXCL.
   // First attempt to create exclusively (O_CREAT | O_EXCL), which fails if file
   // exists. If it fails with EEXIST, the file already exists and we overwrite.
@@ -243,7 +227,7 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
   std::ostringstream resp_body;
   resp_body << "PUT request processed successfully" << CRLF;
   resp_body << "Resource: " << path_ << CRLF;
-  resp_body << "Bytes written: " << written << CRLF;
+  resp_body << "Bytes written: " << total_written << CRLF;
 
   conn.response.getBody().data = resp_body.str();
   conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
