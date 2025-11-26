@@ -235,7 +235,7 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
   } else {
     outResponse.status_line.version = HTTP_VERSION;
     outResponse.status_line.status_code = http::S_200_OK;
-    outResponse.status_line.reason = "OK";
+    outResponse.status_line.reason = http::reasonPhrase(http::S_200_OK);
     {
       std::ostringstream tmp;
       tmp << file_size;
