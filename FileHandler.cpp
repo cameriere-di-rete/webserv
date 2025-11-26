@@ -200,8 +200,9 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
     // File was created (did not exist before)
     created = true;
   } else if (errno == EEXIST) {
-    // File already exists, open for overwriting
-    fd = open(path_.c_str(), O_WRONLY | O_TRUNC, 0600);
+    // File already exists, open for overwriting (include O_CREAT for
+    // robustness in case file is deleted between the two open calls)
+    fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   }
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");
