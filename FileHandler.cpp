@@ -243,12 +243,6 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 }
 
 HandlerResult FileHandler::handleDelete(Connection& conn) {
-  // Basic path traversal protection
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
 
   // Check if file exists
   struct stat st;
