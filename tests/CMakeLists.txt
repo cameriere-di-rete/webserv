@@ -22,7 +22,7 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp)
+add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp ../autoindex_test.cpp)
 target_link_libraries(runTests GTest::gtest GTest::gtest_main pthread)
 
 target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)

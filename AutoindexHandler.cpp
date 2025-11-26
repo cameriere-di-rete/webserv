@@ -1,0 +1,88 @@
+#include "AutoindexHandler.hpp"
+
+#include <dirent.h>
+#include <sys/stat.h>
+
+#include <algorithm>
+#include <sstream>
+
+#include "Connection.hpp"
+#include "HttpStatus.hpp"
+#include "Logger.hpp"
+#include "constants.hpp"
+
+AutoindexHandler::AutoindexHandler(const std::string& dirpath)
+    : dirpath_(dirpath) {}
+
+AutoindexHandler::~AutoindexHandler() {}
+
+HandlerResult AutoindexHandler::start(Connection& conn) {
+  DIR* d = opendir(dirpath_.c_str());
+  if (!d) {
+    LOG_PERROR(ERROR, "opendir");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_ERROR;
+  }
+
+  std::ostringstream body;
+  body << "<html>" << CRLF;
+  body << "<head><title>Index of " << dirpath_ << "</title></head>" << CRLF;
+  body << "<body>" << CRLF;
+  body << "<h1>Index of " << dirpath_ << "</h1>" << CRLF;
+  body << "<ul>" << CRLF;
+
+  // Collect entries first so we can sort them alphabetically
+  std::vector<std::string> entries;
+  struct dirent* ent;
+  while ((ent = readdir(d)) != NULL) {
+    std::string name = ent->d_name;
+    if (name == "." || name == "..") {
+      continue;
+    }
+    entries.push_back(name);
+  }
+
+  // sort alphabetically (lexicographical, case-sensitive)
+  std::sort(entries.begin(), entries.end());
+
+  // emit sorted entries
+  for (std::vector<std::string>::size_type i = 0; i < entries.size(); ++i) {
+    std::string name = entries[i];
+    std::string href = name;
+    // detect if entry is directory and append '/'
+    std::string fullpath = dirpath_;
+    if (!fullpath.empty() && fullpath[fullpath.size() - 1] != '/') {
+      fullpath += '/';
+    }
+    fullpath += name;
+    struct stat st;
+    if (stat(fullpath.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+      href += '/';
+    }
+    body << "<li><a href=\"" << href << "\">" << href << "</a></li>" << CRLF;
+  }
+
+  body << "</ul>" << CRLF;
+  body << "</body>" << CRLF;
+  body << "</html>" << CRLF;
+
+  closedir(d);
+
+  conn.response = Response();
+  conn.response.status_line.version = HTTP_VERSION;
+  conn.response.status_line.status_code = http::S_200_OK;
+  conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
+  conn.response.getBody().data = body.str();
+  conn.response.addHeader("Content-Type", "text/html; charset=utf-8");
+  std::ostringstream oss;
+  oss << conn.response.getBody().size();
+  conn.response.addHeader("Content-Length", oss.str());
+  conn.write_buffer = conn.response.serialize();
+
+  return HR_DONE;
+}
+
+HandlerResult AutoindexHandler::resume(Connection& conn) {
+  (void)conn;
+  return HR_ERROR;
+}
