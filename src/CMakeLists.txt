@@ -10,12 +10,12 @@ endif()
 list(REMOVE_ITEM SOURCES main.cpp)
 
 # Convert names in SOURCES (which are relative filenames) to absolute paths under the project root
-set(WEBERV_SRC_FILES)
+set(WEBSERV_SRC_FILES)
 foreach(f IN LISTS SOURCES)
-  list(APPEND WEBERV_SRC_FILES "${CMAKE_SOURCE_DIR}/${f}")
+  list(APPEND WEBSERV_SRC_FILES "${CMAKE_SOURCE_DIR}/${f}")
 endforeach()
 
-add_library(webserv_lib STATIC ${WEBERV_SRC_FILES})
+add_library(webserv_lib STATIC ${WEBSERV_SRC_FILES})
 
 target_include_directories(webserv_lib
   PUBLIC
