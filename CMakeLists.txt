@@ -35,6 +35,7 @@ set(SOURCES
     StatusLine.cpp
     utils.cpp
     RedirectHandler.cpp
+    AutoindexHandler.cpp
 )
 
 # Create executable
