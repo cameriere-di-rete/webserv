@@ -10,9 +10,6 @@
 #include "Request.hpp"
 #include "Response.hpp"
 
-// forward declare for handler pointer ownership
-class IHandler;
-
 class Connection {
  public:
   Connection();
