@@ -12,7 +12,6 @@ RedirectHandler::~RedirectHandler() {}
 
 HandlerResult RedirectHandler::start(Connection& conn) {
   // Prepare redirect response and serialize into connection write buffer
-  conn.response = Response();
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = location_.redirect_code;
   conn.response.status_line.reason =
