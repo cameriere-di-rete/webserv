@@ -160,7 +160,7 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
     end = atoll(second.c_str());
   }
 
-  if (start < 0 || start >= file_size) {
+  if (start < 0 || (file_size > 0 && start >= file_size)) {
     return false;
   }
   if (end < start) {
