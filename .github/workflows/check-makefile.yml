@@ -6,8 +6,7 @@ on:
     paths:
       - 'Makefile'
       - 'CMakeLists.txt'
-      - 'cmake/Makefile.in'
-      - 'cmake/generate_makefile.cmake'
+      - 'cmake/**'
 
 jobs:
   check-makefile:
