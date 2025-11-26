@@ -22,7 +22,41 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp)
+set(PROJECT_SOURCES
+  ../BlockNode.cpp
+    ../Body.cpp
+    ../Config.cpp
+    ../Connection.cpp
+    ../DirectiveNode.cpp
+    ../EchoHandler.cpp
+    ../file_utils.cpp
+    ../Header.cpp
+    ../HttpMethod.cpp
+    ../HttpStatus.cpp
+    ../Location.cpp
+    ../Logger.cpp
+    ../Message.cpp
+    ../Request.cpp
+    ../RequestLine.cpp
+    ../Response.cpp
+    ../Server.cpp
+    ../ServerManager.cpp
+    ../FileHandler.cpp
+    ../StatusLine.cpp
+    ../utils.cpp
+    ../RedirectHandler.cpp
+)
+
+add_executable(runTests
+  test_main.cpp
+  ../utils_test.cpp
+  file_utils_test.cpp
+  request_test.cpp
+  message_test.cpp
+  response_test.cpp
+  config_test.cpp
+  ${PROJECT_SOURCES}
+)
 target_link_libraries(runTests GTest::gtest GTest::gtest_main pthread)
 
 target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)
