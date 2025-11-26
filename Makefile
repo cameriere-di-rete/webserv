@@ -5,18 +5,7 @@ CXX			:=	c++
 CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
 NAME	:=	webserv
-SOURCES	:=	src/config/BlockNode.cpp \
-			src/config/Config.cpp \
-			src/config/DirectiveNode.cpp \
-			src/config/Location.cpp \
-			src/core/Connection.cpp \
-			src/core/main.cpp \
-			src/core/Server.cpp \
-			src/core/ServerManager.cpp \
-			src/handlers/EchoHandler.cpp \
-			src/handlers/FileHandler.cpp \
-			src/handlers/RedirectHandler.cpp \
-			src/http/Body.cpp \
+SOURCES	:=	src/http/Body.cpp \
 			src/http/Header.cpp \
 			src/http/HttpMethod.cpp \
 			src/http/HttpStatus.cpp \
@@ -27,7 +16,17 @@ SOURCES	:=	src/config/BlockNode.cpp \
 			src/http/StatusLine.cpp \
 			src/utils/file_utils.cpp \
 			src/utils/Logger.cpp \
-			src/utils/utils.cpp
+			src/utils/utils.cpp \
+			src/config/BlockNode.cpp \
+			src/config/Config.cpp \
+			src/config/DirectiveNode.cpp \
+			src/config/Location.cpp \
+			src/handlers/EchoHandler.cpp \
+			src/handlers/FileHandler.cpp \
+			src/handlers/RedirectHandler.cpp \
+			src/core/Connection.cpp \
+			src/core/Server.cpp \
+			src/core/ServerManager.cpp
 
 # Store object and dependency files under build/ to keep the source tree clean
 OBJDIR := build/obj
