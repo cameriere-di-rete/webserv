@@ -206,10 +206,18 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 
   // Write request body to file
   const std::string& body = conn.request.getBody().data;
-  ssize_t written = write(fd, body.c_str(), body.size());
+  size_t total_written = 0;
+  ssize_t n = 0;
+  while (total_written < body.size()) {
+    n = write(fd, body.c_str() + total_written, body.size() - total_written);
+    if (n < 0) {
+      break;
+    }
+    total_written += static_cast<size_t>(n);
+  }
   close(fd);
 
-  if (written < 0 || static_cast<size_t>(written) != body.size()) {
+  if (n < 0 || total_written != body.size()) {
     LOG_PERROR(ERROR, "FileHandler: Failed to write file for PUT");
     // Remove incomplete file to avoid accumulation of partial files
     unlink(path_.c_str());
