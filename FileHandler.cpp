@@ -241,7 +241,6 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 }
 
 HandlerResult FileHandler::handleDelete(Connection& conn) {
-
   // Check if file exists
   struct stat st;
   if (stat(path_.c_str(), &st) != 0) {
