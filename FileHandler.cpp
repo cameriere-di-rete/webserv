@@ -151,13 +151,6 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePost(Connection& conn) {
-  // Basic path traversal protection
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Simple POST implementation: echo back the POST data with success message
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_201_CREATED;
