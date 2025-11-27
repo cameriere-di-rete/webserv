@@ -161,6 +161,8 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   ssize_t bytes_read;
 
   // Read available output from CGI (non-blocking)
+  // The pipe is set to O_NONBLOCK, so read() will return -1 with EAGAIN
+  // when no data is available, preventing blocking
   while ((bytes_read = read(pipe_read_fd_, buffer, sizeof(buffer))) > 0) {
     accumulated_output_.append(buffer, bytes_read);
   }
