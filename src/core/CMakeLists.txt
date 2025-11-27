@@ -19,7 +19,7 @@ target_include_directories(webserv_core
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(webserv_core PUBLIC webserv_http webserv_utils)
+target_link_libraries(webserv_core PUBLIC webserv_http webserv_config webserv_handlers webserv_utils)
 
 target_compile_options(webserv_core PRIVATE -Wall -Wextra -Werror)
 target_compile_features(webserv_core PUBLIC cxx_std_98)
