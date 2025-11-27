@@ -173,6 +173,25 @@ void Connection::clearHandler() {
   }
 }
 
+HandlerResult Connection::executeHandler(IHandler* handler) {
+  // setHandler takes ownership of handler and clears any previous handler.
+  setHandler(handler);
+  HandlerResult hr = active_handler->start(*this);
+  if (hr == HR_WOULD_BLOCK) {
+    // Handler will continue later; keep it installed.
+    return HR_WOULD_BLOCK;
+  } else if (hr == HR_ERROR) {
+    // Handler failed; clear and prepare a 500 error response.
+    clearHandler();
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_ERROR;
+  } else {
+    // HR_DONE: handler completed synchronously and response is prepared.
+    clearHandler();
+    return HR_DONE;
+  }
+}
+
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
@@ -212,22 +231,16 @@ void Connection::processResponse(const Location& location) {
   // 3. Directory handler (if path is directory) - TODO: implement in future PR
   // 4. File handler (default for static files)
 
-  if (location.redirect_code != http::S_0_UNKNOWN) {
+    if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
     RedirectHandler* rh = new RedirectHandler(location);
-    setHandler(rh);
-    HandlerResult hr = active_handler->start(*this);
+    HandlerResult hr = executeHandler(rh);
     if (hr == HR_WOULD_BLOCK) {
       return;  // handler will continue later
-    } else if (hr == HR_ERROR) {
-      clearHandler();
-      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      return;
-    } else {
-      // HR_DONE: response prepared in write_buffer
-      clearHandler();
-      return;
     }
+    // For HR_ERROR and HR_DONE, executeHandler already handled cleanup/error
+    // and we should return to finish processing this request.
+    return;
   }
 
   if (location.cgi) {
@@ -265,19 +278,13 @@ void Connection::processResponse(const Location& location) {
       }
 
       AutoindexHandler* ah = new AutoindexHandler(resolved_path, display_path);
-      setHandler(ah);
-      HandlerResult hr = active_handler->start(*this);
+      HandlerResult hr = executeHandler(ah);
       if (hr == HR_WOULD_BLOCK) {
         return;  // handler will continue later
-      } else if (hr == HR_ERROR) {
-        clearHandler();
-        prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-        return;
-      } else {
-        // HR_DONE: response prepared in write_buffer
-        clearHandler();
-        return;
       }
+      // For HR_ERROR and HR_DONE, executeHandler already handled cleanup/error
+      // and we should return to finish processing this request.
+      return;
     } else {
       prepareErrorResponse(http::S_403_FORBIDDEN);
       return;
@@ -286,19 +293,13 @@ void Connection::processResponse(const Location& location) {
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
   IHandler* handler = new FileHandler(resolved_path);
-  setHandler(handler);
-
-  HandlerResult hr = active_handler->start(*this);
+  HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
-  } else if (hr == HR_ERROR) {
-    clearHandler();
-    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return;
-  } else {
-    // HR_DONE: response prepared in write_buffer, handler cleared
-    clearHandler();
   }
+  // If hr == HR_ERROR then executeHandler prepared an error response and
+  // we've already returned; if HR_DONE, the handler was cleared and we
+  // continue to finish preparing/sending the response.
 }
 
 http::Status Connection::validateRequestForLocation(const Location& location) {
