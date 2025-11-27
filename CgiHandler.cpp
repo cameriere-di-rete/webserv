@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -51,6 +52,14 @@ int CgiHandler::getMonitorFd() const {
 
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
+
+  // Security validation: check script path
+  std::string error_msg;
+  if (!validateScriptPath(script_path_, error_msg)) {
+    LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
 
   // Create pipes for communication
   int pipe_to_cgi[2], pipe_from_cgi[2];
@@ -342,4 +351,129 @@ void CgiHandler::setupEnvironment(Connection& conn) {
 
   // HTTP headers as environment variables
   // Note: Request class needs to provide header iteration interface
+}
+
+// Security validation: check if script path is safe to execute
+bool CgiHandler::validateScriptPath(const std::string& path,
+                                     std::string& error_msg) {
+  // Check for path traversal attacks
+  if (!isPathTraversalSafe(path)) {
+    error_msg = "Path traversal detected in script path";
+    return false;
+  }
+
+  // Check if file exists and is a regular file
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0) {
+    error_msg = "Script file not found";
+    return false;
+  }
+
+  if (!S_ISREG(st.st_mode)) {
+    error_msg = "Script path is not a regular file";
+    return false;
+  }
+
+  // Check if file has executable permissions
+  if (!isExecutable(path)) {
+    error_msg = "Script file is not executable";
+    return false;
+  }
+
+  // Check if file extension is allowed
+  if (!isAllowedExtension(path)) {
+    error_msg = "Script file extension is not allowed";
+    return false;
+  }
+
+  return true;
+}
+
+// Check if path contains path traversal sequences
+bool CgiHandler::isPathTraversalSafe(const std::string& path) {
+  // Check for obvious path traversal patterns
+  if (path.find("..") != std::string::npos) {
+    return false;
+  }
+
+  // Get absolute path and verify it doesn't escape allowed directory
+  char resolved_path[PATH_MAX];
+  if (realpath(path.c_str(), resolved_path) == NULL) {
+    // If realpath fails, the file may not exist yet or path is invalid
+    // For security, we reject such paths
+    return false;
+  }
+
+  // Verify the resolved path starts with allowed CGI directory
+  // This prevents symlink attacks and ensures scripts are in designated area
+  std::string resolved(resolved_path);
+  
+  // Expected CGI directories (adjust based on your configuration)
+  const char* allowed_dirs[] = {
+    "./www/cgi-bin/",
+    "/www/cgi-bin/",
+    "www/cgi-bin/",
+    NULL
+  };
+
+  for (int i = 0; allowed_dirs[i] != NULL; ++i) {
+    std::string allowed_dir = allowed_dirs[i];
+    // Convert relative path to absolute if needed
+    char abs_allowed[PATH_MAX];
+    if (realpath(allowed_dir.c_str(), abs_allowed) != NULL) {
+      std::string abs_allowed_str(abs_allowed);
+      if (resolved.find(abs_allowed_str) == 0) {
+        return true;
+      }
+    }
+  }
+
+  // Also check if the original path (before resolution) is within allowed dirs
+  for (int i = 0; allowed_dirs[i] != NULL; ++i) {
+    if (path.find(allowed_dirs[i]) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Check if file has executable permissions
+bool CgiHandler::isExecutable(const std::string& path) {
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0) {
+    return false;
+  }
+
+  // Check if file has execute permission for owner, group, or others
+  return (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+}
+
+// Check if file extension is in the allowed list
+bool CgiHandler::isAllowedExtension(const std::string& path) {
+  // Whitelist of allowed CGI script extensions
+  const char* allowed_extensions[] = {
+    ".sh",    // Shell scripts
+    ".py",    // Python scripts
+    ".pl",    // Perl scripts
+    ".php",   // PHP scripts
+    ".cgi",   // Generic CGI scripts
+    NULL
+  };
+
+  size_t dot_pos = path.find_last_of('.');
+  if (dot_pos == std::string::npos) {
+    // No extension found
+    return false;
+  }
+
+  std::string extension = path.substr(dot_pos);
+
+  for (int i = 0; allowed_extensions[i] != NULL; ++i) {
+    if (extension == allowed_extensions[i]) {
+      return true;
+    }
+  }
+
+  return false;
 }
