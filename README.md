@@ -87,7 +87,7 @@ After regeneration, if you want to keep the generated `Makefile` in the repo, co
 
 - **CMakeLists.txt**: Source of truth for the build system
 - **Makefile**: Auto-generated from CMakeLists.txt (committed for users without CMake)
-- **Makefile.in**: Template used to generate the Makefile
-- **generate_makefile.cmake**: Script that generates the Makefile from CMakeLists.txt
+- **cmake/generate_makefile.cmake**: Script that generates the Makefile from CMakeLists.txt
+- **cmake/Makefile.in**: Template used to generate the top-level `Makefile`
 
 The Makefile is automatically generated from CMakeLists.txt, so there's no risk of them getting out of sync.

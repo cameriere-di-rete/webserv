@@ -6,6 +6,9 @@ on:
     paths:
       - '**.cpp'
       - '**.hpp'
+      - 'CMakeLists.txt'
+      - '**/CMakeLists.txt'
+      - 'cmake/**'
       - 'Makefile'
 
 jobs:
@@ -17,14 +20,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Build project
-        run: make
+      - name: Configure and build with CMake
+        run: |
+          cmake -S . -B build
+          cmake --build build -- -j2
 
       - name: Verify binary was created
         run: |
-          if test -f webserv; then
-            echo "Build successful - webserv binary created"
+          if test -f build/webserv; then
+            echo "Build successful - webserv binary created in build/"
           else
-            echo "Error: webserv binary was not created"
+            echo "Error: webserv binary was not created in build/"
+            ls -la build || true
             exit 1
           fi
