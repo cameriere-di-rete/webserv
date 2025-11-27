@@ -19,6 +19,11 @@ struct DirGuard {
   DIR* get() const {
     return dir;
   }
+ private:
+  // Disable copy construction and copy assignment to avoid double-close of
+  // the same DIR* (C++98 idiom).
+  DirGuard(const DirGuard&);
+  DirGuard& operator=(const DirGuard&);
 };
 
 class AutoindexHandler : public IHandler {
