@@ -109,6 +109,9 @@ HandlerResult CgiHandler::start(Connection& conn) {
     // If we reach here, exec failed - write error to stderr
     const char* error_msg = "CGI exec failed\n";
     write(STDERR_FILENO, error_msg, strlen(error_msg));
+    // Explicitly close pipe file descriptors before exiting
+    close(pipe_to_cgi[0]);
+    close(pipe_from_cgi[1]);
     exit(127);
   }
 
