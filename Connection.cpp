@@ -224,6 +224,11 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // Reset response state early so handlers (including RedirectHandler)
+  // start with a clean Response and don't inherit headers from previous
+  // requests when connections are reused (keep-alive).
+  response = Response();
+
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
   // 2. CGI handler (if configured and matching extension) - TODO: implement in
@@ -248,9 +253,6 @@ void Connection::processResponse(const Location& location) {
     prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
     return;
   }
-
-  // Reset response state
-  response = Response();
 
   // Resolve the filesystem path for the request
   std::string resolved_path;
