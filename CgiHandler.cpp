@@ -323,18 +323,3 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Note: Request class needs to provide header iteration interface
 }
 
-std::string CgiHandler::getInterpreter(const std::string& path) {
-  if (path.find(".py") != std::string::npos) {
-    return "/usr/bin/python3";
-  }
-  if (path.find(".pl") != std::string::npos) {
-    return "/usr/bin/perl";
-  }
-  if (path.find(".sh") != std::string::npos) {
-    return "/usr/bin/bash";
-  }
-  if (path.find(".php") != std::string::npos) {
-    return "/usr/bin/php";
-  }
-  return "";  // Executable script
-}
