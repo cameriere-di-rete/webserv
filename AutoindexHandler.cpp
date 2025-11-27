@@ -123,7 +123,6 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   body << "</body>" << CRLF;
   body << "</html>" << CRLF;
 
-  conn.response = Response();
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_200_OK;
   conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
