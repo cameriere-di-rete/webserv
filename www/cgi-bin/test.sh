@@ -13,5 +13,5 @@ echo ""
 
 if [ "$REQUEST_METHOD" = "POST" ] && [ -n "$CONTENT_LENGTH" ]; then
     echo "POST Data:"
-    cat
+    head -c "$CONTENT_LENGTH"
 fi
