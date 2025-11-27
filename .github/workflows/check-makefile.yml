@@ -7,6 +7,12 @@ on:
       - 'Makefile'
       - 'CMakeLists.txt'
       - 'cmake/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to checkout'
+        required: true
+        type: string
 
 jobs:
   check-makefile:
@@ -15,6 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
 
       - name: Save committed Makefile
