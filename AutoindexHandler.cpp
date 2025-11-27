@@ -43,8 +43,9 @@ static std::string escapeHtml(const std::string& s) {
   return out;
 }
 
-AutoindexHandler::AutoindexHandler(const std::string& dirpath)
-    : dirpath_(dirpath) {}
+AutoindexHandler::AutoindexHandler(const std::string& dirpath,
+                   const std::string& display_path)
+  : dirpath_(dirpath), uri_path_(display_path) {}
 
 AutoindexHandler::~AutoindexHandler() {}
 
@@ -62,10 +63,12 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
 
   std::ostringstream body;
   body << "<html>" << CRLF;
-  body << "<head><title>Index of " << escapeHtml(dirpath_) << "</title></head>"
-       << CRLF;
+  // Use the user-facing URI path in title and heading instead of the
+  // filesystem path to avoid leaking internal server structure.
+  body << "<head><title>Index of " << escapeHtml(uri_path_) << "</title></head>"
+    << CRLF;
   body << "<body>" << CRLF;
-  body << "<h1>Index of " << escapeHtml(dirpath_) << "</h1>" << CRLF;
+  body << "<h1>Index of " << escapeHtml(uri_path_) << "</h1>" << CRLF;
   body << "<ul>" << CRLF;
 
   // Collect entries first so we can sort them alphabetically

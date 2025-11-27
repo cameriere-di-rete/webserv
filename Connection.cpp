@@ -250,7 +250,21 @@ void Connection::processResponse(const Location& location) {
   if (is_directory) {
     if (location.autoindex) {
       // Delegate to AutoindexHandler (produces directory listing)
-      AutoindexHandler* ah = new AutoindexHandler(resolved_path);
+      // Pass a user-facing URI path for display in the listing instead of the
+      // filesystem path to avoid leaking internal structure.
+      std::string display_path = request.request_line.uri;
+      std::size_t qpos = display_path.find('?');
+      if (qpos != std::string::npos) {
+        display_path = display_path.substr(0, qpos);
+      }
+      if (display_path.empty()) {
+        display_path = "/";
+      }
+      if (display_path[display_path.size() - 1] != '/') {
+        display_path += '/';
+      }
+
+      AutoindexHandler* ah = new AutoindexHandler(resolved_path, display_path);
       setHandler(ah);
       HandlerResult hr = active_handler->start(*this);
       if (hr == HR_WOULD_BLOCK) {
