@@ -14,6 +14,7 @@
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
+#include "utils.hpp"
 
 CgiHandler::CgiHandler(const std::string& script_path)
     : script_path_(script_path),
@@ -21,7 +22,8 @@ CgiHandler::CgiHandler(const std::string& script_path)
       pipe_read_fd_(-1),
       pipe_write_fd_(-1),
       process_started_(false),
-      headers_parsed_(false) {}
+      headers_parsed_(false),
+      cgi_finished_(false) {}
 
 CgiHandler::~CgiHandler() {
   cleanupProcess();
@@ -41,6 +43,10 @@ void CgiHandler::cleanupProcess() {
     waitpid(script_pid_, &status, WNOHANG);
     script_pid_ = -1;
   }
+}
+
+int CgiHandler::getMonitorFd() const {
+  return pipe_read_fd_;
 }
 
 HandlerResult CgiHandler::start(Connection& conn) {
@@ -120,9 +126,13 @@ HandlerResult CgiHandler::start(Connection& conn) {
   pipe_read_fd_ = pipe_from_cgi[0];
   process_started_ = true;
 
-  // Keep pipe blocking for now to simplify the implementation
-  // int flags = fcntl(pipe_read_fd_, F_GETFL, 0);
-  // fcntl(pipe_read_fd_, F_SETFL, flags | O_NONBLOCK);
+  // Set pipe to non-blocking mode for asynchronous I/O
+  if (set_nonblocking(pipe_read_fd_) < 0) {
+    LOG_PERROR(ERROR, "CgiHandler: failed to set pipe non-blocking");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    cleanupProcess();
+    return HR_DONE;
+  }
 
   // Send request body to CGI if present
   const std::string& body = conn.request.getBody().data;
@@ -135,15 +145,8 @@ HandlerResult CgiHandler::start(Connection& conn) {
   close(pipe_write_fd_);
   pipe_write_fd_ = -1;
 
-  // Start reading CGI output
-  HandlerResult result = readCgiOutput(conn);
-  if (result == HR_WOULD_BLOCK) {
-    // Need to wait for CGI output - the connection should be monitored for
-    // EPOLLIN on pipe_read_fd_ For now, let's try a blocking approach to see if
-    // it works
-    return HR_WOULD_BLOCK;
-  }
-  return result;
+  // Start reading CGI output (non-blocking)
+  return readCgiOutput(conn);
 }
 
 HandlerResult CgiHandler::resume(Connection& conn) {
@@ -154,21 +157,38 @@ HandlerResult CgiHandler::resume(Connection& conn) {
 }
 
 HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
-  std::string output;
   char buffer[4096];
   ssize_t bytes_read;
 
-  // Read all output from CGI (blocking)
+  // Read available output from CGI (non-blocking)
   while ((bytes_read = read(pipe_read_fd_, buffer, sizeof(buffer))) > 0) {
-    output.append(buffer, bytes_read);
+    accumulated_output_.append(buffer, bytes_read);
   }
 
-  if (bytes_read == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
+  if (bytes_read == -1) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      // No more data available right now, need to wait for more
+      LOG(DEBUG) << "CgiHandler: would block, accumulated "
+                 << accumulated_output_.size() << " bytes so far";
+      return HR_WOULD_BLOCK;
+    }
+    // Real error
     LOG_PERROR(ERROR, "CgiHandler: read from CGI failed");
-    return HR_ERROR;
+    cleanupProcess();
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
   }
 
-  // CGI finished - wait for process
+  // bytes_read == 0 means EOF - CGI finished writing
+  cgi_finished_ = true;
+  LOG(DEBUG) << "CgiHandler: CGI finished, total output: "
+             << accumulated_output_.size() << " bytes";
+
+  // Close the pipe read fd since we're done reading
+  close(pipe_read_fd_);
+  pipe_read_fd_ = -1;
+
+  // Wait for process to finish
   int status;
   waitpid(script_pid_, &status, 0);
   script_pid_ = -1;
@@ -181,8 +201,8 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   // Process all output data
-  if (!output.empty()) {
-    parseOutput(conn, output);
+  if (!accumulated_output_.empty()) {
+    parseOutput(conn, accumulated_output_);
   }
 
   // Ensure we have response headers if none were parsed
@@ -196,7 +216,7 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
     response_stream << conn.response.startLine() << CRLF;
     response_stream << conn.response.serializeHeaders();
     response_stream << CRLF;
-    response_stream << output;
+    response_stream << accumulated_output_;
 
     conn.write_buffer = response_stream.str();
   }
@@ -322,4 +342,3 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // HTTP headers as environment variables
   // Note: Request class needs to provide header iteration interface
 }
-
