@@ -9,6 +9,8 @@ std::string reasonPhrase(Status status) {
   switch (status) {
     case S_200_OK:
       return "OK";
+    case S_206_PARTIAL_CONTENT:
+      return "Partial Content";
     case S_400_BAD_REQUEST:
       return "Bad Request";
     case S_404_NOT_FOUND:
@@ -39,6 +41,8 @@ std::string reasonPhrase(Status status) {
       return "Payload Too Large";
     case S_414_URI_TOO_LONG:
       return "URI Too Long";
+    case S_416_RANGE_NOT_SATISFIABLE:
+      return "Range Not Satisfiable";
     case S_501_NOT_IMPLEMENTED:
       return "Not Implemented";
     case S_502_BAD_GATEWAY:
@@ -58,6 +62,8 @@ Status intToStatus(int status) {
   switch (status) {
     case 200:
       return S_200_OK;
+    case 206:
+      return S_206_PARTIAL_CONTENT;
     case 201:
       return S_201_CREATED;
     case 204:
@@ -86,6 +92,8 @@ Status intToStatus(int status) {
       return S_413_PAYLOAD_TOO_LARGE;
     case 414:
       return S_414_URI_TOO_LONG;
+    case 416:
+      return S_416_RANGE_NOT_SATISFIABLE;
     case 500:
       return S_500_INTERNAL_SERVER_ERROR;
     case 501:

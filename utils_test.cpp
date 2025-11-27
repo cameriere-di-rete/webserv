@@ -72,3 +72,49 @@ TEST(InitDefaultHttpMethodsTests, InsertsFiveStandardMethods) {
   EXPECT_NE(methods.find(http::DELETE), methods.end());
   EXPECT_NE(methods.find(http::HEAD), methods.end());
 }
+
+TEST(SafeStrtollTests, ParsesValidPositiveNumber) {
+  long long result;
+  EXPECT_TRUE(safeStrtoll("12345", result));
+  EXPECT_EQ(result, 12345);
+}
+
+TEST(SafeStrtollTests, ParsesValidNegativeNumber) {
+  long long result;
+  EXPECT_TRUE(safeStrtoll("-42", result));
+  EXPECT_EQ(result, -42);
+}
+
+TEST(SafeStrtollTests, ParsesZero) {
+  long long result;
+  EXPECT_TRUE(safeStrtoll("0", result));
+  EXPECT_EQ(result, 0);
+}
+
+TEST(SafeStrtollTests, FailsOnEmptyString) {
+  long long result;
+  EXPECT_FALSE(safeStrtoll("", result));
+}
+
+TEST(SafeStrtollTests, FailsOnNonNumericString) {
+  long long result;
+  EXPECT_FALSE(safeStrtoll("abc", result));
+}
+
+TEST(SafeStrtollTests, FailsOnMixedContent) {
+  long long result;
+  EXPECT_FALSE(safeStrtoll("123abc", result));
+}
+
+TEST(SafeStrtollTests, FailsOnTrailingSpaces) {
+  long long result;
+  EXPECT_FALSE(safeStrtoll("123 ", result));
+}
+
+TEST(SafeStrtollTests, HandlesLeadingSpaces) {
+  // Note: strtoll accepts leading whitespace, which matches atoll behavior.
+  // This test verifies that behavior is preserved.
+  long long result;
+  EXPECT_TRUE(safeStrtoll(" 123", result));
+  EXPECT_EQ(result, 123);
+}
