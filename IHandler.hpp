@@ -21,4 +21,16 @@ class IHandler {
   // Returns HR_DONE when complete, HR_WOULD_BLOCK if more work needed,
   // HR_ERROR on failure.
   virtual HandlerResult resume(Connection& conn) = 0;
+
+  // Returns the file descriptor to monitor for I/O readiness (e.g., CGI pipe).
+  // Returns -1 if no additional FD needs monitoring.
+  // This allows epoll to monitor handler-specific FDs for non-blocking I/O.
+<<<<<<< HEAD
+  int getMonitorFd() const {
+=======
+  virtual int getMonitorFd() const
+  {
+>>>>>>> 609b93f (Fix code style: correct brace placement in IHandler::getMonitorFd() and add clarifying comment in CgiHandler)
+    return -1;
+  }
 };

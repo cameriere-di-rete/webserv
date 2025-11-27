@@ -18,6 +18,17 @@ class ServerManager {
   bool stop_requested_;
   std::map<int, Server> servers_;
   std::map<int, Connection> connections_;
+  // Mapping of CGI pipe FDs to connection FDs for epoll event handling
+  std::map<int, int> cgi_pipe_to_conn_;
+
+  // Register a CGI pipe FD with epoll for monitoring
+  void registerCgiPipe(int pipe_fd, int conn_fd);
+  // Unregister a CGI pipe FD from epoll
+  void unregisterCgiPipe(int pipe_fd);
+  // Handle CGI pipe events (called when pipe is readable)
+  void handleCgiPipeEvent(int pipe_fd);
+  // Clean up handler resources (CGI pipes) for a connection before closing
+  void cleanupHandlerResources(Connection& c);
 
  public:
   ServerManager();
