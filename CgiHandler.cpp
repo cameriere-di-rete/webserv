@@ -38,7 +38,7 @@ void CgiHandler::cleanupProcess() {
   }
   if (script_pid_ > 0) {
     int status;
-    waitpid(script_pid_, &status, WNOHANG);
+    waitpid(script_pid_, &status, 0); // Blocking wait to reap child process
     script_pid_ = -1;
   }
 }
@@ -130,9 +130,20 @@ HandlerResult CgiHandler::start(Connection& conn) {
   // Send request body to CGI if present
   const std::string& body = conn.request.getBody().data;
   if (!body.empty()) {
-    ssize_t written = write(pipe_write_fd_, body.c_str(), body.length());
-    if (written == -1) {
-      LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
+    size_t total_written = 0;
+    const char* buf = body.c_str();
+    size_t remaining = body.length();
+    while (remaining > 0) {
+      ssize_t written = write(pipe_write_fd_, buf + total_written, remaining);
+      if (written == -1) {
+        if (errno == EINTR) {
+          continue; // Retry on interrupt
+        }
+        LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
+        break;
+      }
+      total_written += static_cast<size_t>(written);
+      remaining -= static_cast<size_t>(written);
     }
   }
   close(pipe_write_fd_);
@@ -277,14 +288,14 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     }
 
     remaining_data_.clear();
+    // Headers and body parsed, parsing is done
+    return HR_DONE;
   } else {
     // Headers already parsed, just add body data
     conn.write_buffer += data;
+    // Body data appended, parsing is done
+    return HR_DONE;
   }
-
-  return HR_WOULD_BLOCK;
-}
-
 void CgiHandler::setupEnvironment(Connection& conn) {
   // Set PATH for script execution
   setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
@@ -301,13 +312,22 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Query string
   std::string uri = conn.request.request_line.uri;
   size_t query_pos = uri.find('?');
-  if (query_pos != std::string::npos) {
-    setenv("QUERY_STRING", uri.substr(query_pos + 1).c_str(), 1);
-    setenv("PATH_INFO", uri.substr(0, query_pos).c_str(), 1);
+  std::string uri_no_query = (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
+  std::string query_string = (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
+  setenv("QUERY_STRING", query_string.c_str(), 1);
+
+  // Determine PATH_INFO: extra path after script name
+  std::string path_info;
+  if (uri_no_query.find(script_path_) == 0) {
+    path_info = uri_no_query.substr(script_path_.length());
+    // Ensure path_info starts with '/' if present and not empty
+    if (!path_info.empty() && path_info[0] != '/') {
+      path_info = "/" + path_info;
+    }
   } else {
-    setenv("QUERY_STRING", "", 1);
-    setenv("PATH_INFO", uri.c_str(), 1);
+    path_info = "";
   }
+  setenv("PATH_INFO", path_info.c_str(), 1);
 
   // Content headers
   std::string content_type, content_length;

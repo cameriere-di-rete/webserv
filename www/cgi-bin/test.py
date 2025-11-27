@@ -23,7 +23,10 @@ print("</ul>")
 
 # Show POST data if present
 if os.environ.get('REQUEST_METHOD') == 'POST':
-    content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+    try:
+        content_length = int(os.environ.get('CONTENT_LENGTH', 0))
+    except (ValueError, TypeError):
+        content_length = 0
     if content_length > 0:
         post_data = sys.stdin.read(content_length)
         print("<h2>POST Data:</h2>")
