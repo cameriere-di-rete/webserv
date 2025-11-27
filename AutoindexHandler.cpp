@@ -50,6 +50,7 @@ AutoindexHandler::AutoindexHandler(const std::string& dirpath,
 AutoindexHandler::~AutoindexHandler() {}
 
 HandlerResult AutoindexHandler::start(Connection& conn) {
+  const std::string& method = conn.request.request_line.method;
   DIR* raw_d = opendir(dirpath_.c_str());
   if (!raw_d) {
     LOG_PERROR(ERROR, "opendir");
@@ -122,15 +123,33 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   body << "</ul>" << CRLF;
   body << "</body>" << CRLF;
   body << "</html>" << CRLF;
+  // Prepare response headers. For HEAD requests we must send headers only,
+  // but Content-Length must reflect the body size that would have been sent
+  // for a GET.
+  std::string body_str = body.str();
 
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_200_OK;
   conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  conn.response.getBody().data = body.str();
   conn.response.addHeader("Content-Type", "text/html; charset=utf-8");
   std::ostringstream oss;
-  oss << conn.response.getBody().size();
+  oss << body_str.size();
   conn.response.addHeader("Content-Length", oss.str());
+
+  if (method == "HEAD") {
+    // No body for HEAD; send headers only.
+    conn.response.getBody().data = "";
+    std::ostringstream header_stream;
+    header_stream << conn.response.startLine() << CRLF;
+    header_stream << conn.response.serializeHeaders();
+    header_stream << CRLF;
+    conn.write_buffer = header_stream.str();
+    conn.write_offset = 0;
+    return HR_DONE;
+  }
+
+  // GET (or other methods that return body) - include the body.
+  conn.response.getBody().data = body_str;
   conn.write_buffer = conn.response.serialize();
   conn.write_offset = 0;
 
