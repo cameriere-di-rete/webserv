@@ -11,6 +11,7 @@ foreach(f IN LISTS CONFIG_SOURCES)
 endforeach()
 
 add_library(webserv_config STATIC ${CONFIG_SOURCES})
+target_link_libraries(webserv_config PUBLIC webserv_http webserv_utils)
 target_include_directories(webserv_config PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(webserv_config PRIVATE -Wall -Wextra -Werror)
 target_compile_features(webserv_config PUBLIC cxx_std_98)
