@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write
     
     steps:
       - name: Check user permission
@@ -76,6 +77,15 @@ jobs:
           git add -u
           git commit -m "style: format code with clang-format"
           git push
+
+      - name: Trigger check workflows
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run check-build.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
+          gh workflow run check-lint.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
+          gh workflow run check-makefile.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
 
       - name: Add success reaction
         if: steps.check-changes.outputs.has_changes == 'true'

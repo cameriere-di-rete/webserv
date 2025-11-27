@@ -6,12 +6,20 @@ on:
     paths:
       - '**.cpp'
       - '**.hpp'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to checkout'
+        required: true
+        type: string
 
 jobs:
   cpp-linter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Fetch dependencies with CMake
         run: |
