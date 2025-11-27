@@ -82,10 +82,11 @@ jobs:
         if: steps.check-changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ steps.comment-branch.outputs.head_ref }}
         run: |
-          gh workflow run check-build.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
-          gh workflow run check-lint.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
-          gh workflow run check-makefile.yml --ref "${{ steps.comment-branch.outputs.head_ref }}" -f ref="${{ steps.comment-branch.outputs.head_ref }}"
+          gh workflow run check-build.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
+          gh workflow run check-lint.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
+          gh workflow run check-makefile.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
 
       - name: Add success reaction
         if: steps.check-changes.outputs.has_changes == 'true'
