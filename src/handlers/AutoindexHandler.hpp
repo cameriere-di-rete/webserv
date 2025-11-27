@@ -19,6 +19,7 @@ struct DirGuard {
   DIR* get() const {
     return dir;
   }
+
  private:
   // Disable copy construction and copy assignment to avoid double-close of
   // the same DIR* (C++98 idiom).
@@ -29,7 +30,8 @@ struct DirGuard {
 class AutoindexHandler : public IHandler {
  public:
   // dirpath: filesystem path to the directory
-  // display_path: user-facing URI path to show in the listing (e.g. "/autoindex/")
+  // display_path: user-facing URI path to show in the listing (e.g.
+  // "/autoindex/")
   explicit AutoindexHandler(const std::string& dirpath,
                             const std::string& display_path);
   virtual ~AutoindexHandler();

@@ -236,7 +236,7 @@ void Connection::processResponse(const Location& location) {
   // 3. Directory handler (if path is directory) - TODO: implement in future PR
   // 4. File handler (default for static files)
 
-    if (location.redirect_code != http::S_0_UNKNOWN) {
+  if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
     RedirectHandler* rh = new RedirectHandler(location);
     HandlerResult hr = executeHandler(rh);
