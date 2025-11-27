@@ -242,13 +242,7 @@ int ServerManager::run() {
 
         if (status < 0) {
           LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
-          // Clean up any associated CGI pipe before closing connection
-          if (c.active_handler != NULL) {
-            int monitor_fd = c.active_handler->getMonitorFd();
-            if (monitor_fd >= 0) {
-              unregisterCgiPipe(monitor_fd);
-            }
-          }
+          cleanupHandlerResources(c);
           close(fd);
           connections_.erase(fd);
           continue;
@@ -268,13 +262,7 @@ int ServerManager::run() {
           LOG(DEBUG)
               << "handleWrite complete or failed, closing connection fd: "
               << fd;
-          // Clean up any associated CGI pipe before closing connection
-          if (c.active_handler != NULL) {
-            int monitor_fd = c.active_handler->getMonitorFd();
-            if (monitor_fd >= 0) {
-              unregisterCgiPipe(monitor_fd);
-            }
-          }
+          cleanupHandlerResources(c);
           close(fd);
           connections_.erase(fd);
         }
@@ -535,4 +523,13 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
 
   // Enable write events to send response
   updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+}
+
+void ServerManager::cleanupHandlerResources(Connection& c) {
+  if (c.active_handler != NULL) {
+    int monitor_fd = c.active_handler->getMonitorFd();
+    if (monitor_fd >= 0) {
+      unregisterCgiPipe(monitor_fd);
+    }
+  }
 }

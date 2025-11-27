@@ -27,6 +27,8 @@ class ServerManager {
   void unregisterCgiPipe(int pipe_fd);
   // Handle CGI pipe events (called when pipe is readable)
   void handleCgiPipeEvent(int pipe_fd);
+  // Clean up handler resources (CGI pipes) for a connection before closing
+  void cleanupHandlerResources(Connection& c);
 
  public:
   ServerManager();

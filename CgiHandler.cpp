@@ -23,7 +23,7 @@ CgiHandler::CgiHandler(const std::string& script_path)
       pipe_write_fd_(-1),
       process_started_(false),
       headers_parsed_(false),
-      cgi_finished_(false) {}
+      accumulated_output_() {}
 
 CgiHandler::~CgiHandler() {
   cleanupProcess();
@@ -180,7 +180,6 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   // bytes_read == 0 means EOF - CGI finished writing
-  cgi_finished_ = true;
   LOG(DEBUG) << "CgiHandler: CGI finished, total output: "
              << accumulated_output_.size() << " bytes";
 

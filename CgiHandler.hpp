@@ -27,7 +27,6 @@ class CgiHandler : public IHandler {
   int pipe_write_fd_;
   bool process_started_;
   bool headers_parsed_;
-  bool cgi_finished_;
   std::string remaining_data_;
   std::string accumulated_output_;
 };
