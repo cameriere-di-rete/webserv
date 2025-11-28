@@ -42,6 +42,24 @@ target_link_libraries(webserv PRIVATE webserv_core webserv_http webserv_config w
 target_include_directories(webserv PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(webserv PRIVATE ${COMMON_WARNINGS})
 
+# Automatically collect sources from executable targets and append them to
+# the global ALL_SOURCES property used by the standalone Makefile generator.
+get_target_property(_webserv_sources webserv SOURCES)
+if(_webserv_sources)
+    foreach(_s IN LISTS _webserv_sources)
+        if(_s MATCHES "\\.cpp$")
+            if(IS_ABSOLUTE "${_s}")
+                file(RELATIVE_PATH _relpath "${CMAKE_SOURCE_DIR}" "${_s}")
+            else()
+                set(_relpath "${_s}")
+            endif()
+            # Normalize to use forward slashes and append to the global list.
+            string(REPLACE "\\" "/" _relpath "${_relpath}")
+            set_property(GLOBAL APPEND PROPERTY ALL_SOURCES "${_relpath}")
+        endif()
+    endforeach()
+endif()
+
 if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
