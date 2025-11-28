@@ -138,8 +138,8 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
 
     std::string href_escaped = escapeHtml(href);
     std::string disp_escaped = escapeHtml(display);
-    body << "<li><a href=\"" << href_escaped << "\">" << disp_escaped << "</a></li>"
-         << CRLF;
+    body << "<li><a href=\"" << href_escaped << "\">" << disp_escaped
+         << "</a></li>" << CRLF;
   }
 
   body << "</ul>" << CRLF;
