@@ -99,8 +99,9 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   // emit sorted entries
   for (std::vector<std::string>::size_type i = 0; i < entries.size(); ++i) {
     std::string name = entries[i];
-    std::string href = name;
-    // detect if entry is directory and append '/'
+
+    // detect if entry is directory
+    bool is_dir = false;
     std::string fullpath = dirpath_;
     if (!fullpath.empty() && fullpath[fullpath.size() - 1] != '/') {
       fullpath += '/';
@@ -109,14 +110,35 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
     struct stat st;
     if (stat(fullpath.c_str(), &st) == 0) {
       if (S_ISDIR(st.st_mode)) {
-        href += '/';
+        is_dir = true;
       }
     } else {
       LOG_PERROR(ERROR, ("stat failed for: " + fullpath).c_str());
     }
 
-    std::string escaped = escapeHtml(href);
-    body << "<li><a href=\"" << escaped << "\">" << escaped << "</a></li>"
+    // Build href as an absolute path by prefixing the user-visible URI path.
+    // Ensure uri_path_ starts with '/' and ends with '/'.
+    std::string base = uri_path_;
+    if (base.empty()) {
+      base = "/";
+    }
+    if (base[0] != '/') {
+      base.insert(base.begin(), '/');
+    }
+    if (base[base.size() - 1] != '/') {
+      base += '/';
+    }
+
+    std::string href = base + name;
+    std::string display = name;
+    if (is_dir) {
+      href += '/';
+      display += '/';
+    }
+
+    std::string href_escaped = escapeHtml(href);
+    std::string disp_escaped = escapeHtml(display);
+    body << "<li><a href=\"" << href_escaped << "\">" << disp_escaped << "</a></li>"
          << CRLF;
   }
 
