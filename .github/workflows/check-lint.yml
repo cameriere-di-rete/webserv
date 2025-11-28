@@ -1,5 +1,10 @@
 name: Lint Check
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
@@ -20,6 +25,7 @@ jobs:
 
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
+        if: github.event_name != 'pull_request' || github.repository == github.event.pull_request.head.repo.full_name
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
