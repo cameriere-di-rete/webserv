@@ -15,6 +15,19 @@ include(GNUInstallDirs)
 # Use per-target compile options; apply common warnings consistently.
 set(COMMON_WARNINGS -Wall -Wextra -Werror)
 
+# Optionally enable coverage instrumentation (uses clang/llvm's coverage tools)
+option(ENABLE_COVERAGE "Enable coverage instrumentation (clang/llvm)" OFF)
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        message(STATUS "Enabling clang/llvm coverage instrumentation flags")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-instr-generate")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fprofile-instr-generate")
+    else()
+        message(WARNING "ENABLE_COVERAGE requested but compiler is not Clang. Coverage flags not added.")
+    endif()
+endif()
+
 enable_testing()
 
 # Add submodules (each subdir creates a library target and registers its .cpp files
