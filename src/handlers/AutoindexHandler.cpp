@@ -60,7 +60,7 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   if (!raw_d) {
     LOG_PERROR(ERROR, "opendir");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return HR_ERROR;
+    return HR_DONE;
   }
 
   // RAII wrapper: ensure directory is closed on all exits (including
