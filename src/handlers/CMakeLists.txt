@@ -1,4 +1,5 @@
 set(HANDLER_SOURCES
+  AutoindexHandler.cpp
   EchoHandler.cpp
   FileHandler.cpp
   RedirectHandler.cpp
