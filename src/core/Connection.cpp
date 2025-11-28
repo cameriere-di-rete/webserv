@@ -10,6 +10,7 @@
 #include <sstream>
 
 #include "Body.hpp"
+#include "CgiHandler.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
@@ -233,9 +234,33 @@ void Connection::processResponse(const Location& location) {
   }
 
   if (location.cgi) {
-    // TODO: CGIHandler - will be implemented in future PR
-    prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
-    return;
+    // CGI handling
+    std::string resolved_path;
+    bool is_directory = false;
+    if (!resolvePathForLocation(location, resolved_path, is_directory)) {
+      return;  // resolvePathForLocation prepared an error response
+    }
+
+    if (is_directory) {
+      prepareErrorResponse(http::S_403_FORBIDDEN);
+      return;
+    }
+
+    IHandler* handler = new CgiHandler(resolved_path);
+    setHandler(handler);
+
+    HandlerResult hr = active_handler->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    } else if (hr == HR_ERROR) {
+      clearHandler();
+      prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      return;
+    } else {
+      // HR_DONE: response prepared in write_buffer
+      clearHandler();
+      return;
+    }
   }
 
   // Resolve the filesystem path for the request

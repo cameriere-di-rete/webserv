@@ -21,12 +21,15 @@ SOURCES	:=	src/http/Body.cpp \
 			src/config/Config.cpp \
 			src/config/DirectiveNode.cpp \
 			src/config/Location.cpp \
+			src/handlers/IHandler.cpp \
 			src/handlers/EchoHandler.cpp \
 			src/handlers/FileHandler.cpp \
 			src/handlers/RedirectHandler.cpp \
+			src/handlers/CgiHandler.cpp \
 			src/core/Connection.cpp \
 			src/core/Server.cpp \
-			src/core/ServerManager.cpp
+			src/core/ServerManager.cpp \
+			src/core/main.cpp
 
 # Store object and dependency files under build/ to keep the source tree clean
 OBJDIR := build/obj
