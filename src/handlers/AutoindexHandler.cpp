@@ -98,7 +98,7 @@ body << "<!DOCTYPE html>" << CRLF;
   if (errno != 0) {
     LOG_PERROR(ERROR, "readdir");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return HR_ERROR;
+    return HR_DONE;
   }
 
   // sort alphabetically (lexicographical, case-sensitive)
