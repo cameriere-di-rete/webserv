@@ -42,6 +42,22 @@ static std::string escapeHtml(const std::string& s) {
   return out;
 }
 
+// Small RAII guard for DIR* since project targets C++98 (no unique_ptr)
+struct DirGuard {
+  DIR* dir;
+  explicit DirGuard(DIR* d_) : dir(d_) {}
+  ~DirGuard() {
+    if (dir) {
+      closedir(dir);
+    }
+  }
+  DIR* get() const { return dir; }
+
+ private:
+  DirGuard(const DirGuard&);
+  DirGuard& operator=(const DirGuard&);
+};
+
 AutoindexHandler::AutoindexHandler(const std::string& dirpath,
                                    const std::string& display_path)
     : dirpath_(dirpath), uri_path_(display_path) {}
