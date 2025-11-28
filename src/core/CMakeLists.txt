@@ -10,6 +10,9 @@ foreach(f IN LISTS CORE_SOURCES)
   set_property(GLOBAL APPEND PROPERTY ALL_SOURCES "${_rel}")
 endforeach()
 
+# Also register main.cpp for Makefile generator
+set_property(GLOBAL APPEND PROPERTY ALL_SOURCES "src/core/main.cpp")
+
 add_library(webserv_core STATIC
   ${CORE_SOURCES}
 )
