@@ -68,11 +68,14 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   DirGuard d(raw_d);
 
   std::ostringstream body;
+body << "<!DOCTYPE html>" << CRLF;
   body << "<html>" << CRLF;
   // Use the user-facing URI path in title and heading instead of the
   // filesystem path to avoid leaking internal server structure.
-  body << "<head><title>Index of " << escapeHtml(uri_path_) << "</title></head>"
-       << CRLF;
+  body << "<head>" << CRLF;
+  body << "<meta charset=\"utf-8\">" << CRLF;
+  body << "<title>Index of " << escapeHtml(uri_path_) << "</title>" << CRLF;
+  body << "</head>" << CRLF;
   body << "<body>" << CRLF;
   body << "<h1>Index of " << escapeHtml(uri_path_) << "</h1>" << CRLF;
   body << "<ul>" << CRLF;
