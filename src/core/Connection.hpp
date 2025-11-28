@@ -28,7 +28,6 @@ class Connection {
   bool write_ready;
   Request request;
   Response response;
-  // active request handler (if any)
   IHandler* active_handler;
 
   int handleRead();

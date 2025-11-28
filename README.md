@@ -4,6 +4,12 @@ This is when you finally understand why URLs start with HTTP
 
 https://datatracker.ietf.org/doc/html/rfc1945
 
+## Development
+
+### Code Formatting
+
+This repository uses `clang-format` for consistent code style. To format all C++ files in a pull request, simply comment `/format` on the PR. The GitHub Action will automatically format the code and push the changes to your branch.
+
 ## Building
 
 The project uses **CMake** as the source of truth, with a generated **Makefile** for users without CMake.
@@ -81,7 +87,7 @@ After regeneration, if you want to keep the generated `Makefile` in the repo, co
 
 - **CMakeLists.txt**: Source of truth for the build system
 - **Makefile**: Auto-generated from CMakeLists.txt (committed for users without CMake)
-- **Makefile.in**: Template used to generate the Makefile
-- **generate_makefile.cmake**: Script that generates the Makefile from CMakeLists.txt
+- **cmake/generate_makefile.cmake**: Script that generates the Makefile from CMakeLists.txt
+- **cmake/Makefile.in**: Template used to generate the top-level `Makefile`
 
 The Makefile is automatically generated from CMakeLists.txt, so there's no risk of them getting out of sync.

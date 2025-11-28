@@ -20,6 +20,11 @@ class CgiHandler : public IHandler {
   void cleanupProcess();
   HandlerResult readCgiOutput(Connection& conn);
   HandlerResult parseOutput(Connection& conn, const std::string& data);
+  std::string getInterpreter(const std::string& path);
+  bool validateScriptPath(const std::string& path, std::string& error_msg);
+  bool isAllowedExtension(const std::string& path);
+  bool isExecutable(const std::string& path);
+  bool isPathTraversalSafe(const std::string& path);
 
   std::string script_path_;
   int script_pid_;

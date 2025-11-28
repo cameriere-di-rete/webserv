@@ -85,9 +85,11 @@ HandlerResult FileHandler::handleGet(Connection& conn) {
     return HR_DONE;
   }
   if (r == -2) {
-    // Invalid range: prepareFileResponse already filled response
-    // serialize and send the prepared error response
-    conn.write_buffer = conn.response.serialize();
+    // Invalid range: caller should prepare a 416 response using Connection
+    std::ostringstream cr;
+    cr << "bytes */" << out_end;  // out_end carries file_size on -2
+    conn.response.addHeader("Content-Range", cr.str());
+    conn.prepareErrorResponse(http::S_416_RANGE_NOT_SATISFIABLE);
     return HR_DONE;
   }
 
@@ -125,9 +127,11 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
     return HR_DONE;
   }
   if (r == -2) {
-    // Invalid range: prepareFileResponse already filled response.
-    // serialize and send the prepared error response (416)
-    conn.write_buffer = conn.response.serialize();
+    // Invalid range: caller should prepare a 416 response using Connection
+    std::ostringstream cr;
+    cr << "bytes */" << end;  // end carries file_size on -2
+    conn.response.addHeader("Content-Range", cr.str());
+    conn.prepareErrorResponse(http::S_416_RANGE_NOT_SATISFIABLE);
     return HR_DONE;
   }
 
@@ -147,13 +151,6 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePost(Connection& conn) {
-  // Basic path traversal protection
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Simple POST implementation: echo back the POST data with success message
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_201_CREATED;
@@ -178,22 +175,19 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePut(Connection& conn) {
-  // Basic path traversal protection (path has already been validated in
-  // resolvePathForLocation; both raw ".." and URL-encoded variants
-  // (e.g. "%2e%2e") are checked there without requiring decoding here)
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
+  // Atomically determine if file is being created or overwritten using O_EXCL.
+  // First attempt to create exclusively (O_CREAT | O_EXCL), which fails if file
+  // exists. If it fails with EEXIST, the file already exists and we overwrite.
+  bool created = false;
+  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd >= 0) {
+    // File was created (did not exist before)
+    created = true;
+  } else if (errno == EEXIST) {
+    // File already exists, open for overwriting (include O_CREAT for
+    // robustness in case file is deleted between the two open calls)
+    fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   }
-
-  // Check if file existed before we create/overwrite it
-  struct stat st;
-  bool existed = (stat(path_.c_str(), &st) == 0);
-
-  // Create/overwrite the file with restrictive permissions (owner read/write
-  // only)
-  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
@@ -202,28 +196,38 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 
   // Write request body to file
   const std::string& body = conn.request.getBody().data;
-  ssize_t written = write(fd, body.c_str(), body.size());
+  size_t total_written = 0;
+  ssize_t n = 0;
+  while (total_written < body.size()) {
+    n = write(fd, body.c_str() + total_written, body.size() - total_written);
+    if (n < 0) {
+      break;
+    }
+    total_written += static_cast<size_t>(n);
+  }
   close(fd);
 
-  if (written < 0 || static_cast<size_t>(written) != body.size()) {
+  if (n < 0 || total_written != body.size()) {
     LOG_PERROR(ERROR, "FileHandler: Failed to write file for PUT");
+    // Remove incomplete file to avoid accumulation of partial files
+    unlink(path_.c_str());
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
 
   conn.response.status_line.version = HTTP_VERSION;
-  if (existed) {
-    conn.response.status_line.status_code = http::S_200_OK;
-    conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  } else {
+  if (created) {
     conn.response.status_line.status_code = http::S_201_CREATED;
     conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
+  } else {
+    conn.response.status_line.status_code = http::S_200_OK;
+    conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
   }
 
   std::ostringstream resp_body;
   resp_body << "PUT request processed successfully" << CRLF;
   resp_body << "Resource: " << path_ << CRLF;
-  resp_body << "Bytes written: " << written << CRLF;
+  resp_body << "Bytes written: " << total_written << CRLF;
 
   conn.response.getBody().data = resp_body.str();
   conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
@@ -237,13 +241,6 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 }
 
 HandlerResult FileHandler::handleDelete(Connection& conn) {
-  // Basic path traversal protection
-  if (path_.find("..") != std::string::npos) {
-    LOG(INFO) << "FileHandler: Path traversal attempt: " << path_;
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
   // Check if file exists
   struct stat st;
   if (stat(path_.c_str(), &st) != 0) {

@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -40,7 +41,7 @@ void CgiHandler::cleanupProcess() {
   }
   if (script_pid_ > 0) {
     int status;
-    waitpid(script_pid_, &status, 0); // Blocking wait to reap child process
+    waitpid(script_pid_, &status, 0);  // Blocking wait to reap child process
     script_pid_ = -1;
   }
 }
@@ -51,6 +52,14 @@ int CgiHandler::getMonitorFd() const {
 
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
+
+  // Security validation: check script path
+  std::string error_msg;
+  if (!validateScriptPath(script_path_, error_msg)) {
+    LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
 
   // Create pipes for communication
   int pipe_to_cgi[2], pipe_from_cgi[2];
@@ -147,12 +156,16 @@ HandlerResult CgiHandler::start(Connection& conn) {
       ssize_t written = write(pipe_write_fd_, buf + total_written, remaining);
       if (written == -1) {
         if (errno == EINTR) {
-          continue; // Retry on interrupt
+          continue;  // Retry on interrupt
         }
         LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
         break;
       }
       total_written += static_cast<size_t>(written);
+      // Missing timeout handling: CGI scripts can potentially run indefinitely,
+      // causing resource exhaustion. The implementation should set a timeout
+      // (e.g., using alarm() in the child process or a timer in the parent) and
+      // kill scripts that exceed it. This is a standard CGI security practice.
       remaining -= static_cast<size_t>(written);
     }
   }
@@ -317,6 +330,8 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     // Body data appended, parsing is done
     return HR_DONE;
   }
+}
+
 void CgiHandler::setupEnvironment(Connection& conn) {
   // Set PATH for script execution
   setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
@@ -333,8 +348,10 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Query string
   std::string uri = conn.request.request_line.uri;
   size_t query_pos = uri.find('?');
-  std::string uri_no_query = (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
-  std::string query_string = (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
+  std::string uri_no_query =
+      (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
+  std::string query_string =
+      (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
   // Determine PATH_INFO: extra path after script name
@@ -365,4 +382,124 @@ void CgiHandler::setupEnvironment(Connection& conn) {
 
   // HTTP headers as environment variables
   // Note: Request class needs to provide header iteration interface
+}
+
+// Security validation: check if script path is safe to execute
+bool CgiHandler::validateScriptPath(const std::string& path,
+                                    std::string& error_msg) {
+  // Check for path traversal attacks
+  if (!isPathTraversalSafe(path)) {
+    error_msg = "Path traversal detected in script path";
+    return false;
+  }
+
+  // Check if file exists and is a regular file
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0) {
+    error_msg = "Script file not found";
+    return false;
+  }
+
+  if (!S_ISREG(st.st_mode)) {
+    error_msg = "Script path is not a regular file";
+    return false;
+  }
+
+  // Check if file has executable permissions
+  if (!isExecutable(path)) {
+    error_msg = "Script file is not executable";
+    return false;
+  }
+
+  // Check if file extension is allowed
+  if (!isAllowedExtension(path)) {
+    error_msg = "Script file extension is not allowed";
+    return false;
+  }
+
+  return true;
+}
+
+// Check if path contains path traversal sequences
+bool CgiHandler::isPathTraversalSafe(const std::string& path) {
+  // Check for obvious path traversal patterns
+  if (path.find("..") != std::string::npos) {
+    return false;
+  }
+
+  // Get absolute path and verify it doesn't escape allowed directory
+  char resolved_path[PATH_MAX];
+  if (realpath(path.c_str(), resolved_path) == NULL) {
+    // If realpath fails, the file may not exist yet or path is invalid
+    // For security, we reject such paths
+    return false;
+  }
+
+  // Verify the resolved path starts with allowed CGI directory
+  // This prevents symlink attacks and ensures scripts are in designated area
+  std::string resolved(resolved_path);
+
+  // Expected CGI directories (adjust based on your configuration)
+  const char* allowed_dirs[] = {"./www/cgi-bin/", "/www/cgi-bin/",
+                                "www/cgi-bin/", NULL};
+
+  for (int i = 0; allowed_dirs[i] != NULL; ++i) {
+    std::string allowed_dir = allowed_dirs[i];
+    // Convert relative path to absolute if needed
+    char abs_allowed[PATH_MAX];
+    if (realpath(allowed_dir.c_str(), abs_allowed) != NULL) {
+      std::string abs_allowed_str(abs_allowed);
+      if (resolved.find(abs_allowed_str) == 0) {
+        return true;
+      }
+    }
+  }
+
+  // Also check if the original path (before resolution) is within allowed
+  // dirs
+  for (int i = 0; allowed_dirs[i] != NULL; ++i) {
+    if (path.find(allowed_dirs[i]) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Check if file has executable permissions
+bool CgiHandler::isExecutable(const std::string& path) {
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0) {
+    return false;
+  }
+
+  // Check if file has execute permission for owner, group, or others
+  return (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+}
+
+// Check if file extension is in the allowed list
+bool CgiHandler::isAllowedExtension(const std::string& path) {
+  // Whitelist of allowed CGI script extensions
+  const char* allowed_extensions[] = {".sh",   // Shell scripts
+                                      ".py",   // Python scripts
+                                      ".pl",   // Perl scripts
+                                      ".php",  // PHP scripts
+                                      ".cgi",  // Generic CGI scripts
+                                      NULL};
+
+  size_t dot_pos = path.find_last_of('.');
+  if (dot_pos == std::string::npos) {
+    // No extension found
+    return false;
+  }
+
+  std::string extension = path.substr(dot_pos);
+
+  for (int i = 0; allowed_extensions[i] != NULL; ++i) {
+    if (extension == allowed_extensions[i]) {
+      return true;
+    }
+  }
+
+  return false;
 }

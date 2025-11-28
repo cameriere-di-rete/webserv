@@ -301,14 +301,13 @@ int ServerManager::run() {
       // Extract body from read_buffer (after "\r\n\r\n")
       std::size_t body_start = conn.headers_end_pos + 4;
       // Check for Content-Length header
-      std::string content_length_str = conn.request.getHeader("Content-Length");
+      std::string content_length_str;
       std::size_t expected_body_length = 0;
       bool has_content_length = false;
-      if (!content_length_str.empty()) {
-        try {
-          expected_body_length = static_cast<std::size_t>(std::stoul(content_length_str));
-          has_content_length = true;
-        } catch (const std::exception& e) {
+      if (conn.request.getHeader("Content-Length", content_length_str)) {
+        // C++98 compatible: use atol instead of std::stoul
+        long content_len = std::atol(content_length_str.c_str());
+        if (content_len < 0) {
           // Malformed Content-Length header
           LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
                     << ", sending 400 Bad Request";
@@ -316,21 +315,26 @@ int ServerManager::run() {
           updateEvents(conn_fd, EPOLLOUT | EPOLLET);
           continue;
         }
+        expected_body_length = static_cast<std::size_t>(content_len);
+        has_content_length = true;
       }
-      std::size_t available_body_length = (body_start < conn.read_buffer.size())
-          ? (conn.read_buffer.size() - body_start)
-          : 0;
+      std::size_t available_body_length =
+          (body_start < conn.read_buffer.size())
+              ? (conn.read_buffer.size() - body_start)
+              : 0;
       if (has_content_length) {
         if (available_body_length < expected_body_length) {
           // Body not fully received yet, wait for more data
           continue;
         } else if (available_body_length > expected_body_length) {
           // More data than expected, only use expected length
-          std::string body_data = conn.read_buffer.substr(body_start, expected_body_length);
+          std::string body_data =
+              conn.read_buffer.substr(body_start, expected_body_length);
           conn.request.getBody().data = body_data;
         } else {
           // Exact match
-          std::string body_data = conn.read_buffer.substr(body_start, expected_body_length);
+          std::string body_data =
+              conn.read_buffer.substr(body_start, expected_body_length);
           conn.request.getBody().data = body_data;
         }
       } else {
