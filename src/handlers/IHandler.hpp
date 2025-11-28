@@ -25,7 +25,5 @@ class IHandler {
   // Returns the file descriptor to monitor for I/O readiness (e.g., CGI pipe).
   // Returns -1 if no additional FD needs monitoring.
   // This allows epoll to monitor handler-specific FDs for non-blocking I/O.
-  virtual int getMonitorFd() const {
-    return -1;
-  }
+  virtual int getMonitorFd() const;
 };
