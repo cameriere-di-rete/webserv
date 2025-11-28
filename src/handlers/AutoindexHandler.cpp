@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <sstream>
 
-
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
@@ -51,7 +50,9 @@ struct DirGuard {
       closedir(dir);
     }
   }
-  DIR* get() const { return dir; }
+  DIR* get() const {
+    return dir;
+  }
 
  private:
   DirGuard(const DirGuard&);
@@ -83,7 +84,7 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   DirGuard d(raw_d);
 
   std::ostringstream body;
-body << "<!DOCTYPE html>" << CRLF;
+  body << "<!DOCTYPE html>" << CRLF;
   body << "<html>" << CRLF;
   // Use the user-facing URI path in title and heading instead of the
   // filesystem path to avoid leaking internal server structure.
