@@ -18,6 +18,15 @@
       "version": "latest",
       "ppa": "true"
     }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools",
+        "eamodio.gitlens"
+      ]
+    }
   }
 
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
