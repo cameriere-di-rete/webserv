@@ -6,8 +6,7 @@
 
 #include <algorithm>
 #include <sstream>
-// no <memory> (unique_ptr) because project targets C++98; use a small RAII
-// guard instead
+
 
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
