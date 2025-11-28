@@ -4,6 +4,8 @@
 CXX			:=	c++
 CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 
+RM ?= rm -f
+
 NAME	:=	webserv
 SOURCES	:=	@SOURCES_LIST@
 
@@ -18,28 +20,16 @@ INCLUDES := -I. -Isrc -Isrc/core -Isrc/http -Isrc/config -Isrc/utils -Isrc/handl
 OBJECTS	:=	$(patsubst %.cpp,$(OBJDIR)/%.o,$(SOURCES))
 DEPENDS	:=	$(patsubst %.cpp,$(DEPDIR)/%.d,$(SOURCES))
 
-# Directories to create before building so compilers can write .o/.d files safely
-PREPARE_DIRS := $(sort $(dir $(OBJECTS)) $(dir $(DEPENDS)))
-
-.PHONY: prepare
-prepare:
-	@mkdir -p $(PREPARE_DIRS)
-
-# Files that, when changed, should trigger regenerating the Makefile
-CMAKE_INPUTS := CMakeLists.txt cmake/generate_makefile.cmake cmake/Makefile.in
-STAMP := build/.cmake_stamp
-
-all: prepare $(STAMP) $(NAME)
+all: $(STAMP) $(NAME)
 
 $(NAME): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 -include $(DEPENDS)
 
-$(OBJDIR)/%.o: %.cpp Makefile
-	@dep=$(patsubst $(OBJDIR)/%.o,$(DEPDIR)/%.d,$@); \
-	mkdir -p $(dir $@) $$(dir $$dep); \
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -MMD -MP -MF $$dep -c $< -o $@
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@) $(dir $(DEPDIR)/$*.d)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -MMD -MP -MF $(DEPDIR)/$*.d -c $< -o $@
 
 clean:
 	$(RM) $(OBJECTS) $(DEPENDS)
@@ -61,21 +51,4 @@ test:
 clean-tests:
 	@rm -rf build/Testing
 
-# Regenerate the auto-generated Makefile when CMake inputs change.
-$(STAMP): $(CMAKE_INPUTS)
-	@if command -v cmake >/dev/null 2>&1; then \
-		cmake -B build && cmake --build build --target generate-makefile; \
-		mkdir -p $(dir $@); \
-		touch $@; \
-	else \
-		echo "Warning: CMake not found, skipping Makefile regeneration"; \
-		mkdir -p $(dir $@); \
-		touch $@; \
-	fi
-
-regenerate-stamp:
-	@rm -f $(STAMP) && $(MAKE) $(STAMP)
-
-regenerate: regenerate-stamp
-
-.PHONY: all clean fclean re test clean-tests regenerate-stamp regenerate
+.PHONY: all prepare clean fclean re test clean-tests
