@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <vector>
 
 #include "../core/Connection.hpp"
 #include "../http/HttpStatus.hpp"

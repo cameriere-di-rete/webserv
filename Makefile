@@ -25,7 +25,6 @@ SOURCES	:=	src/http/Body.cpp \
 			src/handlers/EchoHandler.cpp \
 			src/handlers/FileHandler.cpp \
 			src/handlers/RedirectHandler.cpp \
-			src/core/main.cpp \
 			src/core/Connection.cpp \
 			src/core/Server.cpp \
 			src/core/ServerManager.cpp

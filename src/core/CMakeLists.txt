@@ -1,5 +1,4 @@
 set(CORE_SOURCES
-  main.cpp
   Connection.cpp
   Server.cpp
   ServerManager.cpp
