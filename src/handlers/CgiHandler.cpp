@@ -117,9 +117,12 @@ HandlerResult CgiHandler::start(Connection& conn) {
       script_name = abs_script_path;
     }
 
-    // Execute script using just the filename (we're in its directory)
-    const char* script_c = script_name.c_str();
-    execl(script_c, script_c, (char*)NULL);
+    // Execute script using ./filename (we're in its directory)
+    // On Unix, scripts must be executed with ./ prefix when in current
+    // directory
+    std::string script_exec = "./" + script_name;
+    const char* script_c = script_exec.c_str();
+    execl(script_c, script_name.c_str(), (char*)NULL);
 
     // If we reach here, exec failed - write error to stderr
     const char* error_msg = "CGI exec failed\n";
@@ -171,6 +174,9 @@ HandlerResult CgiHandler::start(Connection& conn) {
   }
   close(pipe_write_fd_);
   pipe_write_fd_ = -1;
+
+  LOG(DEBUG) << "CgiHandler: fork/exec done, pid=" << script_pid_
+             << ", pipe_read_fd=" << pipe_read_fd_;
 
   // Start reading CGI output (non-blocking)
   return readCgiOutput(conn);
@@ -258,15 +264,21 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
   if (!headers_parsed_) {
     remaining_data_ += data;
 
-    // Look for headers end
+    // Look for headers end - support both CRLF CRLF and LF LF
     size_t headers_end = remaining_data_.find(CRLF CRLF);
+    size_t separator_len = 4;  // Length of "\r\n\r\n"
+    if (headers_end == std::string::npos) {
+      // Try LF LF (Unix-style)
+      headers_end = remaining_data_.find("\n\n");
+      separator_len = 2;  // Length of "\n\n"
+    }
     if (headers_end == std::string::npos) {
       return HR_WOULD_BLOCK;  // Need more data
     }
 
     // Parse headers
     std::string headers_part = remaining_data_.substr(0, headers_end);
-    std::string body_part = remaining_data_.substr(headers_end + 4);
+    std::string body_part = remaining_data_.substr(headers_end + separator_len);
 
     // Set default status
     conn.response.status_line.version = HTTP_VERSION;

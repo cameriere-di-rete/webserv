@@ -286,6 +286,11 @@ int ServerManager::run() {
         continue; /* already prepared */
       }
 
+      // Skip if handler is already active (e.g., waiting for CGI output)
+      if (conn.active_handler != NULL) {
+        continue;
+      }
+
       LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
       if (!conn.request.parseStartAndHeaders(conn.read_buffer,
