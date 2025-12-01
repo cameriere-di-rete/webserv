@@ -1,4 +1,6 @@
 
+#include "Config.hpp"
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/stat.h>
@@ -12,7 +14,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "Config.hpp"
 #include "../http/HttpMethod.hpp"
 #include "../http/HttpStatus.hpp"
 #include "../utils/Logger.hpp"

@@ -10,8 +10,8 @@
 
 #include "../core/Connection.hpp"
 #include "../http/HttpStatus.hpp"
-#include "../utils/Logger.hpp"
 #include "../http/Request.hpp"
+#include "../utils/Logger.hpp"
 #include "../utils/constants.hpp"
 #include "../utils/file_utils.hpp"
 

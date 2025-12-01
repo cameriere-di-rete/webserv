@@ -1,4 +1,6 @@
 
+#include "Server.hpp"
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
@@ -8,7 +10,6 @@
 #include <cerrno>
 #include <cstring>
 
-#include "Server.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/constants.hpp"
 #include "../utils/utils.hpp"

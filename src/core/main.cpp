@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "../config/Config.hpp"
-#include "../utils/Logger.hpp"
 #include "../core/ServerManager.hpp"
+#include "../utils/Logger.hpp"
 #include "../utils/utils.hpp"
 
 int main(int argc, char** argv) {

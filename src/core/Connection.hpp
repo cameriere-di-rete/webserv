@@ -5,8 +5,8 @@
 #include <cstddef>
 #include <string>
 
-#include "../http/HttpStatus.hpp"
 #include "../handlers/IHandler.hpp"
+#include "../http/HttpStatus.hpp"
 #include "../http/Request.hpp"
 #include "../http/Response.hpp"
 

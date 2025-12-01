@@ -2,8 +2,8 @@
 
 #include <sstream>
 
-#include "HttpStatus.hpp"
 #include "../utils/constants.hpp"
+#include "HttpStatus.hpp"
 
 StatusLine::StatusLine()
     : version(HTTP_VERSION),

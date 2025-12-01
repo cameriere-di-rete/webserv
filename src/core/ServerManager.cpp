@@ -22,11 +22,11 @@
 #include <utility>
 #include <vector>
 
-#include "Connection.hpp"
 #include "../http/HttpStatus.hpp"
 #include "../utils/Logger.hpp"
 #include "../utils/constants.hpp"
 #include "../utils/utils.hpp"
+#include "Connection.hpp"
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 

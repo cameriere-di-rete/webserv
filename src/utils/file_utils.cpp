@@ -11,8 +11,8 @@
 #include <sstream>
 
 #include "../http/HttpStatus.hpp"
-#include "../utils/Logger.hpp"
 #include "../http/Response.hpp"
+#include "../utils/Logger.hpp"
 #include "../utils/constants.hpp"
 #include "../utils/utils.hpp"
 namespace file_utils {
