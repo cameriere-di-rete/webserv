@@ -10,12 +10,11 @@
 #include <cstring>
 #include <sstream>
 
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "Response.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
-
+#include "../http/HttpStatus.hpp"
+#include "../utils/Logger.hpp"
+#include "../http/Response.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/utils.hpp"
 namespace file_utils {
 
 std::string guessMime(const std::string& path) {

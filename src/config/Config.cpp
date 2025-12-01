@@ -1,4 +1,3 @@
-#include "Config.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -9,15 +8,15 @@
 #include <climits>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-#include "HttpMethod.hpp"
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "utils.hpp"
+#include "Config.hpp"
+#include "../http/HttpMethod.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../utils/Logger.hpp"
+#include "../utils/utils.hpp"
 
 // ==================== PUBLIC METHODS ====================
 

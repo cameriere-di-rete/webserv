@@ -1,4 +1,3 @@
-#include "Server.hpp"
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -8,11 +7,11 @@
 
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
-#include "Logger.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+#include "Server.hpp"
+#include "../utils/Logger.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/utils.hpp"
 
 Server::Server(void)
     : fd(-1),

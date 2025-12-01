@@ -8,12 +8,12 @@
 #include <cstring>
 #include <sstream>
 
-#include "Connection.hpp"
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "Request.hpp"
-#include "constants.hpp"
-#include "file_utils.hpp"
+#include "../core/Connection.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../utils/Logger.hpp"
+#include "../http/Request.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/file_utils.hpp"
 
 FileHandler::FileHandler(const std::string& path)
     : path_(path), fi_(), start_offset_(0), end_offset_(-1), active_(false) {

@@ -9,16 +9,16 @@
 #include <iostream>
 #include <sstream>
 
-#include "AutoindexHandler.hpp"
-#include "Body.hpp"
-#include "FileHandler.hpp"
-#include "HttpMethod.hpp"
-#include "HttpStatus.hpp"
-#include "Location.hpp"
-#include "Logger.hpp"
-#include "RedirectHandler.hpp"
-#include "Server.hpp"
-#include "constants.hpp"
+#include "../handlers/AutoindexHandler.hpp"
+#include "../http/Body.hpp"
+#include "../handlers/FileHandler.hpp"
+#include "../http/HttpMethod.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../config/Location.hpp"
+#include "../utils/Logger.hpp"
+#include "../handlers/RedirectHandler.hpp"
+#include "../core/Server.hpp"
+#include "../utils/constants.hpp"
 
 Connection::Connection()
     : fd(-1),

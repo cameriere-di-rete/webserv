@@ -2,11 +2,10 @@
 
 #include <netinet/in.h>
 
-#include <map>
 #include <set>
 #include <string>
 
-#include "Location.hpp"
+#include "../config/Location.hpp"
 
 class Server {
  public:

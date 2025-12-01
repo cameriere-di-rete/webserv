@@ -1,9 +1,9 @@
 #include "RedirectHandler.hpp"
 
-#include "Connection.hpp"
-#include "HttpStatus.hpp"
-#include "Response.hpp"
-#include "constants.hpp"
+#include "../core/Connection.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../http/Response.hpp"
+#include "../utils/constants.hpp"
 
 RedirectHandler::RedirectHandler(const Location& location)
     : location_(location) {}

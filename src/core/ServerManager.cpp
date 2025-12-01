@@ -23,10 +23,10 @@
 #include <vector>
 
 #include "Connection.hpp"
-#include "HttpStatus.hpp"
-#include "Logger.hpp"
-#include "constants.hpp"
-#include "utils.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../utils/Logger.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/utils.hpp"
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 

@@ -3,8 +3,8 @@
 #include <cctype>
 #include <sstream>
 
-#include "constants.hpp"
-#include "utils.hpp"
+#include "../utils/constants.hpp"
+#include "../utils/utils.hpp"
 
 namespace {
 bool ci_equal_copy(const std::string& a, const std::string& b) {

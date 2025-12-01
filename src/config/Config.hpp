@@ -5,8 +5,8 @@
 
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
-#include "HttpStatus.hpp"
-#include "Server.hpp"
+#include "../http/HttpStatus.hpp"
+#include "../core/Server.hpp"
 
 class Config {
  public:
