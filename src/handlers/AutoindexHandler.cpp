@@ -1,5 +1,7 @@
 
 
+#include "AutoindexHandler.hpp"
+
 #include <dirent.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -7,7 +9,6 @@
 #include <algorithm>
 #include <sstream>
 
-#include "AutoindexHandler.hpp"
 #include "../core/Connection.hpp"
 #include "../http/HttpStatus.hpp"
 #include "../utils/Logger.hpp"
@@ -43,6 +44,7 @@ static std::string escapeHtml(const std::string& s) {
 }
 
 // Small RAII guard for DIR* since project targets C++98 (no unique_ptr)
+namespace {
 struct DirGuard {
   DIR* dir;
   explicit DirGuard(DIR* d_) : dir(d_) {}
@@ -59,6 +61,7 @@ struct DirGuard {
   DirGuard(const DirGuard&);
   DirGuard& operator=(const DirGuard&);
 };
+}  // namespace
 
 AutoindexHandler::AutoindexHandler(const std::string& dirpath,
                                    const std::string& display_path)
