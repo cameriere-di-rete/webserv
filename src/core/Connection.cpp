@@ -9,15 +9,15 @@
 #include <iostream>
 #include <sstream>
 
+#include "../config/Location.hpp"
+#include "../core/Server.hpp"
 #include "../handlers/AutoindexHandler.hpp"
-#include "../http/Body.hpp"
 #include "../handlers/FileHandler.hpp"
+#include "../handlers/RedirectHandler.hpp"
+#include "../http/Body.hpp"
 #include "../http/HttpMethod.hpp"
 #include "../http/HttpStatus.hpp"
-#include "../config/Location.hpp"
 #include "../utils/Logger.hpp"
-#include "../handlers/RedirectHandler.hpp"
-#include "../core/Server.hpp"
 #include "../utils/constants.hpp"
 
 Connection::Connection()
@@ -210,12 +210,8 @@ void Connection::processRequest(const Server& server) {
   // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
-  // 4. Process response based on location
-  processResponse(location);
-}
-
-void Connection::processResponse(const Location& location) {
-  LOG(DEBUG) << "Processing response for fd: " << fd;
+  // Reset response state at the beginning to ensure all handlers start clean
+  response = Response();
 
   // Validate protocol version and allowed method for this location.
   http::Status vstat = validateRequestForLocation(location);
@@ -224,10 +220,12 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  // Reset response state early so handlers (including RedirectHandler)
-  // start with a clean Response and don't inherit headers from previous
-  // requests when connections are reused (keep-alive).
-  response = Response();
+  // 4. Process response based on location
+  processResponse(location);
+}
+
+void Connection::processResponse(const Location& location) {
+  LOG(DEBUG) << "Processing response for fd: " << fd;
 
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
@@ -284,10 +282,10 @@ void Connection::processResponse(const Location& location) {
       if (hr == HR_WOULD_BLOCK) {
         return;  // handler will continue later
       }
-      // For HR_ERROR and HR_DONE, executeHandler already handled cleanup/error
-      // and we should return to finish processing this request.
+      // HR_DONE or HR_ERROR: executeHandler already handled everything
       return;
     } else {
+      // Directory listing not allowed
       prepareErrorResponse(http::S_403_FORBIDDEN);
       return;
     }
