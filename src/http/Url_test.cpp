@@ -273,6 +273,15 @@ TEST(UrlCopyTests, CopyConstructor) {
 TEST(UrlCopyTests, AssignmentOperator) {
   Url url1("http://example.com:8080/path?q=1#f");
   Url url2;
+  // Verify default-constructed state before assignment
+  EXPECT_FALSE(url2.isValid());
+  EXPECT_EQ(url2.getScheme(), "");
+  EXPECT_EQ(url2.getHost(), "");
+  EXPECT_EQ(url2.getPort(), -1);
+  EXPECT_EQ(url2.getPath(), "");
+  EXPECT_EQ(url2.getQuery(), "");
+  EXPECT_EQ(url2.getFragment(), "");
+
   url2 = url1;
   EXPECT_EQ(url2.getScheme(), url1.getScheme());
   EXPECT_EQ(url2.getHost(), url1.getHost());
