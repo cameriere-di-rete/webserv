@@ -308,25 +308,22 @@ std::string Url::normalizePath(const std::string& path) {
 
   // Rebuild path
   std::string result;
-  if (absolute) {
-    result = "/";
-  }
-
   for (std::size_t i = 0; i < segments.size(); ++i) {
-    if (i > 0) {
+    if (absolute || i > 0) {
       result += "/";
     }
     result += segments[i];
   }
 
-  // Preserve trailing slash if original had it
+  // Handle empty result
+  if (result.empty()) {
+    result = "/";
+  }
+
+  // Preserve trailing slash if original had it and result isn't just "/"
   if (result.size() > 1 && !decoded.empty() &&
       decoded[decoded.size() - 1] == '/') {
     result += "/";
-  }
-
-  if (result.empty()) {
-    result = "/";
   }
 
   return result;
