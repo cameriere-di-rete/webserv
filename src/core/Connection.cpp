@@ -17,6 +17,7 @@
 #include "Logger.hpp"
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
+#include "Url.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -314,26 +315,25 @@ bool Connection::resolvePathForLocation(const Location& location,
                                         bool& out_is_directory) {
   out_is_directory = false;
 
-  // Use the request URI (strip query string)
-  std::string uri = request.request_line.uri;
-  std::size_t q = uri.find('?');
-  if (q != std::string::npos) {
-    uri = uri.substr(0, q);
+  // Parse the request URI using the Url class
+  http::Url url(request.request_line.uri);
+  if (!url.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return false;
   }
 
-  // Path traversal protection: check for ".." sequences
-  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
-  // by checking the raw URI and rejecting suspicious patterns.
-  // Note: A proper implementation would URL-decode first, then validate.
-  if (uri.find("..") != std::string::npos ||
-      uri.find("%2e%2e") != std::string::npos ||
-      uri.find("%2E%2E") != std::string::npos ||
-      uri.find("%2e%2E") != std::string::npos ||
-      uri.find("%2E%2e") != std::string::npos) {
-    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+  // Path traversal protection: check for ".." sequences in decoded path
+  // The Url class properly URL-decodes before checking, handling all
+  // encoded variants (%2e%2e, %2E%2E, mixed case, etc.)
+  if (url.hasPathTraversal()) {
+    LOG(INFO) << "Path traversal attempt blocked: " << url.getPath();
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }
+
+  // Get the decoded path (query string already stripped by Url parser)
+  std::string uri = url.getDecodedPath();
 
   // Relative path inside the location
   std::string rel = uri;
