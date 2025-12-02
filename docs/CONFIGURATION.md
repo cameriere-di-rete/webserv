@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This document describes the configuration file format for webserv, an HTTP/1.1 web server.
+This document describes the configuration file format for webserv, an HTTP/1.1 web server. The configuration uses an nginx-like syntax, so users familiar with nginx configuration should find this format intuitive.
 
 ## Overview
 
