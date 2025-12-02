@@ -7,6 +7,9 @@
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
 
+// Tri-state for boolean directives that need to distinguish "not set"
+enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
+
 class Location {
  public:
   Location();
@@ -24,7 +27,7 @@ class Location {
   std::string redirect_location;
   bool cgi;
   std::set<std::string> index;
-  bool autoindex;
+  Tristate autoindex;
   std::string root;
   std::map<http::Status, std::string> error_page;
 };

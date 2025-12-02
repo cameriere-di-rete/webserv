@@ -10,7 +10,7 @@ Location::Location()
       redirect_location(),
       cgi(false),
       index(),
-      autoindex(false),
+      autoindex(UNSET),
       root(),
       error_page() {
   LOG(DEBUG) << "Location() default constructor called";
@@ -27,7 +27,7 @@ Location::Location(const std::string& p)
       redirect_location(),
       cgi(false),
       index(),
-      autoindex(false),
+      autoindex(UNSET),
       root(),
       error_page() {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;

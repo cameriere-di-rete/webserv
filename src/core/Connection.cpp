@@ -247,7 +247,7 @@ void Connection::processResponse(const Location& location) {
 
   // Directory handling - TODO: DirectoryHandler in future PR
   if (is_directory) {
-    if (location.autoindex) {
+    if (location.autoindex == ON) {
       prepareErrorResponse(http::S_501_NOT_IMPLEMENTED);
     } else {
       prepareErrorResponse(http::S_403_FORBIDDEN);
