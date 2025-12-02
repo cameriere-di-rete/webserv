@@ -74,6 +74,7 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   const std::string& method = conn.request.request_line.method;
   // Only GET and HEAD are allowed for autoindex
   if (method != "GET" && method != "HEAD") {
+    conn.response.addHeader("Allow", "GET, HEAD");
     conn.prepareErrorResponse(http::S_405_METHOD_NOT_ALLOWED);
     return HR_DONE;
   }
