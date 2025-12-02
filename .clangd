@@ -1,2 +1,9 @@
 CompileFlags:
   Add: [-std=c++98]
+
+---
+
+If:
+  PathMatch: .*_test\.cpp
+CompileFlags:
+  Add: [-std=c++11]
