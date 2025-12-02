@@ -1,0 +1,134 @@
+name: Code Coverage
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - '**/CMakeLists.txt'
+      - 'cmake/**'
+      - 'tests/**'
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install LLVM tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm clang
+
+      - name: Configure with coverage enabled
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=clang \
+            -DENABLE_COVERAGE=ON \
+            -DBUILD_TESTS=ON
+
+      - name: Build tests
+        run: cmake --build build --target runTests -- -j2
+
+      - name: Run tests and generate coverage data
+        run: |
+          cd build
+          LLVM_PROFILE_FILE="coverage.profraw" ./tests/runTests || true
+
+      - name: Merge and generate coverage report
+        id: coverage
+        run: |
+          cd build
+          llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
+
+          # Ignore test files in coverage report (they inflate coverage numbers)
+          IGNORE_REGEX='(_test\.cpp|test_main\.cpp|tests/)'
+
+          # Generate summary report
+          REPORT=$(llvm-cov report ./tests/runTests -instr-profile=coverage.profdata -ignore-filename-regex="$IGNORE_REGEX" 2>/dev/null || echo "Failed to generate report")
+
+          # Extract totals line (last line with TOTAL)
+          TOTAL_LINE=$(echo "$REPORT" | grep "^TOTAL" || echo "")
+
+          if [ -n "$TOTAL_LINE" ]; then
+            # Parse coverage percentages from TOTAL line
+            # Format: TOTAL  Regions  Miss  Cover  Functions  Miss  Cover  Lines  Miss  Cover  Branches  Miss  Cover
+            LINE_COV=$(echo "$TOTAL_LINE" | awk '{print $10}')
+            FUNC_COV=$(echo "$TOTAL_LINE" | awk '{print $7}')
+            REGION_COV=$(echo "$TOTAL_LINE" | awk '{print $4}')
+
+            echo "line_coverage=$LINE_COV" >> $GITHUB_OUTPUT
+            echo "function_coverage=$FUNC_COV" >> $GITHUB_OUTPUT
+            echo "region_coverage=$REGION_COV" >> $GITHUB_OUTPUT
+          else
+            echo "line_coverage=N/A" >> $GITHUB_OUTPUT
+            echo "function_coverage=N/A" >> $GITHUB_OUTPUT
+            echo "region_coverage=N/A" >> $GITHUB_OUTPUT
+          fi
+
+          # Save full report for the comment
+          echo "$REPORT" > coverage_report.txt
+
+          # Generate per-file summary (excluding test files)
+          llvm-cov report ./tests/runTests -instr-profile=coverage.profdata -ignore-filename-regex="$IGNORE_REGEX" --show-functions=false 2>/dev/null > coverage_files.txt || true
+
+      - name: Generate coverage comment
+        id: comment
+        run: |
+          cd build
+
+          # Build the markdown comment
+          {
+            echo "## 📊 Code Coverage Report"
+            echo ""
+            echo "| Metric | Coverage |"
+            echo "|--------|----------|"
+            echo "| Lines | ${{ steps.coverage.outputs.line_coverage }} |"
+            echo "| Functions | ${{ steps.coverage.outputs.function_coverage }} |"
+            echo "| Regions | ${{ steps.coverage.outputs.region_coverage }} |"
+            echo ""
+            echo "<details>"
+            echo "<summary>📁 Coverage by File</summary>"
+            echo ""
+            echo "\`\`\`"
+            # Show file coverage, limit to reasonable size
+            head -100 coverage_files.txt
+            if [ $(wc -l < coverage_files.txt) -gt 100 ]; then
+              echo "... (truncated)"
+            fi
+            echo "\`\`\`"
+            echo ""
+            echo "</details>"
+            echo ""
+            echo "*Coverage generated from commit ${{ github.event.pull_request.head.sha }}*"
+          } > comment.md
+
+          # Save comment body to output
+          {
+            echo 'body<<EOF'
+            cat comment.md
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+      - name: Find existing coverage comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '## 📊 Code Coverage Report'
+
+      - name: Create or update coverage comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.comment.outputs.body }}
+          edit-mode: replace
