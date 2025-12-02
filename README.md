@@ -18,7 +18,7 @@ The project uses **CMake** as the source of truth. Prefer using CMake for local 
 Recommended out-of-source workflow:
 
 ```bash
-# Configure the build directory (Release by default)
+# Configure the build directory in Release mode
 mkdir -p build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
