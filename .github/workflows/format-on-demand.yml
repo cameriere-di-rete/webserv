@@ -84,6 +84,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_REF: ${{ steps.comment-branch.outputs.head_ref }}
         run: |
+          set -e
           gh workflow run check-build.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
           gh workflow run check-lint.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
           gh workflow run check-makefile.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
