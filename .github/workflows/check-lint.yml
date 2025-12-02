@@ -12,6 +12,10 @@ on:
         description: 'Git ref to checkout'
         required: true
         type: string
+      pr_number:
+        description: 'Pull request number for posting comments'
+        required: false
+        type: string
 
 jobs:
   cpp-linter:
@@ -34,7 +38,8 @@ jobs:
           style: 'file'  # Use .clang-format config file
           tidy-checks: '' # Use .clang-tidy config file
           # only 'update' a single comment in a pull request thread.
-          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          # Enable for both pull_request events and workflow_dispatch with pr_number
+          thread-comments: ${{ (github.event_name == 'pull_request' || inputs.pr_number != '') && 'update' }}
           # Use compilation database for clang-tidy
           database: 'build'
 
