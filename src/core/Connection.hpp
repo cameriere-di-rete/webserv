@@ -5,10 +5,10 @@
 #include <cstddef>
 #include <string>
 
-#include "../handlers/IHandler.hpp"
-#include "../http/HttpStatus.hpp"
-#include "../http/Request.hpp"
-#include "../http/Response.hpp"
+#include "HttpStatus.hpp"
+#include "IHandler.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 
 class Connection {
  public:

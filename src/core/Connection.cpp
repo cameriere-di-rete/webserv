@@ -9,16 +9,16 @@
 #include <iostream>
 #include <sstream>
 
-#include "../config/Location.hpp"
-#include "../core/Server.hpp"
-#include "../handlers/AutoindexHandler.hpp"
-#include "../handlers/FileHandler.hpp"
-#include "../handlers/RedirectHandler.hpp"
-#include "../http/Body.hpp"
-#include "../http/HttpMethod.hpp"
-#include "../http/HttpStatus.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/constants.hpp"
+#include "AutoindexHandler.hpp"
+#include "Body.hpp"
+#include "FileHandler.hpp"
+#include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
+#include "Location.hpp"
+#include "Logger.hpp"
+#include "RedirectHandler.hpp"
+#include "Server.hpp"
+#include "constants.hpp"
 
 Connection::Connection()
     : fd(-1),
@@ -297,9 +297,6 @@ void Connection::processResponse(const Location& location) {
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
   }
-  // If hr == HR_ERROR then executeHandler prepared an error response and
-  // we've already returned; if HR_DONE, the handler was cleared and we
-  // continue to finish preparing/sending the response.
 }
 
 http::Status Connection::validateRequestForLocation(const Location& location) {

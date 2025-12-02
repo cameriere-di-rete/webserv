@@ -10,10 +10,10 @@
 #include <sstream>
 #include <vector>
 
-#include "../core/Connection.hpp"
-#include "../http/HttpStatus.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/constants.hpp"
+#include "Connection.hpp"
+#include "HttpStatus.hpp"
+#include "Logger.hpp"
+#include "constants.hpp"
 
 static std::string escapeHtml(const std::string& s) {
   std::string out;

@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "../config/Config.hpp"
-#include "../core/ServerManager.hpp"
-#include "../utils/Logger.hpp"
-#include "../utils/utils.hpp"
+#include "Config.hpp"
+#include "Logger.hpp"
+#include "ServerManager.hpp"
+#include "utils.hpp"
 
 int main(int argc, char** argv) {
   // run `./webserv -l:N` to choose the log level

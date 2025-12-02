@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../config/Location.hpp"
 #include "IHandler.hpp"
+#include "Location.hpp"
 
 class RedirectHandler : public IHandler {
  public:

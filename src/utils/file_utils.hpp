@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "../http/Response.hpp"
+#include "Response.hpp"
 
 struct FileInfo {
   int fd;

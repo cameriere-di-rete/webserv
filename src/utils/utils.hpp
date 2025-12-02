@@ -4,7 +4,7 @@
 #include <set>
 #include <string>
 
-#include "../http/HttpMethod.hpp"
+#include "HttpMethod.hpp"
 
 int set_nonblocking(int fd);
 

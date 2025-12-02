@@ -1,7 +1,7 @@
 #include "Location.hpp"
 
-#include "../utils/Logger.hpp"
-#include "../utils/utils.hpp"
+#include "Logger.hpp"
+#include "utils.hpp"
 
 Location::Location()
     : path(),

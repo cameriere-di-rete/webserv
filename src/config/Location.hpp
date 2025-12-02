@@ -4,8 +4,8 @@
 #include <set>
 #include <string>
 
-#include "../http/HttpMethod.hpp"
-#include "../http/HttpStatus.hpp"
+#include "HttpMethod.hpp"
+#include "HttpStatus.hpp"
 
 class Location {
  public:

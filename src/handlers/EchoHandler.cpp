@@ -2,9 +2,9 @@
 
 #include <sstream>
 
-#include "../core/Connection.hpp"
-#include "../http/Request.hpp"
-#include "../utils/constants.hpp"
+#include "Connection.hpp"
+#include "Request.hpp"
+#include "constants.hpp"
 
 EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}

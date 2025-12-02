@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-#include "../core/Server.hpp"
-#include "../http/HttpStatus.hpp"
 #include "BlockNode.hpp"
 #include "DirectiveNode.hpp"
+#include "HttpStatus.hpp"
+#include "Server.hpp"
 
 class Config {
  public:
