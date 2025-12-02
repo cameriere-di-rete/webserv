@@ -53,6 +53,8 @@ Log levels: 0=DEBUG, 1=INFO, 2=ERROR
 
 If no config file is specified, the default is `conf/default.conf`.
 
+For detailed configuration documentation, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
 ### Regenerating the Makefile
 
 The Makefile is generated from `CMakeLists.txt` using the `generate-makefile` target.
