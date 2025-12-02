@@ -84,6 +84,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_REF: ${{ steps.comment-branch.outputs.head_ref }}
         run: |
+          # Poll for commit existence to avoid race condition
+          for i in {1..5}; do
+            if gh api repos/${{ github.repository }}/commits/"$HEAD_REF" > /dev/null 2>&1; then
+              echo "Commit $HEAD_REF is available on GitHub."
+              break
+            else
+              echo "Commit $HEAD_REF not yet available. Retrying in 2 seconds... ($i/5)"
+              sleep 2
+            fi
+            if [ "$i" -eq 5 ]; then
+              echo "Commit $HEAD_REF not found after 5 attempts. Exiting."
+              exit 1
+            fi
+          done
           set -e
           gh workflow run check-build.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
           gh workflow run check-lint.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
