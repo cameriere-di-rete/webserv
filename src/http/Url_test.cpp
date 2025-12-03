@@ -257,6 +257,11 @@ TEST(UrlDecodedPathTests, EncodedSlash) {
   EXPECT_EQ(url.getDecodedPath(), "/path/to/file");
 }
 
+TEST(UrlDecodedPathTests, PlusCharactersInPath) {
+  Url url("/path+to+file");
+  EXPECT_EQ(url.getDecodedPath(), "/path+to+file");
+}
+
 // ==================== COPY AND ASSIGNMENT TESTS ====================
 
 TEST(UrlCopyTests, CopyConstructor) {
