@@ -15,6 +15,19 @@ include(GNUInstallDirs)
 # Use per-target compile options; apply common warnings consistently.
 set(COMMON_WARNINGS -Wall -Wextra -Werror)
 
+# Optionally enable coverage instrumentation (uses clang/llvm's coverage tools)
+option(ENABLE_COVERAGE "Enable coverage instrumentation (clang/llvm)" OFF)
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        message(STATUS "Enabling clang/llvm coverage instrumentation flags")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-instr-generate")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fprofile-instr-generate")
+    else()
+        message(WARNING "ENABLE_COVERAGE requested but compiler is not Clang. Coverage flags not added.")
+    endif()
+endif()
+
 enable_testing()
 
 # Add submodules (each subdir creates a library target and registers its .cpp files
@@ -41,6 +54,24 @@ add_executable(webserv src/core/main.cpp)
 target_link_libraries(webserv PRIVATE webserv_core webserv_http webserv_config webserv_handlers webserv_utils)
 target_include_directories(webserv PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(webserv PRIVATE ${COMMON_WARNINGS})
+
+# Automatically collect sources from executable targets and append them to
+# the global ALL_SOURCES property used by the standalone Makefile generator.
+get_target_property(_webserv_sources webserv SOURCES)
+if(_webserv_sources)
+    foreach(_s IN LISTS _webserv_sources)
+        if(_s MATCHES "\\.cpp$")
+            if(IS_ABSOLUTE "${_s}")
+                file(RELATIVE_PATH _relpath "${CMAKE_SOURCE_DIR}" "${_s}")
+            else()
+                set(_relpath "${_s}")
+            endif()
+            # Normalize to use forward slashes and append to the global list.
+            string(REPLACE "\\" "/" _relpath "${_relpath}")
+            set_property(GLOBAL APPEND PROPERTY ALL_SOURCES "${_relpath}")
+        endif()
+    endforeach()
+endif()
 
 if(BUILD_TESTS)
     add_subdirectory(tests)
