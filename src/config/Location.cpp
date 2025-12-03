@@ -1,7 +1,6 @@
 #include "Location.hpp"
 
 #include "Logger.hpp"
-#include "utils.hpp"
 
 Location::Location()
     : path(),
@@ -14,10 +13,6 @@ Location::Location()
       root(),
       error_page() {
   LOG(DEBUG) << "Location() default constructor called";
-  initDefaultHttpMethods(allow_methods);
-  LOG(DEBUG)
-      << "Location initialized with default allowed methods (GET, POST, PUT, "
-         "DELETE, HEAD)";
 }
 
 Location::Location(const std::string& p)
@@ -31,9 +26,6 @@ Location::Location(const std::string& p)
       root(),
       error_page() {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
-  initDefaultHttpMethods(allow_methods);
-  LOG(DEBUG) << "Location '" << path
-             << "' initialized with default allowed methods";
 }
 
 Location::Location(const Location& other)
