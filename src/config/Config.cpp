@@ -714,6 +714,17 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       throwUnrecognizedDirective_(d, "in location block");
     }
   }
+
+  // Validate: location cannot have both CGI and redirect
+  if (loc.cgi && loc.redirect_code != http::S_0_UNKNOWN) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "location '" << loc.path
+        << "' cannot have both 'cgi' and 'redirect' directives";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
+  }
+
   // clear location context (server context remains active in caller)
   current_location_path_.clear();
   LOG(DEBUG) << "Location block translation completed: " << loc.path;
