@@ -67,6 +67,11 @@ TEST(UrlParseTests, RootPath) {
   EXPECT_EQ(url.getPath(), "/");
 }
 
+TEST(UrlParseTests, EmptyPortString) {
+  Url url("http://example.com:/path");
+  EXPECT_FALSE(url.isValid());
+}
+
 // ==================== URL DECODING TESTS ====================
 
 TEST(UrlDecodeTests, NoEncoding) {
