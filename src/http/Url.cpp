@@ -73,12 +73,12 @@ bool Url::parse(const std::string& url) {
     // Check for port in authority
     std::size_t port_pos = authority.rfind(':');
     if (port_pos != std::string::npos) {
-      host_ = authority.substr(0, port_pos);
       std::string port_str = authority.substr(port_pos + 1);
       // Validate port string is not empty
       if (port_str.empty()) {
         return false;  // Invalid URL: empty port
       }
+      host_ = authority.substr(0, port_pos);
       // Parse port number
       port_ = 0;
       for (std::size_t i = 0; i < port_str.size(); ++i) {
