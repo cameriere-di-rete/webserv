@@ -48,8 +48,8 @@ jobs:
           cd build
           llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
 
-          # Ignore test files in coverage report (they inflate coverage numbers)
-          IGNORE_REGEX='(_test\.cpp|test_main\.cpp|tests/)'
+          # Ignore test files and build dependencies in coverage report
+          IGNORE_REGEX='(_test\.cpp|test_main\.cpp|tests/|_deps)'
 
           # Generate summary report
           REPORT=$(llvm-cov report ./tests/runTests -instr-profile=coverage.profdata -ignore-filename-regex="$IGNORE_REGEX" 2>/dev/null || echo "Failed to generate report")
