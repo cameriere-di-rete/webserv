@@ -10,6 +10,12 @@ on:
       - '**/CMakeLists.txt'
       - 'cmake/**'
       - 'Makefile'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to checkout'
+        required: true
+        type: string
 
 jobs:
   compile:
@@ -19,6 +25,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Configure and build with CMake
         run: |

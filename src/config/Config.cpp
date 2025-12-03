@@ -681,8 +681,9 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex") {
       requireArgsEqual_(d, 1);
-      loc.autoindex = parseBooleanValue_(d.args[0]);
-      LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
+      loc.autoindex = parseBooleanValue_(d.args[0]) ? ON : OFF;
+      LOG(DEBUG) << "  Location autoindex: "
+                 << (loc.autoindex == ON ? "on" : "off");
     } else if (d.name == "allow_methods") {
       requireArgsAtLeast_(d, 1);
       loc.allow_methods = parseMethods(d.args);
@@ -709,10 +710,25 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else if (d.name == "max_request_body") {
+      requireArgsEqual_(d, 1);
+      loc.max_request_body = parsePositiveNumber_(d.args[0]);
+      LOG(DEBUG) << "  Location max_request_body: " << loc.max_request_body;
     } else {
       throwUnrecognizedDirective_(d, "in location block");
     }
   }
+
+  // Validate: location cannot have both CGI and redirect
+  if (loc.cgi && loc.redirect_code != http::S_0_UNKNOWN) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "location '" << loc.path
+        << "' cannot have both 'cgi' and 'redirect' directives";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
+  }
+
   // clear location context (server context remains active in caller)
   current_location_path_.clear();
   LOG(DEBUG) << "Location block translation completed: " << loc.path;
