@@ -218,6 +218,14 @@ TEST(UrlNormalizeTests, RootPath) {
   EXPECT_EQ(Url::normalizePath("/"), "/");
 }
 
+TEST(UrlNormalizeTests, TrailingSlashPreserved) {
+  EXPECT_EQ(Url::normalizePath("/a/b/"), "/a/b/");
+}
+
+TEST(UrlNormalizeTests, TrailingSlashWithDoubleDots) {
+  EXPECT_EQ(Url::normalizePath("/a/b/../c/"), "/a/c/");
+}
+
 // ==================== SERIALIZATION TESTS ====================
 
 TEST(UrlSerializeTests, SimplePath) {
