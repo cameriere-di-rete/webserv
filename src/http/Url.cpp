@@ -88,10 +88,6 @@ bool Url::parse(const std::string& url) {
         }
         port_ = port_ * 10 + digit;
       }
-      // Final check to ensure port is within valid range
-      if (port_ > 65535) {
-        return false;
-      }
     } else {
       host_ = authority;
     }
