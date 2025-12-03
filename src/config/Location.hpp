@@ -27,4 +27,5 @@ class Location {
   bool autoindex;
   std::string root;
   std::map<http::Status, std::string> error_page;
+  std::size_t max_request_body;
 };

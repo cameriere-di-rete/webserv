@@ -12,7 +12,8 @@ Location::Location()
       index(),
       autoindex(false),
       root(),
-      error_page() {
+      error_page(),
+      max_request_body(0) {
   LOG(DEBUG) << "Location() default constructor called";
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG)
@@ -29,7 +30,8 @@ Location::Location(const std::string& p)
       index(),
       autoindex(false),
       root(),
-      error_page() {
+      error_page(),
+      max_request_body(0) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
   initDefaultHttpMethods(allow_methods);
   LOG(DEBUG) << "Location '" << path
@@ -45,7 +47,8 @@ Location::Location(const Location& other)
       index(other.index),
       autoindex(other.autoindex),
       root(other.root),
-      error_page(other.error_page) {}
+      error_page(other.error_page),
+      max_request_body(other.max_request_body) {}
 
 Location& Location::operator=(const Location& other) {
   if (this != &other) {
@@ -58,6 +61,7 @@ Location& Location::operator=(const Location& other) {
     autoindex = other.autoindex;
     root = other.root;
     error_page = other.error_page;
+    max_request_body = other.max_request_body;
   }
   return *this;
 }
