@@ -67,6 +67,35 @@ TEST(UrlParseTests, RootPath) {
   EXPECT_EQ(url.getPath(), "/");
 }
 
+// ==================== PORT VALIDATION TESTS ====================
+
+TEST(UrlParseTests, InvalidPortWithNonDigits) {
+  Url url("http://example.com:abc/path");
+  EXPECT_FALSE(url.isValid());
+}
+
+TEST(UrlParseTests, PortOverflow) {
+  Url url("http://example.com:999999999999999999999/path");
+  EXPECT_FALSE(url.isValid());
+}
+
+TEST(UrlParseTests, PortOutOfValidRange) {
+  Url url("http://example.com:99999/path");
+  EXPECT_FALSE(url.isValid());
+}
+
+TEST(UrlParseTests, ValidPortAtMaxRange) {
+  Url url("http://example.com:65535/path");
+  EXPECT_TRUE(url.isValid());
+  EXPECT_EQ(url.getPort(), 65535);
+}
+
+TEST(UrlParseTests, ValidPortAtMinRange) {
+  Url url("http://example.com:0/path");
+  EXPECT_TRUE(url.isValid());
+  EXPECT_EQ(url.getPort(), 0);
+}
+
 // ==================== URL DECODING TESTS ====================
 
 TEST(UrlDecodeTests, NoEncoding) {

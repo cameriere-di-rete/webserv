@@ -81,7 +81,16 @@ bool Url::parse(const std::string& url) {
         if (!std::isdigit(static_cast<unsigned char>(port_str[i]))) {
           return false;  // Invalid port
         }
-        port_ = port_ * 10 + (port_str[i] - '0');
+        int digit = port_str[i] - '0';
+        // Check for overflow before multiplication
+        if (port_ > 6553 || (port_ == 6553 && digit > 5)) {
+          return false;  // Port overflow or out of range (max 65535)
+        }
+        port_ = port_ * 10 + digit;
+      }
+      // Final check to ensure port is within valid range
+      if (port_ > 65535) {
+        return false;
       }
     } else {
       host_ = authority;
