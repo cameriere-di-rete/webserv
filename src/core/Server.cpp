@@ -185,7 +185,7 @@ Location Server::matchLocation(const std::string& path) const {
   if (result.index.empty()) {
     result.index = index;
   }
-  if (!result.allow_methods_set) {
+  if (result.allow_methods.empty()) {
     result.allow_methods = allow_methods;
   }
   if (result.error_page.empty()) {
