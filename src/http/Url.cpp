@@ -220,7 +220,7 @@ char Url::intToHex(int n) {
   return '0';
 }
 
-std::string Url::decode(const std::string& str) {
+std::string Url::decode(const std::string& str, bool decodePlusAsSpace) {
   std::string result;
   result.reserve(str.size());
 
@@ -234,7 +234,7 @@ std::string Url::decode(const std::string& str) {
         continue;
       }
     }
-    if (str[i] == '+') {
+    if (str[i] == '+' && decodePlusAsSpace) {
       result += ' ';
     } else {
       result += str[i];

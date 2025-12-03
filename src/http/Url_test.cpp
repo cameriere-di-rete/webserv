@@ -74,7 +74,7 @@ TEST(UrlDecodeTests, NoEncoding) {
 }
 
 TEST(UrlDecodeTests, SpaceAsPlus) {
-  EXPECT_EQ(Url::decode("hello+world"), "hello world");
+  EXPECT_EQ(Url::decode("hello+world", true), "hello world");
 }
 
 TEST(UrlDecodeTests, PercentEncodedSpace) {
