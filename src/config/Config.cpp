@@ -682,8 +682,9 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       LOG(DEBUG) << "  Location index files: " << d.args.size() << " file(s)";
     } else if (d.name == "autoindex") {
       requireArgsEqual_(d, 1);
-      loc.autoindex = parseBooleanValue_(d.args[0]);
-      LOG(DEBUG) << "  Location autoindex: " << (loc.autoindex ? "on" : "off");
+      loc.autoindex = parseBooleanValue_(d.args[0]) ? ON : OFF;
+      LOG(DEBUG) << "  Location autoindex: "
+                 << (loc.autoindex == ON ? "on" : "off");
     } else if (d.name == "allow_methods") {
       requireArgsAtLeast_(d, 1);
       loc.allow_methods = parseMethods(d.args);
