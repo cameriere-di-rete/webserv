@@ -155,7 +155,7 @@ std::string Url::getFragment() const {
 }
 
 std::string Url::getDecodedPath() const {
-  return decode(path_);
+  return decodePath(path_);
 }
 
 bool Url::hasPathTraversal() const {
@@ -226,6 +226,12 @@ char Url::intToHex(int n) {
 }
 
 std::string Url::decode(const std::string& str) {
+  // Legacy function - defaults to query string decoding for backward
+  // compatibility
+  return decodeQuery(str);
+}
+
+std::string Url::decodePath(const std::string& str) {
   std::string result;
   result.reserve(str.size());
 
@@ -239,6 +245,28 @@ std::string Url::decode(const std::string& str) {
         continue;
       }
     }
+    // In URL paths, '+' is a literal character, not a space
+    result += str[i];
+  }
+
+  return result;
+}
+
+std::string Url::decodeQuery(const std::string& str) {
+  std::string result;
+  result.reserve(str.size());
+
+  for (std::size_t i = 0; i < str.size(); ++i) {
+    if (str[i] == '%' && i + 2 < str.size()) {
+      int high = hexToInt(str[i + 1]);
+      int low = hexToInt(str[i + 2]);
+      if (high >= 0 && low >= 0) {
+        result += static_cast<char>((high << 4) | low);
+        i += 2;
+        continue;
+      }
+    }
+    // In query strings (application/x-www-form-urlencoded), '+' is a space
     if (str[i] == '+') {
       result += ' ';
     } else {
@@ -275,7 +303,7 @@ std::string Url::normalizePath(const std::string& path) {
   }
 
   // Decode the path first
-  std::string decoded = decode(path);
+  std::string decoded = decodePath(path);
 
   // Split path into segments
   std::vector<std::string> segments;
