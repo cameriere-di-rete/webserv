@@ -24,6 +24,7 @@ SOURCES	:=	src/http/Body.cpp \
 			src/config/DirectiveNode.cpp \
 			src/config/Location.cpp \
 			src/handlers/IHandler.cpp \
+			src/handlers/AutoindexHandler.cpp \
 			src/handlers/EchoHandler.cpp \
 			src/handlers/FileHandler.cpp \
 			src/handlers/RedirectHandler.cpp \

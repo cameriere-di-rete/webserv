@@ -8,7 +8,6 @@
 
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
 #include "Logger.hpp"
 #include "constants.hpp"
