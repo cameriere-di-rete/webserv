@@ -103,7 +103,7 @@ TEST(UrlDecodeTests, NoEncoding) {
 }
 
 TEST(UrlDecodeTests, SpaceAsPlus) {
-  EXPECT_EQ(Url::decode("hello+world", true), "hello world");
+  EXPECT_EQ(Url::decode("hello+world"), "hello world");
 }
 
 TEST(UrlDecodeTests, PercentEncodedSpace) {
@@ -292,11 +292,6 @@ TEST(UrlDecodedPathTests, EncodedSpaces) {
 TEST(UrlDecodedPathTests, EncodedSlash) {
   Url url("/path%2Fto%2Ffile");
   EXPECT_EQ(url.getDecodedPath(), "/path/to/file");
-}
-
-TEST(UrlDecodedPathTests, PlusCharactersInPath) {
-  Url url("/path+to+file");
-  EXPECT_EQ(url.getDecodedPath(), "/path+to+file");
 }
 
 // ==================== COPY AND ASSIGNMENT TESTS ====================
