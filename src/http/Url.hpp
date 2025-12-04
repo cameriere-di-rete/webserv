@@ -140,6 +140,15 @@ class Url {
    * @return The hex character ('0'-'9', 'A'-'F')
    */
   static char intToHex(int n);
+
+  /**
+   * Internal URL decoding helper with configurable plus handling.
+   * @param str The string to decode
+   * @param plusAsSpace Whether to treat '+' as space (true for query strings,
+   * false for paths)
+   * @return The decoded string
+   */
+  static std::string decodeInternal(const std::string& str, bool plusAsSpace);
 };
 
 }  // namespace http
