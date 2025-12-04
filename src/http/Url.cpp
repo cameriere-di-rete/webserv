@@ -326,8 +326,8 @@ std::string Url::normalizePath(const std::string& path) {
   }
 
   // Preserve trailing slash if original had it and result isn't just "/"
-  if (result.size() > 1 && !decoded.empty() &&
-      decoded[decoded.size() - 1] == '/') {
+  // Check the original path, not decoded, since %2F is data, not a delimiter
+  if (result.size() > 1 && !path.empty() && path[path.size() - 1] == '/') {
     result += "/";
   }
 
