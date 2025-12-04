@@ -124,13 +124,8 @@ HandlerResult CgiHandler::start(Connection& conn) {
     const char* script_c = script_exec.c_str();
     execl(script_c, script_name.c_str(), (char*)NULL);
 
-    // If we reach here, exec failed - write error to stderr
-    const char* error_msg = "CGI exec failed\n";
-    write(STDERR_FILENO, error_msg, strlen(error_msg));
-    // Explicitly close pipe file descriptors before exiting
-    close(pipe_to_cgi[0]);
-    close(pipe_from_cgi[1]);
-    exit(127);
+    // If we reach here, exec failed
+    exit(EXIT_NOT_FOUND);
   }
 
   // Parent process
@@ -190,7 +185,7 @@ HandlerResult CgiHandler::resume(Connection& conn) {
 }
 
 HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
-  char buffer[4096];
+  char buffer[WRITE_BUF_SIZE];
   ssize_t bytes_read;
 
   // Read available output from CGI (non-blocking)
@@ -228,8 +223,12 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   script_pid_ = -1;
 
   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-    LOG(ERROR) << "CGI script exited with error status: "
-               << WEXITSTATUS(status);
+    int exit_code = WEXITSTATUS(status);
+    if (exit_code == EXIT_NOT_FOUND) {
+      LOG(ERROR) << "CGI exec failed: command not found for " << script_path_;
+    } else {
+      LOG(ERROR) << "CGI script exited with error status: " << exit_code;
+    }
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
@@ -309,7 +308,7 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
           if (space != std::string::npos) {
             int status_code = atoi(value.substr(0, space).c_str());
             conn.response.status_line.status_code =
-                static_cast<http::Status>(status_code);
+                http::intToStatus(status_code);
             conn.response.status_line.reason = value.substr(space + 1);
           }
         } else {
