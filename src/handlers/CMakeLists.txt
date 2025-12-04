@@ -1,7 +1,9 @@
 set(HANDLER_SOURCES
+  IHandler.cpp
   EchoHandler.cpp
   FileHandler.cpp
   RedirectHandler.cpp
+  CgiHandler.cpp
 )
 
 foreach(f IN LISTS HANDLER_SOURCES)
