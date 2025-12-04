@@ -4,6 +4,8 @@
 #include <sstream>
 #include <vector>
 
+#include "utils/utils.hpp"
+
 namespace http {
 
 Url::Url() : port_(-1), valid_(false) {}
@@ -79,19 +81,16 @@ bool Url::parse(const std::string& url) {
         return false;  // Invalid URL: empty port
       }
       host_ = authority.substr(0, port_pos);
-      // Parse port number
-      port_ = 0;
-      for (std::size_t i = 0; i < port_str.size(); ++i) {
-        if (!std::isdigit(static_cast<unsigned char>(port_str[i]))) {
-          return false;  // Invalid port
-        }
-        int digit = port_str[i] - '0';
-        // Check for overflow before multiplication
-        if (port_ > 6553 || (port_ == 6553 && digit > 5)) {
-          return false;  // Port overflow or out of range (max 65535)
-        }
-        port_ = port_ * 10 + digit;
+      // Parse port number using safeStrtoll
+      long long port_val;
+      if (!safeStrtoll(port_str, port_val)) {
+        return false;  // Invalid port format or overflow
       }
+      // Validate port range (0-65535)
+      if (port_val < 0 || port_val > 65535) {
+        return false;  // Port out of valid range
+      }
+      port_ = static_cast<int>(port_val);
     } else {
       host_ = authority;
     }
