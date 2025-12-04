@@ -79,8 +79,25 @@ class Url {
    * URL-decode a string (percent-decoding).
    * @param str The string to decode
    * @return The decoded string
+   * @deprecated Use decodePath() or decodeQuery() instead
    */
   static std::string decode(const std::string& str);
+
+  /**
+   * URL-decode a path string (percent-decoding).
+   * '+' characters are treated as literal '+', not as spaces.
+   * @param str The path string to decode
+   * @return The decoded path string
+   */
+  static std::string decodePath(const std::string& str);
+
+  /**
+   * URL-decode a query string (percent-decoding).
+   * '+' characters are converted to spaces (application/x-www-form-urlencoded).
+   * @param str The query string to decode
+   * @return The decoded query string
+   */
+  static std::string decodeQuery(const std::string& str);
 
   /**
    * URL-encode a string (percent-encoding).
@@ -123,6 +140,15 @@ class Url {
    * @return The hex character ('0'-'9', 'A'-'F')
    */
   static char intToHex(int n);
+
+  /**
+   * Internal URL decoding helper with configurable plus handling.
+   * @param str The string to decode
+   * @param plusAsSpace Whether to treat '+' as space (true for query strings,
+   * false for paths)
+   * @return The decoded string
+   */
+  static std::string decodeInternal(const std::string& str, bool plusAsSpace);
 };
 
 }  // namespace http
