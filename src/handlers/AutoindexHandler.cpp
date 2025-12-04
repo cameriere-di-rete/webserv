@@ -1,4 +1,3 @@
-
 #include "AutoindexHandler.hpp"
 
 #include <dirent.h>
