@@ -78,12 +78,9 @@ class Url {
   /**
    * URL-decode a string (percent-decoding).
    * @param str The string to decode
-   * @param decodePlusAsSpace If true, '+' is decoded as space (for query
-   * strings). If false, '+' remains as '+' (for URL paths). Default is false.
    * @return The decoded string
    */
-  static std::string decode(const std::string& str,
-                            bool decodePlusAsSpace = false);
+  static std::string decode(const std::string& str);
 
   /**
    * URL-encode a string (percent-encoding).
