@@ -303,51 +303,15 @@ int ServerManager::run() {
         continue;
       }
 
-      // Extract body from read_buffer (after "\r\n\r\n")
-      std::size_t body_start = conn.headers_end_pos + 4;
-      // Check for Content-Length header
-      std::string content_length_str;
-      std::size_t expected_body_length = 0;
-      bool has_content_length = false;
-      if (conn.request.getHeader("Content-Length", content_length_str)) {
-        // C++98 compatible: use atol instead of std::stoul
-        long content_len = std::atol(content_length_str.c_str());
-        if (content_len < 0) {
-          // Malformed Content-Length header
-          LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
-                    << ", sending 400 Bad Request";
-          conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-          updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-          continue;
-        }
-        expected_body_length = static_cast<std::size_t>(content_len);
-        has_content_length = true;
-      }
-      std::size_t available_body_length =
-          (body_start < conn.read_buffer.size())
-              ? (conn.read_buffer.size() - body_start)
-              : 0;
-      if (has_content_length) {
-        if (available_body_length < expected_body_length) {
-          // Body not fully received yet, wait for more data
-          continue;
-        } else if (available_body_length > expected_body_length) {
-          // More data than expected, only use expected length
-          std::string body_data =
-              conn.read_buffer.substr(body_start, expected_body_length);
-          conn.request.getBody().data = body_data;
-        } else {
-          // Exact match
-          std::string body_data =
-              conn.read_buffer.substr(body_start, expected_body_length);
-          conn.request.getBody().data = body_data;
-        }
-      } else {
-        // No Content-Length header, use all available data
-        if (available_body_length > 0) {
-          std::string body_data = conn.read_buffer.substr(body_start);
-          conn.request.getBody().data = body_data;
-        }
+      // Extract and validate request body
+      int body_result = extractRequestBody(conn, conn_fd);
+      if (body_result < 0) {
+        // Error occurred, response already prepared
+        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        continue;
+      } else if (body_result == 0) {
+        // Body not fully received yet, wait for more data
+        continue;
       }
 
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
@@ -377,7 +341,15 @@ int ServerManager::run() {
           // Register CGI pipe for epoll monitoring
           LOG(DEBUG) << "Registering CGI pipe fd " << monitor_fd
                      << " for connection fd " << conn_fd;
-          registerCgiPipe(monitor_fd, conn_fd);
+          if (!registerCgiPipe(monitor_fd, conn_fd)) {
+            // Failed to register pipe, send 500 error
+            LOG(ERROR) << "Failed to register CGI pipe for connection fd "
+                       << conn_fd;
+            conn.clearHandler();
+            conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+            updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+            continue;
+          }
           // Don't enable EPOLLOUT yet - wait for CGI to complete
           continue;
         }
@@ -495,7 +467,7 @@ void ServerManager::shutdown() {
   LOG(INFO) << "ServerManager shutdown complete";
 }
 
-void ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
+bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
   struct epoll_event ev;
@@ -505,7 +477,9 @@ void ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD CGI pipe");
     cgi_pipe_to_conn_.erase(pipe_fd);
+    return false;
   }
+  return true;
 }
 
 void ServerManager::unregisterCgiPipe(int pipe_fd) {
@@ -577,4 +551,52 @@ void ServerManager::cleanupHandlerResources(Connection& c) {
       unregisterCgiPipe(monitor_fd);
     }
   }
+}
+
+int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
+  // Extract body from read_buffer (after "\r\n\r\n")
+  std::size_t body_start = conn.headers_end_pos + 4;
+
+  // Check for Content-Length header
+  std::string content_length_str;
+  std::size_t expected_body_length = 0;
+  bool has_content_length = false;
+
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    // C++98 compatible: use atol instead of std::stoul
+    long content_len = std::atol(content_length_str.c_str());
+    if (content_len < 0) {
+      // Malformed Content-Length header
+      LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
+                << ", sending 400 Bad Request";
+      conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return -1;
+    }
+    expected_body_length = static_cast<std::size_t>(content_len);
+    has_content_length = true;
+  }
+
+  std::size_t available_body_length =
+      (body_start < conn.read_buffer.size())
+          ? (conn.read_buffer.size() - body_start)
+          : 0;
+
+  if (has_content_length) {
+    if (available_body_length < expected_body_length) {
+      // Body not fully received yet, wait for more data
+      return 0;
+    }
+    // Use exactly the expected length (handles both exact match and excess)
+    std::string body_data =
+        conn.read_buffer.substr(body_start, expected_body_length);
+    conn.request.getBody().data = body_data;
+  } else {
+    // No Content-Length header, use all available data
+    if (available_body_length > 0) {
+      std::string body_data = conn.read_buffer.substr(body_start);
+      conn.request.getBody().data = body_data;
+    }
+  }
+
+  return 1;  // Body ready
 }

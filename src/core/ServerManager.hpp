@@ -22,13 +22,17 @@ class ServerManager {
   std::map<int, int> cgi_pipe_to_conn_;
 
   // Register a CGI pipe FD with epoll for monitoring
-  void registerCgiPipe(int pipe_fd, int conn_fd);
+  // Returns true on success, false on error
+  bool registerCgiPipe(int pipe_fd, int conn_fd);
   // Unregister a CGI pipe FD from epoll
   void unregisterCgiPipe(int pipe_fd);
   // Handle CGI pipe events (called when pipe is readable)
   void handleCgiPipeEvent(int pipe_fd);
   // Clean up handler resources (CGI pipes) for a connection before closing
   void cleanupHandlerResources(Connection& c);
+  // Extract and validate request body from read buffer
+  // Returns: 1 = body ready, 0 = need more data, -1 = error (response prepared)
+  int extractRequestBody(Connection& conn, int conn_fd);
 
  public:
   ServerManager();
