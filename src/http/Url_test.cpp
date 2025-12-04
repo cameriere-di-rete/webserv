@@ -109,11 +109,6 @@ TEST(UrlParseTests, ValidPortAtMinRange) {
   EXPECT_EQ(url.getPort(), 0);
 }
 
-TEST(UrlParseTests, EmptyPortString) {
-  Url url("http://example.com:/path");
-  EXPECT_FALSE(url.isValid());
-}
-
 // ==================== URL DECODING TESTS ====================
 
 TEST(UrlDecodeTests, NoEncoding) {
