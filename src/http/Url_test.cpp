@@ -36,6 +36,14 @@ TEST(UrlParseTests, PathWithQueryAndFragment) {
   EXPECT_EQ(url.getFragment(), "top");
 }
 
+TEST(UrlParseTests, FragmentInQueryString) {
+  Url url("/path?foo=bar#anchor");
+  EXPECT_TRUE(url.isValid());
+  EXPECT_EQ(url.getPath(), "/path");
+  EXPECT_EQ(url.getQuery(), "foo=bar");
+  EXPECT_EQ(url.getFragment(), "anchor");
+}
+
 TEST(UrlParseTests, FullUrl) {
   Url url("http://example.com:8080/path?query=1#frag");
   EXPECT_TRUE(url.isValid());
@@ -94,6 +102,11 @@ TEST(UrlParseTests, ValidPortAtMinRange) {
   Url url("http://example.com:0/path");
   EXPECT_TRUE(url.isValid());
   EXPECT_EQ(url.getPort(), 0);
+}
+
+TEST(UrlParseTests, EmptyPortString) {
+  Url url("http://example.com:/path");
+  EXPECT_FALSE(url.isValid());
 }
 
 // ==================== URL DECODING TESTS ====================
