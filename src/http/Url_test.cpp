@@ -69,6 +69,11 @@ TEST(UrlParseTests, RootPath) {
 
 // ==================== PORT VALIDATION TESTS ====================
 
+TEST(UrlParseTests, EmptyPortString) {
+  Url url("http://example.com:/path");
+  EXPECT_FALSE(url.isValid());
+}
+
 TEST(UrlParseTests, InvalidPortWithNonDigits) {
   Url url("http://example.com:abc/path");
   EXPECT_FALSE(url.isValid());
