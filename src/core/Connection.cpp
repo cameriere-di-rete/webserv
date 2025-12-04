@@ -210,6 +210,13 @@ void Connection::processRequest(const Server& server) {
   // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
+  // 4. Process response based on location
+  processResponse(location);
+}
+
+void Connection::processResponse(const Location& location) {
+  LOG(DEBUG) << "Processing response for fd: " << fd;
+
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();
 
@@ -219,13 +226,6 @@ void Connection::processRequest(const Server& server) {
     prepareErrorResponse(vstat);
     return;
   }
-
-  // 4. Process response based on location
-  processResponse(location);
-}
-
-void Connection::processResponse(const Location& location) {
-  LOG(DEBUG) << "Processing response for fd: " << fd;
 
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
