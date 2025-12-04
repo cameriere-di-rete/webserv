@@ -73,12 +73,12 @@ bool Url::parse(const std::string& url) {
     // Check for port in authority
     std::size_t port_pos = authority.rfind(':');
     if (port_pos != std::string::npos) {
-      host_ = authority.substr(0, port_pos);
       std::string port_str = authority.substr(port_pos + 1);
-      // Validate that port string is not empty
+      // Validate port string is not empty
       if (port_str.empty()) {
-        return false;  // Empty port string is invalid
+        return false;  // Invalid URL: empty port
       }
+      host_ = authority.substr(0, port_pos);
       // Parse port number
       port_ = 0;
       for (std::size_t i = 0; i < port_str.size(); ++i) {
@@ -159,7 +159,7 @@ std::string Url::getFragment() const {
 }
 
 std::string Url::getDecodedPath() const {
-  return decode(path_);
+  return decodePath(path_);
 }
 
 bool Url::hasPathTraversal() const {
@@ -229,7 +229,7 @@ char Url::intToHex(int n) {
   return '0';
 }
 
-std::string Url::decode(const std::string& str) {
+std::string Url::decodeInternal(const std::string& str, bool plusAsSpace) {
   std::string result;
   result.reserve(str.size());
 
@@ -243,7 +243,7 @@ std::string Url::decode(const std::string& str) {
         continue;
       }
     }
-    if (str[i] == '+') {
+    if (str[i] == '+' && plusAsSpace) {
       result += ' ';
     } else {
       result += str[i];
@@ -251,6 +251,20 @@ std::string Url::decode(const std::string& str) {
   }
 
   return result;
+}
+
+std::string Url::decode(const std::string& str) {
+  // Legacy function - defaults to query string decoding for backward
+  // compatibility
+  return decodeQuery(str);
+}
+
+std::string Url::decodePath(const std::string& str) {
+  return decodeInternal(str, false);
+}
+
+std::string Url::decodeQuery(const std::string& str) {
+  return decodeInternal(str, true);
 }
 
 std::string Url::encode(const std::string& str) {
@@ -279,7 +293,7 @@ std::string Url::normalizePath(const std::string& path) {
   }
 
   // Decode the path first
-  std::string decoded = decode(path);
+  std::string decoded = decodePath(path);
 
   // Split path into segments
   std::vector<std::string> segments;
@@ -330,8 +344,8 @@ std::string Url::normalizePath(const std::string& path) {
   }
 
   // Preserve trailing slash if original had it and result isn't just "/"
-  if (result.size() > 1 && !decoded.empty() &&
-      decoded[decoded.size() - 1] == '/') {
+  // Check the original path, not decoded, since %2F is data, not a delimiter
+  if (result.size() > 1 && !path.empty() && path[path.size() - 1] == '/') {
     result += "/";
   }
 

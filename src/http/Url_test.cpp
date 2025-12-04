@@ -77,6 +77,11 @@ TEST(UrlParseTests, RootPath) {
 
 // ==================== PORT VALIDATION TESTS ====================
 
+TEST(UrlParseTests, EmptyPortString) {
+  Url url("http://example.com:/path");
+  EXPECT_FALSE(url.isValid());
+}
+
 TEST(UrlParseTests, InvalidPortWithNonDigits) {
   Url url("http://example.com:abc/path");
   EXPECT_FALSE(url.isValid());
@@ -149,6 +154,91 @@ TEST(UrlDecodeTests, SpecialCharacters) {
   EXPECT_EQ(Url::decode("%21"), "!");
   EXPECT_EQ(Url::decode("%40"), "@");
   EXPECT_EQ(Url::decode("%23"), "#");
+}
+
+// ==================== PATH DECODING TESTS ====================
+
+TEST(UrlDecodePathTests, NoEncoding) {
+  EXPECT_EQ(Url::decodePath("hello"), "hello");
+}
+
+TEST(UrlDecodePathTests, PlusStaysAsPlus) {
+  // In paths, '+' should remain as '+', not be converted to space
+  EXPECT_EQ(Url::decodePath("hello+world"), "hello+world");
+  EXPECT_EQ(Url::decodePath("/path/file+name.txt"), "/path/file+name.txt");
+  EXPECT_EQ(Url::decodePath("/c++/tutorial"), "/c++/tutorial");
+}
+
+TEST(UrlDecodePathTests, PercentEncodedSpace) {
+  EXPECT_EQ(Url::decodePath("hello%20world"), "hello world");
+  EXPECT_EQ(Url::decodePath("/path%20to%20file"), "/path to file");
+}
+
+TEST(UrlDecodePathTests, PercentEncodedPlus) {
+  // Percent-encoded plus should decode to '+'
+  EXPECT_EQ(Url::decodePath("hello%2Bworld"), "hello+world");
+}
+
+TEST(UrlDecodePathTests, PercentEncodedDot) {
+  EXPECT_EQ(Url::decodePath("%2e"), ".");
+  EXPECT_EQ(Url::decodePath("%2E"), ".");
+}
+
+TEST(UrlDecodePathTests, PercentEncodedDoubleDot) {
+  EXPECT_EQ(Url::decodePath("%2e%2e"), "..");
+  EXPECT_EQ(Url::decodePath("%2E%2E"), "..");
+}
+
+TEST(UrlDecodePathTests, MixedEncoding) {
+  EXPECT_EQ(Url::decodePath("/path%2Fto%2Fresource"), "/path/to/resource");
+}
+
+TEST(UrlDecodePathTests, InvalidPercentSequence) {
+  EXPECT_EQ(Url::decodePath("%GG"), "%GG");
+  EXPECT_EQ(Url::decodePath("%2"), "%2");
+}
+
+TEST(UrlDecodePathTests, SpecialCharacters) {
+  EXPECT_EQ(Url::decodePath("%21"), "!");
+  EXPECT_EQ(Url::decodePath("%40"), "@");
+  EXPECT_EQ(Url::decodePath("%23"), "#");
+}
+
+// ==================== QUERY STRING DECODING TESTS ====================
+
+TEST(UrlDecodeQueryTests, NoEncoding) {
+  EXPECT_EQ(Url::decodeQuery("hello"), "hello");
+}
+
+TEST(UrlDecodeQueryTests, PlusAsSpace) {
+  // In query strings, '+' should be converted to space
+  EXPECT_EQ(Url::decodeQuery("hello+world"), "hello world");
+  EXPECT_EQ(Url::decodeQuery("first+name"), "first name");
+  EXPECT_EQ(Url::decodeQuery("a+b+c"), "a b c");
+}
+
+TEST(UrlDecodeQueryTests, PercentEncodedSpace) {
+  EXPECT_EQ(Url::decodeQuery("hello%20world"), "hello world");
+}
+
+TEST(UrlDecodeQueryTests, PercentEncodedPlus) {
+  // Percent-encoded plus should decode to '+'
+  EXPECT_EQ(Url::decodeQuery("one%2Btwo"), "one+two");
+}
+
+TEST(UrlDecodeQueryTests, MixedSpaceEncoding) {
+  // Both '+' and '%20' should decode to space
+  EXPECT_EQ(Url::decodeQuery("hello+world%20test"), "hello world test");
+}
+
+TEST(UrlDecodeQueryTests, PercentEncodedSpecialChars) {
+  EXPECT_EQ(Url::decodeQuery("key%3Dvalue"), "key=value");
+  EXPECT_EQ(Url::decodeQuery("a%26b"), "a&b");
+}
+
+TEST(UrlDecodeQueryTests, InvalidPercentSequence) {
+  EXPECT_EQ(Url::decodeQuery("%GG"), "%GG");
+  EXPECT_EQ(Url::decodeQuery("%2"), "%2");
 }
 
 // ==================== URL ENCODING TESTS ====================
@@ -305,6 +395,18 @@ TEST(UrlDecodedPathTests, EncodedSpaces) {
 TEST(UrlDecodedPathTests, EncodedSlash) {
   Url url("/path%2Fto%2Ffile");
   EXPECT_EQ(url.getDecodedPath(), "/path/to/file");
+}
+
+TEST(UrlDecodedPathTests, PlusRemainsAsPlus) {
+  // '+' in paths should remain as '+', not be decoded to space
+  Url url("/path/file+name.txt");
+  EXPECT_EQ(url.getDecodedPath(), "/path/file+name.txt");
+}
+
+TEST(UrlDecodedPathTests, EncodedPlus) {
+  // Percent-encoded '+' should decode to '+'
+  Url url("/path/file%2Bname.txt");
+  EXPECT_EQ(url.getDecodedPath(), "/path/file+name.txt");
 }
 
 // ==================== COPY AND ASSIGNMENT TESTS ====================
