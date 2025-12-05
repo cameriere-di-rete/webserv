@@ -176,22 +176,18 @@ void Connection::clearHandler() {
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
-  // 1. Parse request headers (already done in ServerManager)
-  // 2. Get pathname from URI
-  std::string path = request.request_line.uri;
-
-  // Extract path from URI (remove query string if present)
-  std::size_t query_pos = path.find('?');
-  if (query_pos != std::string::npos) {
-    path = path.substr(0, query_pos);
+  http::Url url(request.request_line.uri);
+  if (!url.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return;
   }
+  std::string path = url.getPath();
 
   LOG(DEBUG) << "Request path: " << path;
 
-  // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
-  // 4. Process response based on location
   processResponse(location);
 }
 
