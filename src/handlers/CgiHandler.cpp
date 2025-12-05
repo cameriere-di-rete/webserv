@@ -354,7 +354,7 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
   setenv("SERVER_NAME", "webserv", 1);
   setenv("SERVER_PORT", "8080", 1);
-  setenv("SCRIPT_NAME", script_path_.c_str(), 1);
+  // SCRIPT_NAME is set below after parsing the URI
 
   // Query string
   std::string uri = conn.request.request_line.uri;
@@ -365,17 +365,33 @@ void CgiHandler::setupEnvironment(Connection& conn) {
       (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
-  // Determine PATH_INFO: extra path after script name
+  // Extract script filename from filesystem path for matching
+  std::string script_filename;
+  size_t last_slash = script_path_.find_last_of('/');
+  if (last_slash != std::string::npos) {
+    script_filename = script_path_.substr(last_slash + 1);
+  } else {
+    script_filename = script_path_;
+  }
+
+  // Find script name in URI to determine SCRIPT_NAME and PATH_INFO
+  // e.g., URI: /cgi-bin/test.py/extra/path -> SCRIPT_NAME: /cgi-bin/test.py,
+  // PATH_INFO: /extra/path
+  std::string script_name_env;
   std::string path_info;
-  if (uri_no_query.find(script_path_) == 0) {
-    path_info = uri_no_query.substr(script_path_.length());
-    // Ensure path_info starts with '/' if present and not empty
-    if (!path_info.empty() && path_info[0] != '/') {
-      path_info = "/" + path_info;
+  size_t script_pos = uri_no_query.find(script_filename);
+  if (script_pos != std::string::npos) {
+    size_t script_end = script_pos + script_filename.length();
+    script_name_env = uri_no_query.substr(0, script_end);
+    if (script_end < uri_no_query.length()) {
+      path_info = uri_no_query.substr(script_end);
     }
   } else {
+    // Fallback: use entire URI as script name
+    script_name_env = uri_no_query;
     path_info = "";
   }
+  setenv("SCRIPT_NAME", script_name_env.c_str(), 1);
   setenv("PATH_INFO", path_info.c_str(), 1);
 
   // Content headers
