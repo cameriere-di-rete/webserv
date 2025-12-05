@@ -13,35 +13,7 @@
 #include "Logger.hpp"
 #include "Uri.hpp"
 #include "constants.hpp"
-
-static std::string escapeHtml(const std::string& s) {
-  std::string out;
-  out.reserve(s.size());
-  for (size_t i = 0; i < s.size(); ++i) {
-    char c = s[i];
-    switch (c) {
-      case '&':
-        out.append("&amp;");
-        break;
-      case '<':
-        out.append("&lt;");
-        break;
-      case '>':
-        out.append("&gt;");
-        break;
-      case '"':
-        out.append("&quot;");
-        break;
-      case '\'':
-        out.append("&#39;");
-        break;
-      default:
-        out.push_back(c);
-        break;
-    }
-  }
-  return out;
-}
+#include "http_utils.hpp"
 
 // Small RAII guard for DIR* since project targets C++98 (no unique_ptr)
 namespace {
@@ -95,10 +67,10 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   // filesystem path to avoid leaking internal server structure.
   body << "<head>" << CRLF;
   body << "<meta charset=\"utf-8\">" << CRLF;
-  body << "<title>Index of " << escapeHtml(uri_path_) << "</title>" << CRLF;
+  body << "<title>Index of " << http::escapeHtml(uri_path_) << "</title>" << CRLF;
   body << "</head>" << CRLF;
   body << "<body>" << CRLF;
-  body << "<h1>Index of " << escapeHtml(uri_path_) << "</h1>" << CRLF;
+  body << "<h1>Index of " << http::escapeHtml(uri_path_) << "</h1>" << CRLF;
   body << "<ul>" << CRLF;
 
   // Collect entries first so we can sort them alphabetically
@@ -167,8 +139,8 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
     }
 
     // HTML-escape the href and display text for safe HTML output
-    std::string href_escaped = escapeHtml(href);
-    std::string disp_escaped = escapeHtml(display);
+    std::string href_escaped = http::escapeHtml(href);
+    std::string disp_escaped = http::escapeHtml(display);
     body << "<li><a href=\"" << href_escaped << "\">" << disp_escaped
          << "</a></li>" << CRLF;
   }
