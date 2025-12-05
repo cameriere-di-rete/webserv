@@ -253,8 +253,8 @@ std::string Url::decodeInternal(const std::string& str, bool plusAsSpace) {
 }
 
 std::string Url::decode(const std::string& str) {
-  // Legacy function - defaults to query string decoding for backward
-  // compatibility
+  // Convenience function - defaults to query string decoding (treats '+' as space).
+  // Use decodePath() or decodeQuery() for explicit behavior.
   return decodeQuery(str);
 }
 
