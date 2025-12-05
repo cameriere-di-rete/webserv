@@ -24,6 +24,7 @@
 
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
+#include "IHandler.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
@@ -217,6 +218,14 @@ int ServerManager::run() {
         continue;
       }
 
+      // Check if this is a CGI pipe FD
+      std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(fd);
+      if (cgi_it != cgi_pipe_to_conn_.end()) {
+        LOG(DEBUG) << "EPOLLIN event on CGI pipe fd: " << fd;
+        handleCgiPipeEvent(fd);
+        continue;
+      }
+
       std::map<int, Connection>::iterator c_it = connections_.find(fd);
       if (c_it == connections_.end()) {
         LOG(DEBUG) << "Unknown fd: " << fd << ", skipping";
@@ -233,6 +242,7 @@ int ServerManager::run() {
 
         if (status < 0) {
           LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
+          cleanupHandlerResources(c);
           close(fd);
           connections_.erase(fd);
           continue;
@@ -252,6 +262,7 @@ int ServerManager::run() {
           LOG(DEBUG)
               << "handleWrite complete or failed, closing connection fd: "
               << fd;
+          cleanupHandlerResources(c);
           close(fd);
           connections_.erase(fd);
         }
@@ -275,6 +286,11 @@ int ServerManager::run() {
         continue; /* already prepared */
       }
 
+      // Skip if handler is already active (e.g., waiting for CGI output)
+      if (conn.active_handler != NULL) {
+        continue;
+      }
+
       LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
       if (!conn.request.parseStartAndHeaders(conn.read_buffer,
@@ -286,6 +302,18 @@ int ServerManager::run() {
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
       }
+
+      // Extract and validate request body
+      int body_result = extractRequestBody(conn, conn_fd);
+      if (body_result < 0) {
+        // Error occurred, response already prepared
+        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        continue;
+      } else if (body_result == 0) {
+        // Body not fully received yet, wait for more data
+        continue;
+      }
+
       LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
                  << " " << conn.request.request_line.uri;
 
@@ -305,6 +333,27 @@ int ServerManager::run() {
 
       /* process request using new handler methods */
       conn.processRequest(srv_it->second);
+
+      // Check if handler needs async I/O (e.g., CGI pipe monitoring)
+      if (conn.active_handler != NULL) {
+        int monitor_fd = conn.active_handler->getMonitorFd();
+        if (monitor_fd >= 0) {
+          // Register CGI pipe for epoll monitoring
+          LOG(DEBUG) << "Registering CGI pipe fd " << monitor_fd
+                     << " for connection fd " << conn_fd;
+          if (!registerCgiPipe(monitor_fd, conn_fd)) {
+            // Failed to register pipe, send 500 error
+            LOG(ERROR) << "Failed to register CGI pipe for connection fd "
+                       << conn_fd;
+            conn.clearHandler();
+            conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+            updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+            continue;
+          }
+          // Don't enable EPOLLOUT yet - wait for CGI to complete
+          continue;
+        }
+      }
 
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
@@ -403,6 +452,10 @@ void ServerManager::shutdown() {
   }
   connections_.clear();
 
+  // Clear CGI pipe mappings (pipes are owned by handlers which are cleaned up
+  // by connections)
+  cgi_pipe_to_conn_.clear();
+
   // close listening fds
   LOG(DEBUG) << "Closing " << servers_.size() << " server socket(s)";
   for (std::map<int, Server>::iterator it = servers_.begin();
@@ -412,4 +465,138 @@ void ServerManager::shutdown() {
   servers_.clear();
 
   LOG(INFO) << "ServerManager shutdown complete";
+}
+
+bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
+  cgi_pipe_to_conn_[pipe_fd] = conn_fd;
+
+  struct epoll_event ev;
+  ev.events = EPOLLIN | EPOLLET;
+  ev.data.fd = pipe_fd;
+
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
+    LOG_PERROR(ERROR, "epoll_ctl ADD CGI pipe");
+    cgi_pipe_to_conn_.erase(pipe_fd);
+    return false;
+  }
+  return true;
+}
+
+void ServerManager::unregisterCgiPipe(int pipe_fd) {
+  std::map<int, int>::iterator it = cgi_pipe_to_conn_.find(pipe_fd);
+  if (it == cgi_pipe_to_conn_.end()) {
+    return;
+  }
+
+  if (efd_ >= 0) {
+    epoll_ctl(efd_, EPOLL_CTL_DEL, pipe_fd, NULL);
+  }
+  cgi_pipe_to_conn_.erase(it);
+}
+
+void ServerManager::handleCgiPipeEvent(int pipe_fd) {
+  std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(pipe_fd);
+  if (cgi_it == cgi_pipe_to_conn_.end()) {
+    LOG(ERROR) << "CGI pipe fd " << pipe_fd << " not found in mapping";
+    return;
+  }
+
+  int conn_fd = cgi_it->second;
+  std::map<int, Connection>::iterator c_it = connections_.find(conn_fd);
+  if (c_it == connections_.end()) {
+    LOG(ERROR) << "Connection fd " << conn_fd << " not found for CGI pipe "
+               << pipe_fd;
+    unregisterCgiPipe(pipe_fd);
+    return;
+  }
+
+  Connection& conn = c_it->second;
+  if (conn.active_handler == NULL) {
+    LOG(ERROR) << "No active handler for connection fd " << conn_fd;
+    unregisterCgiPipe(pipe_fd);
+    return;
+  }
+
+  // Resume the handler to read more CGI output
+  HandlerResult hr = conn.active_handler->resume(conn);
+
+  if (hr == HR_WOULD_BLOCK) {
+    // More data expected, keep monitoring the pipe
+    LOG(DEBUG) << "CGI handler would block, continuing to monitor pipe fd "
+               << pipe_fd;
+    return;
+  }
+
+  // CGI finished (HR_DONE) or error (HR_ERROR)
+  unregisterCgiPipe(pipe_fd);
+
+  if (hr == HR_ERROR) {
+    LOG(ERROR) << "CGI handler error on connection fd " << conn_fd;
+    conn.clearHandler();
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+  } else {
+    // HR_DONE - CGI completed successfully
+    LOG(DEBUG) << "CGI handler completed for connection fd " << conn_fd;
+    conn.clearHandler();
+  }
+
+  // Enable write events to send response
+  updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+}
+
+void ServerManager::cleanupHandlerResources(Connection& c) {
+  if (c.active_handler != NULL) {
+    int monitor_fd = c.active_handler->getMonitorFd();
+    if (monitor_fd >= 0) {
+      unregisterCgiPipe(monitor_fd);
+    }
+  }
+}
+
+int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
+  // Extract body from read_buffer (after "\r\n\r\n")
+  std::size_t body_start = conn.headers_end_pos + 4;
+
+  // Check for Content-Length header
+  std::string content_length_str;
+  std::size_t expected_body_length = 0;
+  bool has_content_length = false;
+
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    // C++98 compatible: use atol instead of std::stoul
+    long content_len = std::atol(content_length_str.c_str());
+    if (content_len < 0) {
+      // Malformed Content-Length header
+      LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
+                << ", sending 400 Bad Request";
+      conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return -1;
+    }
+    expected_body_length = static_cast<std::size_t>(content_len);
+    has_content_length = true;
+  }
+
+  std::size_t available_body_length =
+      (body_start < conn.read_buffer.size())
+          ? (conn.read_buffer.size() - body_start)
+          : 0;
+
+  if (has_content_length) {
+    if (available_body_length < expected_body_length) {
+      // Body not fully received yet, wait for more data
+      return 0;
+    }
+    // Use exactly the expected length (handles both exact match and excess)
+    std::string body_data =
+        conn.read_buffer.substr(body_start, expected_body_length);
+    conn.request.getBody().data = body_data;
+  } else {
+    // No Content-Length header, use all available data
+    if (available_body_length > 0) {
+      std::string body_data = conn.read_buffer.substr(body_start);
+      conn.request.getBody().data = body_data;
+    }
+  }
+
+  return 1;  // Body ready
 }

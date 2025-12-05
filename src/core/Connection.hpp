@@ -45,4 +45,7 @@ class Connection {
                               std::string& out_path, bool& out_is_directory);
   void setHandler(IHandler* h);
   void clearHandler();
+  // Helper to run a handler's start() and perform common error handling.
+  // Returns the HandlerResult from the handler.
+  HandlerResult executeHandler(IHandler* handler);
 };

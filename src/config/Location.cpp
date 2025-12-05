@@ -1,7 +1,6 @@
 #include "Location.hpp"
 
 #include "Logger.hpp"
-#include "utils.hpp"
 
 Location::Location()
     : path(),
@@ -10,14 +9,11 @@ Location::Location()
       redirect_location(),
       cgi(false),
       index(),
-      autoindex(false),
+      autoindex(UNSET),
       root(),
-      error_page() {
+      error_page(),
+      max_request_body(0) {
   LOG(DEBUG) << "Location() default constructor called";
-  initDefaultHttpMethods(allow_methods);
-  LOG(DEBUG)
-      << "Location initialized with default allowed methods (GET, POST, PUT, "
-         "DELETE, HEAD)";
 }
 
 Location::Location(const std::string& p)
@@ -27,13 +23,11 @@ Location::Location(const std::string& p)
       redirect_location(),
       cgi(false),
       index(),
-      autoindex(false),
+      autoindex(UNSET),
       root(),
-      error_page() {
+      error_page(),
+      max_request_body(0) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
-  initDefaultHttpMethods(allow_methods);
-  LOG(DEBUG) << "Location '" << path
-             << "' initialized with default allowed methods";
 }
 
 Location::Location(const Location& other)
@@ -45,7 +39,8 @@ Location::Location(const Location& other)
       index(other.index),
       autoindex(other.autoindex),
       root(other.root),
-      error_page(other.error_page) {}
+      error_page(other.error_page),
+      max_request_body(other.max_request_body) {}
 
 Location& Location::operator=(const Location& other) {
   if (this != &other) {
@@ -58,6 +53,7 @@ Location& Location::operator=(const Location& other) {
     autoindex = other.autoindex;
     root = other.root;
     error_page = other.error_page;
+    max_request_body = other.max_request_body;
   }
   return *this;
 }

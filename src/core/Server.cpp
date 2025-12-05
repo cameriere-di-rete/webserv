@@ -8,7 +8,6 @@
 
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
 #include "Logger.hpp"
 #include "constants.hpp"
@@ -168,19 +167,33 @@ Location Server::matchLocation(const std::string& path) const {
     }
   }
 
+  Location result;
   if (best_it != locations.end()) {
     LOG(DEBUG) << "Matched location: '" << best_it->first << "'";
-    return best_it->second;
+    result = best_it->second;
+  } else {
+    // No location matched, start with default location
+    LOG(DEBUG) << "No location matched, using server defaults";
+    result.path = "/";
   }
 
-  // No location matched, return a default location with server defaults
-  LOG(DEBUG) << "No location matched, using server defaults";
-  Location default_loc;
-  default_loc.path = "/";
-  default_loc.allow_methods = allow_methods;
-  default_loc.index = index;
-  default_loc.autoindex = autoindex;
-  default_loc.root = root;
-  default_loc.error_page = error_page;
-  return default_loc;
+  // Apply inheritance from server for unset values
+  if (result.root.empty()) {
+    result.root = root;
+  }
+  if (result.index.empty()) {
+    result.index = index;
+  }
+  if (result.allow_methods.empty()) {
+    result.allow_methods = allow_methods;
+  }
+  if (result.error_page.empty()) {
+    result.error_page = error_page;
+  }
+  // autoindex: inherit from server only if location didn't explicitly set it
+  if (result.autoindex == UNSET) {
+    result.autoindex = autoindex ? ON : OFF;
+  }
+
+  return result;
 }
