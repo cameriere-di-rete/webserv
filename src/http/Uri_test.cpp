@@ -409,6 +409,7 @@ TEST(UrlDecodedPathTests, EncodedPlus) {
 TEST(UriCopyTests, CopyConstructor) {
   Uri uri1("http://example.com:8080/path?q=1#f");
   Uri uri2(uri1);
+  EXPECT_TRUE(uri2.isValid());
   EXPECT_EQ(uri2.getScheme(), uri1.getScheme());
   EXPECT_EQ(uri2.getHost(), uri1.getHost());
   EXPECT_EQ(uri2.getPort(), uri1.getPort());
@@ -430,6 +431,7 @@ TEST(UriCopyTests, AssignmentOperator) {
   EXPECT_EQ(uri2.getFragment(), "");
 
   uri2 = uri1;
+  EXPECT_TRUE(uri2.isValid());
   EXPECT_EQ(uri2.getScheme(), uri1.getScheme());
   EXPECT_EQ(uri2.getHost(), uri1.getHost());
   EXPECT_EQ(uri2.getPort(), uri1.getPort());
