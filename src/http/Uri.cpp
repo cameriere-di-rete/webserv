@@ -86,8 +86,8 @@ bool Uri::parse(const std::string& url) {
       if (!safeStrtoll(port_str, port_val)) {
         return false;  // Invalid port format or overflow
       }
-      // Validate port range (0-65535)
-      if (port_val < 0 || port_val > 65535) {
+      // Validate port range (1-65535)
+      if (port_val < 1 || port_val > 65535) {
         return false;  // Port out of valid range
       }
       port_ = static_cast<int>(port_val);
