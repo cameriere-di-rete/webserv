@@ -103,10 +103,15 @@ TEST(UriParseTests, ValidPortAtMaxRange) {
   EXPECT_EQ(uri.getPort(), 65535);
 }
 
-TEST(UriParseTests, ValidPortAtMinRange) {
+TEST(UriParseTests, InvalidPortZero) {
   Uri uri("http://example.com:0/path");
+  EXPECT_FALSE(uri.isValid());
+}
+
+TEST(UriParseTests, ValidPortAtMinRange) {
+  Uri uri("http://example.com:1/path");
   EXPECT_TRUE(uri.isValid());
-  EXPECT_EQ(uri.getPort(), 0);
+  EXPECT_EQ(uri.getPort(), 1);
 }
 
 // ==================== URL DECODING TESTS ====================
