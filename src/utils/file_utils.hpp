@@ -5,6 +5,7 @@
 #include <string>
 
 #include "Response.hpp"
+#include "constants.hpp"
 
 struct FileInfo {
   int fd;
@@ -39,5 +40,5 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
                         ::Response& outResponse, FileInfo& outFile,
                         off_t& out_start, off_t& out_end,
-                        const std::string& httpVersion = "HTTP/1.1");
+                        const std::string& httpVersion = HTTP_VERSION);
 }  // namespace file_utils
