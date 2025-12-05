@@ -19,7 +19,6 @@
 #include "Logger.hpp"
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
-#include "Url.hpp"
 #include "constants.hpp"
 
 Connection::Connection()
@@ -197,13 +196,13 @@ HandlerResult Connection::executeHandler(IHandler* handler) {
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
-  http::Url url(request.request_line.uri);
-  if (!url.isValid()) {
+  // URI is already parsed in Request::parseStartAndHeaders()
+  if (!request.uri.isValid()) {
     LOG(INFO) << "Invalid URI: " << request.request_line.uri;
     prepareErrorResponse(http::S_400_BAD_REQUEST);
     return;
   }
-  std::string path = url.getPath();
+  std::string path = request.uri.getPath();
 
   LOG(DEBUG) << "Request path: " << path;
 
@@ -287,11 +286,7 @@ void Connection::processResponse(const Location& location) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
       // filesystem path to avoid leaking internal structure.
-      std::string display_path = request.request_line.uri;
-      std::size_t qpos = display_path.find('?');
-      if (qpos != std::string::npos) {
-        display_path = display_path.substr(0, qpos);
-      }
+      std::string display_path = request.uri.getPath();
       if (display_path.empty()) {
         display_path = "/";
       }
@@ -363,25 +358,25 @@ bool Connection::resolvePathForLocation(const Location& location,
                                         bool& out_is_directory) {
   out_is_directory = false;
 
-  // Parse the request URI using the Url class
-  http::Url url(request.request_line.uri);
-  if (!url.isValid()) {
+  // URI is already parsed in Request::parseStartAndHeaders()
+  // Validation was done in processRequest(), but check again for safety
+  if (!request.uri.isValid()) {
     LOG(INFO) << "Invalid URI: " << request.request_line.uri;
     prepareErrorResponse(http::S_400_BAD_REQUEST);
     return false;
   }
 
   // Path traversal protection: check for ".." sequences in decoded path
-  // The Url class properly URL-decodes before checking, handling all
+  // The Uri class properly URI-decodes before checking, handling all
   // encoded variants (%2e%2e, %2E%2E, mixed case, etc.)
-  if (url.hasPathTraversal()) {
-    LOG(INFO) << "Path traversal attempt blocked: " << url.getPath();
+  if (request.uri.hasPathTraversal()) {
+    LOG(INFO) << "Path traversal attempt blocked: " << request.uri.getPath();
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }
 
-  // Get the decoded path (query string already stripped by Url parser)
-  std::string uri = url.getDecodedPath();
+  // Get the decoded path (query string already stripped by Uri parser)
+  std::string uri = request.uri.getDecodedPath();
 
   // Relative path inside the location
   std::string rel = uri;

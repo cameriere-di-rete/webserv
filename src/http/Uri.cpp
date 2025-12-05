@@ -1,4 +1,4 @@
-#include "Url.hpp"
+#include "Uri.hpp"
 
 #include <cctype>
 #include <sstream>
@@ -8,13 +8,13 @@
 
 namespace http {
 
-Url::Url() : port_(-1), valid_(false) {}
+Uri::Uri() : port_(-1), valid_(false) {}
 
-Url::Url(const std::string& url) : port_(-1), valid_(false) {
-  parse(url);
+Uri::Uri(const std::string& uri) : port_(-1), valid_(false) {
+  parse(uri);
 }
 
-Url::Url(const Url& other)
+Uri::Uri(const Uri& other)
     : scheme_(other.scheme_),
       host_(other.host_),
       port_(other.port_),
@@ -23,7 +23,7 @@ Url::Url(const Url& other)
       fragment_(other.fragment_),
       valid_(other.valid_) {}
 
-Url& Url::operator=(const Url& other) {
+Uri& Uri::operator=(const Uri& other) {
   if (this != &other) {
     scheme_ = other.scheme_;
     host_ = other.host_;
@@ -36,9 +36,9 @@ Url& Url::operator=(const Url& other) {
   return *this;
 }
 
-Url::~Url() {}
+Uri::~Uri() {}
 
-bool Url::parse(const std::string& url) {
+bool Uri::parse(const std::string& url) {
   // Reset state
   scheme_.clear();
   host_.clear();
@@ -78,7 +78,7 @@ bool Url::parse(const std::string& url) {
       std::string port_str = authority.substr(port_pos + 1);
       // Validate port string is not empty
       if (port_str.empty()) {
-        return false;  // Invalid URL: empty port
+        return false;  // Invalid URI: empty port
       }
       host_ = authority.substr(0, port_pos);
       // Parse port number using safeStrtoll
@@ -114,12 +114,12 @@ bool Url::parse(const std::string& url) {
   // What remains is the path
   path_ = remaining;
 
-  // A URL with at least a path is valid
+  // A URI with at least a path is valid
   valid_ = !path_.empty();
   return valid_;
 }
 
-std::string Url::serialize() const {
+std::string Uri::serialize() const {
   std::ostringstream oss;
 
   if (!scheme_.empty()) {
@@ -145,23 +145,23 @@ std::string Url::serialize() const {
   return oss.str();
 }
 
-std::string Url::getPath() const {
+std::string Uri::getPath() const {
   return path_;
 }
 
-std::string Url::getQuery() const {
+std::string Uri::getQuery() const {
   return query_;
 }
 
-std::string Url::getFragment() const {
+std::string Uri::getFragment() const {
   return fragment_;
 }
 
-std::string Url::getDecodedPath() const {
+std::string Uri::getDecodedPath() const {
   return decodePath(path_);
 }
 
-bool Url::hasPathTraversal() const {
+bool Uri::hasPathTraversal() const {
   // Decode the path first, then check for ".." sequences
   std::string decoded = getDecodedPath();
 
@@ -189,23 +189,23 @@ bool Url::hasPathTraversal() const {
   return false;
 }
 
-bool Url::isValid() const {
+bool Uri::isValid() const {
   return valid_;
 }
 
-std::string Url::getScheme() const {
+std::string Uri::getScheme() const {
   return scheme_;
 }
 
-std::string Url::getHost() const {
+std::string Uri::getHost() const {
   return host_;
 }
 
-int Url::getPort() const {
+int Uri::getPort() const {
   return port_;
 }
 
-int Url::hexToInt(char c) {
+int Uri::hexToInt(char c) {
   if (c >= '0' && c <= '9') {
     return c - '0';
   }
@@ -218,7 +218,7 @@ int Url::hexToInt(char c) {
   return -1;
 }
 
-char Url::intToHex(int n) {
+char Uri::intToHex(int n) {
   if (n >= 0 && n <= 9) {
     return static_cast<char>('0' + n);
   }
@@ -228,7 +228,7 @@ char Url::intToHex(int n) {
   return '0';
 }
 
-std::string Url::decodeInternal(const std::string& str, bool plusAsSpace) {
+std::string Uri::decodeInternal(const std::string& str, bool plusAsSpace) {
   std::string result;
   result.reserve(str.size());
 
@@ -252,21 +252,21 @@ std::string Url::decodeInternal(const std::string& str, bool plusAsSpace) {
   return result;
 }
 
-std::string Url::decode(const std::string& str) {
+std::string Uri::decode(const std::string& str) {
   // Convenience function - defaults to query string decoding (treats '+' as
   // space). Use decodePath() or decodeQuery() for explicit behavior.
   return decodeQuery(str);
 }
 
-std::string Url::decodePath(const std::string& str) {
+std::string Uri::decodePath(const std::string& str) {
   return decodeInternal(str, false);
 }
 
-std::string Url::decodeQuery(const std::string& str) {
+std::string Uri::decodeQuery(const std::string& str) {
   return decodeInternal(str, true);
 }
 
-std::string Url::encode(const std::string& str) {
+std::string Uri::encode(const std::string& str) {
   std::string result;
   result.reserve(str.size() * 3);  // Worst case: all characters need encoding
 
@@ -286,7 +286,7 @@ std::string Url::encode(const std::string& str) {
   return result;
 }
 
-std::string Url::normalizePath(const std::string& path) {
+std::string Uri::normalizePath(const std::string& path) {
   if (path.empty()) {
     return "/";
   }

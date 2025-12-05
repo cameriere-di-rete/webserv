@@ -356,13 +356,9 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_PORT", "8080", 1);
   setenv("SCRIPT_NAME", script_path_.c_str(), 1);
 
-  // Query string
-  std::string uri = conn.request.request_line.uri;
-  size_t query_pos = uri.find('?');
-  std::string uri_no_query =
-      (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
-  std::string query_string =
-      (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
+  // Query string - use pre-parsed Uri from request
+  std::string uri_no_query = conn.request.uri.getPath();
+  std::string query_string = conn.request.uri.getQuery();
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
   // Determine PATH_INFO: extra path after script name
