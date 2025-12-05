@@ -427,13 +427,8 @@ bool CgiHandler::validateScriptPath(const std::string& path,
   return true;
 }
 
-// Check if path contains path traversal sequences
+// Check if path is within allowed CGI directories (defense against symlink attacks)
 bool CgiHandler::isPathTraversalSafe(const std::string& path) {
-  // Check for obvious path traversal patterns
-  if (path.find("..") != std::string::npos) {
-    return false;
-  }
-
   // Get absolute path and verify it doesn't escape allowed directory
   char resolved_path[PATH_MAX];
   if (realpath(path.c_str(), resolved_path) == NULL) {
