@@ -11,9 +11,7 @@ EchoHandler::~EchoHandler() {}
 
 HandlerResult EchoHandler::start(Connection& conn) {
   // Prepare a simple 200 OK response that echoes the request body
-  conn.response.status_line.version = conn.request.request_line.version.empty() 
-      ? HTTP_VERSION 
-      : conn.request.request_line.version;
+  conn.response.status_line.version = conn.getHttpVersion();
   conn.response.status_line.status_code = http::S_200_OK;
   conn.response.status_line.reason = "OK";
 

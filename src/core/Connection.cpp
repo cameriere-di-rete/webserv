@@ -143,11 +143,13 @@ int Connection::handleWrite() {
   return 0;
 }
 
+std::string Connection::getHttpVersion() const {
+  return request.request_line.version.empty() ? HTTP_VERSION 
+                                               : request.request_line.version;
+}
+
 void Connection::prepareErrorResponse(http::Status status) {
-  // Use the request version if available, otherwise default to HTTP/1.1
-  response.status_line.version = request.request_line.version.empty() 
-      ? HTTP_VERSION 
-      : request.request_line.version;
+  response.status_line.version = getHttpVersion();
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
