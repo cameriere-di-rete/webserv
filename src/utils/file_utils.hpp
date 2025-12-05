@@ -38,5 +38,6 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 // range
 int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
                         ::Response& outResponse, FileInfo& outFile,
-                        off_t& out_start, off_t& out_end);
+                        off_t& out_start, off_t& out_end,
+                        const std::string& httpVersion = "HTTP/1.1");
 }  // namespace file_utils

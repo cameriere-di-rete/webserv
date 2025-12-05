@@ -178,7 +178,9 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   // for a GET.
   std::string body_str = body.str();
 
-  conn.response.status_line.version = HTTP_VERSION;
+  conn.response.status_line.version = conn.request.request_line.version.empty() 
+      ? HTTP_VERSION 
+      : conn.request.request_line.version;
   conn.response.status_line.status_code = http::S_200_OK;
   conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
   conn.response.addHeader("Content-Type", "text/html; charset=utf-8");

@@ -144,7 +144,10 @@ int Connection::handleWrite() {
 }
 
 void Connection::prepareErrorResponse(http::Status status) {
-  response.status_line.version = HTTP_VERSION;
+  // Use the request version if available, otherwise default to HTTP/1.1
+  response.status_line.version = request.request_line.version.empty() 
+      ? HTTP_VERSION 
+      : request.request_line.version;
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
@@ -325,8 +328,9 @@ void Connection::processResponse(const Location& location) {
 }
 
 http::Status Connection::validateRequestForLocation(const Location& location) {
-  // 1. Check HTTP protocol version
-  if (request.request_line.version != HTTP_VERSION) {
+  // 1. Check HTTP protocol version (accept both HTTP/1.0 and HTTP/1.1)
+  if (request.request_line.version != "HTTP/1.0" &&
+      request.request_line.version != "HTTP/1.1") {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
     return http::S_505_HTTP_VERSION_NOT_SUPPORTED;
   }
