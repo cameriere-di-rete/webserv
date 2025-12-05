@@ -67,7 +67,8 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   // filesystem path to avoid leaking internal server structure.
   body << "<head>" << CRLF;
   body << "<meta charset=\"utf-8\">" << CRLF;
-  body << "<title>Index of " << http::escapeHtml(uri_path_) << "</title>" << CRLF;
+  body << "<title>Index of " << http::escapeHtml(uri_path_) << "</title>"
+       << CRLF;
   body << "</head>" << CRLF;
   body << "<body>" << CRLF;
   body << "<h1>Index of " << http::escapeHtml(uri_path_) << "</h1>" << CRLF;
