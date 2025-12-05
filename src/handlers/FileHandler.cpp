@@ -79,7 +79,8 @@ HandlerResult FileHandler::handleGet(Connection& conn) {
 
   off_t out_start = 0, out_end = 0;
   int r = file_utils::prepareFileResponse(path_, rangePtr, conn.response, fi_,
-                                          out_start, out_end, conn.getHttpVersion());
+                                          out_start, out_end,
+                                          conn.getHttpVersion());
   if (r == -1) {
     conn.prepareErrorResponse(http::S_404_NOT_FOUND);
     return HR_DONE;

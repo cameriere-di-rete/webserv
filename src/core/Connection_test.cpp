@@ -2,8 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include "Location.hpp"
 #include "HttpStatus.hpp"
+#include "Location.hpp"
 #include "utils.hpp"
 
 // Test that HTTP/1.1 requests are accepted
@@ -17,7 +17,7 @@ TEST(ConnectionTests, AcceptsHttp11Requests) {
   initDefaultHttpMethods(location.allow_methods);
 
   http::Status status = conn.validateRequestForLocation(location);
-  
+
   // S_0_UNKNOWN (0) indicates validation success
   EXPECT_EQ(status, http::S_0_UNKNOWN);
 }
@@ -33,7 +33,7 @@ TEST(ConnectionTests, AcceptsHttp10Requests) {
   initDefaultHttpMethods(location.allow_methods);
 
   http::Status status = conn.validateRequestForLocation(location);
-  
+
   // S_0_UNKNOWN (0) indicates validation success
   EXPECT_EQ(status, http::S_0_UNKNOWN);
 }
@@ -49,7 +49,7 @@ TEST(ConnectionTests, RejectsOtherHttpVersions) {
   initDefaultHttpMethods(location.allow_methods);
 
   http::Status status = conn.validateRequestForLocation(location);
-  
+
   EXPECT_EQ(status, http::S_505_HTTP_VERSION_NOT_SUPPORTED);
 }
 
@@ -64,7 +64,7 @@ TEST(ConnectionTests, RejectsInvalidHttpVersions) {
   initDefaultHttpMethods(location.allow_methods);
 
   http::Status status = conn.validateRequestForLocation(location);
-  
+
   EXPECT_EQ(status, http::S_505_HTTP_VERSION_NOT_SUPPORTED);
 }
 
@@ -75,7 +75,7 @@ TEST(ConnectionTests, ErrorResponseUsesRequestVersion) {
   conn.request.request_line.method = "GET";
 
   conn.prepareErrorResponse(http::S_404_NOT_FOUND);
-  
+
   EXPECT_EQ(conn.response.status_line.version, "HTTP/1.0");
   EXPECT_EQ(conn.response.status_line.status_code, http::S_404_NOT_FOUND);
 }
@@ -86,7 +86,8 @@ TEST(ConnectionTests, ErrorResponseDefaultsToHttp11) {
   conn.request.request_line.version = "";
 
   conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-  
+
   EXPECT_EQ(conn.response.status_line.version, "HTTP/1.1");
-  EXPECT_EQ(conn.response.status_line.status_code, http::S_500_INTERNAL_SERVER_ERROR);
+  EXPECT_EQ(conn.response.status_line.status_code,
+            http::S_500_INTERNAL_SERVER_ERROR);
 }
