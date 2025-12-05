@@ -11,6 +11,7 @@
 #include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Logger.hpp"
+#include "Uri.hpp"
 #include "constants.hpp"
 
 static std::string escapeHtml(const std::string& s) {
@@ -157,13 +158,15 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
       base += '/';
     }
 
-    std::string href = base + name;
+    // URL-encode the filename for safe use in href attribute
+    std::string href = base + http::Uri::encode(name);
     std::string display = name;
     if (is_dir) {
       href += '/';
       display += '/';
     }
 
+    // HTML-escape the href and display text for safe HTML output
     std::string href_escaped = escapeHtml(href);
     std::string disp_escaped = escapeHtml(display);
     body << "<li><a href=\"" << href_escaped << "\">" << disp_escaped
