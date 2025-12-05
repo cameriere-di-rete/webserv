@@ -91,3 +91,15 @@ TEST(ConnectionTests, ErrorResponseDefaultsToHttp11) {
   EXPECT_EQ(conn.response.status_line.status_code,
             http::S_500_INTERNAL_SERVER_ERROR);
 }
+
+// Test that error responses for unsupported HTTP versions use HTTP/1.1
+TEST(ConnectionTests, ErrorResponseForUnsupportedVersionUsesHttp11) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/2.0";
+
+  conn.prepareErrorResponse(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+
+  EXPECT_EQ(conn.response.status_line.version, "HTTP/1.1");
+  EXPECT_EQ(conn.response.status_line.status_code,
+            http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+}

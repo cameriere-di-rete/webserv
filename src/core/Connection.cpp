@@ -144,8 +144,11 @@ int Connection::handleWrite() {
 }
 
 std::string Connection::getHttpVersion() const {
-  return request.request_line.version.empty() ? HTTP_VERSION
-                                              : request.request_line.version;
+  if (request.request_line.version == "HTTP/1.0" ||
+      request.request_line.version == "HTTP/1.1") {
+    return request.request_line.version;
+  }
+  return HTTP_VERSION;
 }
 
 void Connection::prepareErrorResponse(http::Status status) {
