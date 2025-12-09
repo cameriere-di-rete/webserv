@@ -12,7 +12,7 @@ Location::Location()
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(MAX_REQUEST_BODY_UNSET) {
   LOG(DEBUG) << "Location() default constructor called";
 }
 
@@ -26,7 +26,7 @@ Location::Location(const std::string& p)
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(MAX_REQUEST_BODY_UNSET) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
 }
 

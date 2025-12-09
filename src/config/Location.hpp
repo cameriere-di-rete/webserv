@@ -1,5 +1,7 @@
 #pragma once
 
+#include <climits>
+#include <cstddef>
 #include <map>
 #include <set>
 #include <string>
@@ -9,6 +11,9 @@
 
 // Tri-state for boolean directives that need to distinguish "not set"
 enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
+
+// Sentinel value for max_request_body when not explicitly set
+static const std::size_t MAX_REQUEST_BODY_UNSET = static_cast<std::size_t>(-1);
 
 class Location {
  public:
