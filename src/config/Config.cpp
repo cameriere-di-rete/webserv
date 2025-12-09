@@ -710,6 +710,11 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else if (d.name == "cgi_root") {
+      requireArgsEqual_(d, 1);
+      loc.cgi_root = d.args[0];
+      loc.cgi = true;  // cgi_root implies CGI is enabled
+      LOG(DEBUG) << "  Location CGI root: " << loc.cgi_root;
     } else if (d.name == "max_request_body") {
       requireArgsEqual_(d, 1);
       loc.max_request_body = parsePositiveNumber_(d.args[0]);

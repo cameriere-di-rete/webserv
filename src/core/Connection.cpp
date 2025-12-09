@@ -398,11 +398,18 @@ bool Connection::resolvePathForLocation(const Location& location,
     }
   }
 
-  if (location.root.empty()) {
+  // Determine the root directory to use:
+  // - If cgi_root is set, use it (for CGI scripts)
+  // - Otherwise, use the regular root
+  std::string root;
+  if (!location.cgi_root.empty()) {
+    root = location.cgi_root;
+  } else if (!location.root.empty()) {
+    root = location.root;
+  } else {
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return false;
   }
-  std::string root = location.root;
 
   std::string path;
   if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
