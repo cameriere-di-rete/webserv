@@ -317,93 +317,93 @@ TEST(UriPathTraversalTests, DotDotInFilename) {
 
 // ==================== PATH NORMALIZATION TESTS ====================
 
-TEST(UrlNormalizeTests, AlreadyNormalized) {
+TEST(UriNormalizeTests, AlreadyNormalized) {
   EXPECT_EQ(Uri::normalizePath("/a/b/c"), "/a/b/c");
 }
 
-TEST(UrlNormalizeTests, SingleDots) {
+TEST(UriNormalizeTests, SingleDots) {
   EXPECT_EQ(Uri::normalizePath("/a/./b/./c"), "/a/b/c");
 }
 
-TEST(UrlNormalizeTests, DoubleDots) {
+TEST(UriNormalizeTests, DoubleDots) {
   EXPECT_EQ(Uri::normalizePath("/a/b/../c"), "/a/c");
 }
 
-TEST(UrlNormalizeTests, MultipleDoubleDots) {
+TEST(UriNormalizeTests, MultipleDoubleDots) {
   EXPECT_EQ(Uri::normalizePath("/a/b/c/../../d"), "/a/d");
 }
 
-TEST(UrlNormalizeTests, DoubleDotAtStart) {
+TEST(UriNormalizeTests, DoubleDotAtStart) {
   // Can't go above root
   EXPECT_EQ(Uri::normalizePath("/../a"), "/a");
 }
 
-TEST(UrlNormalizeTests, EncodedPath) {
+TEST(UriNormalizeTests, EncodedPath) {
   EXPECT_EQ(Uri::normalizePath("/a/%2e%2e/b"), "/b");
 }
 
-TEST(UrlNormalizeTests, EmptyPath) {
+TEST(UriNormalizeTests, EmptyPath) {
   EXPECT_EQ(Uri::normalizePath(""), "/");
 }
 
-TEST(UrlNormalizeTests, RootPath) {
+TEST(UriNormalizeTests, RootPath) {
   EXPECT_EQ(Uri::normalizePath("/"), "/");
 }
 
-TEST(UrlNormalizeTests, TrailingSlashPreserved) {
+TEST(UriNormalizeTests, TrailingSlashPreserved) {
   EXPECT_EQ(Uri::normalizePath("/a/b/"), "/a/b/");
 }
 
-TEST(UrlNormalizeTests, TrailingSlashWithDoubleDots) {
+TEST(UriNormalizeTests, TrailingSlashWithDoubleDots) {
   EXPECT_EQ(Uri::normalizePath("/a/b/../c/"), "/a/c/");
 }
 
 // ==================== SERIALIZATION TESTS ====================
 
-TEST(UrlSerializeTests, SimplePath) {
+TEST(UriSerializeTests, SimplePath) {
   Uri uri("/path/to/file");
   EXPECT_EQ(uri.serialize(), "/path/to/file");
 }
 
-TEST(UrlSerializeTests, PathWithQuery) {
+TEST(UriSerializeTests, PathWithQuery) {
   Uri uri("/search?q=test");
   EXPECT_EQ(uri.serialize(), "/search?q=test");
 }
 
-TEST(UrlSerializeTests, PathWithQueryAndFragment) {
+TEST(UriSerializeTests, PathWithQueryAndFragment) {
   Uri uri("/page?id=1#top");
   EXPECT_EQ(uri.serialize(), "/page?id=1#top");
 }
 
-TEST(UrlSerializeTests, FullUrl) {
+TEST(UriSerializeTests, FullUrl) {
   Uri uri("http://example.com:8080/path?q=1#f");
   EXPECT_EQ(uri.serialize(), "http://example.com:8080/path?q=1#f");
 }
 
 // ==================== DECODED PATH TESTS ====================
 
-TEST(UrlDecodedPathTests, NoEncoding) {
+TEST(UriDecodedPathTests, NoEncoding) {
   Uri uri("/path/to/file");
   EXPECT_EQ(uri.getDecodedPath(), "/path/to/file");
 }
 
-TEST(UrlDecodedPathTests, EncodedSpaces) {
+TEST(UriDecodedPathTests, EncodedSpaces) {
   Uri uri("/path%20to%20file");
   EXPECT_EQ(uri.getDecodedPath(), "/path to file");
 }
 
-TEST(UrlDecodedPathTests, EncodedSlash) {
+TEST(UriDecodedPathTests, EncodedSlash) {
   Uri uri("/path%2Fto%2Ffile");
   EXPECT_EQ(uri.getDecodedPath(), "/path/to/file");
 }
 
-TEST(UrlDecodedPathTests, PlusRemainsAsPlus) {
+TEST(UriDecodedPathTests, PlusRemainsAsPlus) {
   // '+' in paths should remain as '+', not be decoded to space
   Uri uri("/path/file+name.txt");
   EXPECT_EQ(uri.getDecodedPath(), "/path/file+name.txt");
 }
 
-TEST(UrlDecodedPathTests, EncodedPlus) {
+TEST(UriDecodedPathTests, EncodedPlus) {
   // Percent-encoded '+' should decode to '+'
   Uri uri("/path/file%2Bname.txt");
   EXPECT_EQ(uri.getDecodedPath(), "/path/file+name.txt");
