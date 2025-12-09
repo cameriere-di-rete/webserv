@@ -634,9 +634,12 @@ void ServerManager::checkConnectionTimeouts() {
 
     Connection& conn = it->second;
 
-    // Only send 408 if we haven't already prepared a response
-    // and if the connection is still in a readable state (incomplete request)
-    if (conn.write_buffer.empty()) {
+    // Only send 408 if:
+    // 1. No response has been prepared yet (write_buffer is empty)
+    // 2. No response is in progress (status_code is still unknown)
+    // This prevents overwriting a partially sent response with a 408 error
+    if (conn.write_buffer.empty() &&
+        conn.response.status_line.status_code == http::S_0_UNKNOWN) {
       conn.prepareErrorResponse(http::S_408_REQUEST_TIMEOUT);
       // Try to send the 408 response before closing
       conn.handleWrite();
