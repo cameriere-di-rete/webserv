@@ -63,9 +63,22 @@ HandlerResult CgiHandler::start(Connection& conn) {
     return HR_DONE;
   }
 
+  // Check if path is a regular file (not a directory, symlink, etc.)
+  if (!isRegularFile(st)) {
+    LOG(ERROR) << "CgiHandler: script path is not a regular file";
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
+
+  // Check if file has executable permissions
+  if (!isExecutable(st)) {
+    LOG(ERROR) << "CgiHandler: script file is not executable";
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
+
   // Security validation: check script path (403 if fails)
-  // Pass the stat result to avoid redundant stat() calls
-  if (!validateScriptPath(script_path_, st, error_msg)) {
+  if (!validateScriptPath(script_path_, error_msg)) {
     LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
     return HR_DONE;
@@ -412,23 +425,10 @@ bool CgiHandler::isRegularFile(const struct stat& st) {
 
 // Security validation: check if script path is safe to execute
 bool CgiHandler::validateScriptPath(const std::string& path,
-                                    const struct stat& st,
                                     std::string& error_msg) {
-  // Check if path is a regular file (not a directory, symlink, etc.)
-  if (!isRegularFile(st)) {
-    error_msg = "Script path is not a regular file";
-    return false;
-  }
-
   // Check for path traversal attacks
   if (!isPathTraversalSafe(path)) {
     error_msg = "Path traversal detected in script path";
-    return false;
-  }
-
-  // Check if file has executable permissions
-  if (!isExecutable(st)) {
-    error_msg = "Script file is not executable";
     return false;
   }
 
