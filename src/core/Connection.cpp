@@ -29,7 +29,8 @@ Connection::Connection()
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages_() {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -39,7 +40,8 @@ Connection::Connection(int fd)
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages_() {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -51,7 +53,8 @@ Connection::Connection(const Connection& other)
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages_(other.error_pages_) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -69,6 +72,7 @@ Connection& Connection::operator=(const Connection& other) {
     request = other.request;
     response = other.response;
     clearHandler();
+    error_pages_ = other.error_pages_;
   }
   return *this;
 }
@@ -148,6 +152,32 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
+  // Check if there's a custom error page configured for this status
+  std::map<http::Status, std::string>::const_iterator it =
+      error_pages_.find(status);
+  if (it != error_pages_.end()) {
+    // Try to serve the custom error page using FileHandler
+    FileHandler* fh = new FileHandler(it->second);
+    HandlerResult hr = fh->start(*this);
+    if (hr == HR_DONE) {
+      // FileHandler prepared the response successfully, but we need to
+      // override the status code to the error status (FileHandler sets 200)
+      response.status_line.status_code = status;
+      response.status_line.reason = http::reasonPhrase(status);
+      write_buffer = response.serialize();
+      delete fh;
+      return;
+    }
+    // If FileHandler failed, fall through to default error page
+    delete fh;
+    response = Response();  // Reset response for default error page
+  }
+
+  // Default error page
+  response.status_line.version = HTTP_VERSION;
+  response.status_line.status_code = status;
+  response.status_line.reason = http::reasonPhrase(status);
+
   std::string title = http::statusWithReason(status);
   std::ostringstream body;
   body << "<html>" << CRLF << "<head><title>" << title << "</title></head>"
@@ -217,6 +247,9 @@ void Connection::processRequest(const Server& server) {
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+
+  // Store error page config (paths already resolved in matchLocation)
+  error_pages_ = location.error_page;
 
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();
