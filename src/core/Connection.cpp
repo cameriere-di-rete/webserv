@@ -29,7 +29,8 @@ Connection::Connection()
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      last_activity(time(NULL)) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -39,7 +40,8 @@ Connection::Connection(int fd)
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      last_activity(time(NULL)) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -51,7 +53,8 @@ Connection::Connection(const Connection& other)
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      last_activity(other.last_activity) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -68,9 +71,19 @@ Connection& Connection::operator=(const Connection& other) {
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
+    last_activity = other.last_activity;
     clearHandler();
   }
   return *this;
+}
+
+void Connection::updateActivity() {
+  last_activity = time(NULL);
+}
+
+bool Connection::isTimedOut(int timeout_seconds) const {
+  time_t now = time(NULL);
+  return (now - last_activity) >= timeout_seconds;
 }
 
 int Connection::handleRead() {

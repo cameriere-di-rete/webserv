@@ -7,3 +7,7 @@
 #define CRLF "\r\n"
 #define DEFAULT_CONFIG_PATH "conf/default.conf"
 #define EXIT_NOT_FOUND 127  // Standard shell exit code for "command not found"
+
+// Connection timeout in seconds for incomplete requests
+// After this time, idle connections will be closed with 408 Request Timeout
+#define CONNECTION_TIMEOUT_SECONDS 30
