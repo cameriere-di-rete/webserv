@@ -641,7 +641,11 @@ void ServerManager::checkConnectionTimeouts() {
     if (conn.write_buffer.empty() &&
         conn.response.status_line.status_code == http::S_0_UNKNOWN) {
       conn.prepareErrorResponse(http::S_408_REQUEST_TIMEOUT);
-      // Try to send the 408 response before closing
+      // Best-effort attempt to send 408 before closing.
+      // We intentionally ignore the return value: if the socket is not ready
+      // for writing (EAGAIN) or the client has already disconnected, the 408
+      // response won't reach the client. This is acceptable for timeout
+      // scenarios where the client is likely unresponsive or gone.
       conn.handleWrite();
     }
 
