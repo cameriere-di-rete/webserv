@@ -57,7 +57,8 @@ HandlerResult CgiHandler::start(Connection& conn) {
   std::string error_msg;
   struct stat st;
   if (stat(script_path_.c_str(), &st) != 0) {
-    LOG(ERROR) << "CgiHandler: script not found: " << strerror(errno);
+    int stat_errno = errno;  // Capture errno immediately
+    LOG(ERROR) << "CgiHandler: script not found: " << strerror(stat_errno);
     conn.prepareErrorResponse(http::S_404_NOT_FOUND);
     return HR_DONE;
   }
