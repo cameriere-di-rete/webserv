@@ -179,7 +179,9 @@ int ServerManager::run() {
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
+    // Use timeout to periodically check for stale connections
+    // Check every 1 second (1000ms)
+    int n = epoll_wait(efd_, events, MAX_EVENTS, 1000);
     if (n < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
@@ -192,6 +194,9 @@ int ServerManager::run() {
       LOG_PERROR(ERROR, "epoll_wait");
       return EXIT_FAILURE;
     }
+
+    // Check for timed out connections (even if n == 0, timeout occurred)
+    checkConnectionTimeouts();
 
     LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
 
@@ -238,6 +243,7 @@ int ServerManager::run() {
       /* readable */
       if (ev_mask & EPOLLIN) {
         LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
+        c.updateActivity();  // Reset timeout on activity
         int status = c.handleRead();
 
         if (status < 0) {
@@ -256,6 +262,7 @@ int ServerManager::run() {
       /* writable */
       if (ev_mask & EPOLLOUT) {
         LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
+        c.updateActivity();  // Reset timeout on activity
         int status = c.handleWrite();
 
         if (status <= 0) {
@@ -599,4 +606,45 @@ int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
   }
 
   return 1;  // Body ready
+}
+
+void ServerManager::checkConnectionTimeouts() {
+  std::vector<int> timed_out_fds;
+
+  // First pass: identify timed out connections
+  for (std::map<int, Connection>::iterator it = connections_.begin();
+       it != connections_.end(); ++it) {
+    Connection& conn = it->second;
+    int conn_fd = it->first;
+
+    if (conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS)) {
+      LOG(INFO) << "Connection timeout on fd " << conn_fd
+                << " (idle for >= " << CONNECTION_TIMEOUT_SECONDS << "s)";
+      timed_out_fds.push_back(conn_fd);
+    }
+  }
+
+  // Second pass: close timed out connections
+  for (std::size_t i = 0; i < timed_out_fds.size(); ++i) {
+    int conn_fd = timed_out_fds[i];
+    std::map<int, Connection>::iterator it = connections_.find(conn_fd);
+    if (it == connections_.end()) {
+      continue;  // Already removed
+    }
+
+    Connection& conn = it->second;
+
+    // Only send 408 if we haven't already prepared a response
+    // and if the connection is still in a readable state (incomplete request)
+    if (conn.write_buffer.empty()) {
+      conn.prepareErrorResponse(http::S_408_REQUEST_TIMEOUT);
+      // Try to send the 408 response before closing
+      conn.handleWrite();
+    }
+
+    // Clean up and close
+    cleanupHandlerResources(conn);
+    close(conn_fd);
+    connections_.erase(conn_fd);
+  }
 }
