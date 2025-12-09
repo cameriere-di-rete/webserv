@@ -2,6 +2,9 @@
 
 #include "Logger.hpp"
 
+// Definition of the sentinel value declared in Location.hpp
+const std::size_t MAX_REQUEST_BODY_UNSET = static_cast<std::size_t>(-1);
+
 Location::Location()
     : path(),
       allow_methods(),

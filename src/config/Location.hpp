@@ -12,8 +12,7 @@
 enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
 
 // Sentinel value for max_request_body when not explicitly set
-static const std::size_t MAX_REQUEST_BODY_UNSET = static_cast<std::size_t>(-1);
-
+extern const std::size_t MAX_REQUEST_BODY_UNSET;
 class Location {
  public:
   Location();
