@@ -33,8 +33,9 @@ class Connection {
   time_t last_activity;  // Timestamp of last activity for timeout detection
 
   int handleRead();
-  void updateActivity();                    // Update last_activity to current time
-  bool isTimedOut(int timeout_seconds) const;  // Check if connection has timed out
+  void updateActivity();  // Update last_activity to current time
+  bool isTimedOut(
+      int timeout_seconds) const;  // Check if connection has timed out
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);
