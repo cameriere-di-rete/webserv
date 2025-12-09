@@ -68,8 +68,11 @@ HandlerResult CgiHandler::start(Connection& conn) {
   }
 
   // Check if path is a regular file and has executable permissions
-  if (!S_ISREG(st.st_mode) || (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0) {
-    if (!S_ISREG(st.st_mode)) {
+  bool is_regular = S_ISREG(st.st_mode);
+  bool is_executable = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+  
+  if (!is_regular || !is_executable) {
+    if (!is_regular) {
       LOG(ERROR) << "CgiHandler: script path is not a regular file";
     } else {
       LOG(ERROR) << "CgiHandler: script file is not executable";
