@@ -67,8 +67,8 @@ TEST(StatusLineTests, ParseStatusLineWithoutReason) {
   EXPECT_TRUE(sl.parse("HTTP/1.1 404"));
   EXPECT_EQ(sl.version, "HTTP/1.1");
   EXPECT_EQ(sl.status_code, http::S_404_NOT_FOUND);
-  // When no reason phrase is present after the status code, getline doesn't
-  // modify the reason string, so it retains its default value from constructor
+  // Test expectation: The reason field retains its default "OK" value from
+  // the constructor when no reason phrase is present in the input
   EXPECT_EQ(sl.reason, "OK");
 }
 
