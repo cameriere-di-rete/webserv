@@ -228,6 +228,15 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // Check if request body exceeds the configured max_request_body limit
+  if (location.max_request_body != MAX_REQUEST_BODY_UNSET &&
+      request.getBody().size() > location.max_request_body) {
+    LOG(DEBUG) << "Request body size " << request.getBody().size()
+               << " exceeds max_request_body " << location.max_request_body;
+    prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+    return;
+  }
+
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
   // 2. CGI handler (if configured and matching extension) - TODO: implement in
