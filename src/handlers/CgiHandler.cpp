@@ -53,24 +53,27 @@ int CgiHandler::getMonitorFd() const {
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
 
-  // Check if script exists (404 if not)
+  // Check if script exists (404 if not found, 500 for other errors)
   std::string error_msg;
   struct stat st;
   if (stat(script_path_.c_str(), &st) != 0) {
-    LOG(ERROR) << "CgiHandler: script not found: " << strerror(errno);
-    conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+    if (errno == ENOENT || errno == ENOTDIR) {
+      LOG(ERROR) << "CgiHandler: script not found: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+    } else {
+      LOG(ERROR) << "CgiHandler: stat() failed: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    }
     return HR_DONE;
   }
 
   // Check if path is a regular file and has executable permissions
-  if (!S_ISREG(st.st_mode)) {
-    LOG(ERROR) << "CgiHandler: script path is not a regular file";
-    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
-    return HR_DONE;
-  }
-
-  if ((st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0) {
-    LOG(ERROR) << "CgiHandler: script file is not executable";
+  if (!S_ISREG(st.st_mode) || (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0) {
+    if (!S_ISREG(st.st_mode)) {
+      LOG(ERROR) << "CgiHandler: script path is not a regular file";
+    } else {
+      LOG(ERROR) << "CgiHandler: script file is not executable";
+    }
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
     return HR_DONE;
   }
