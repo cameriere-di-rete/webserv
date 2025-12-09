@@ -195,9 +195,6 @@ int ServerManager::run() {
       return EXIT_FAILURE;
     }
 
-    // Check for timed out connections (even if n == 0, timeout occurred)
-    checkConnectionTimeouts();
-
     LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
 
     for (int i = 0; i < n; ++i) {
@@ -365,6 +362,11 @@ int ServerManager::run() {
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
+
+    // Check for timed out connections AFTER processing all events.
+    // This ensures connections with pending EPOLLIN/EPOLLOUT events get a
+    // chance to update their activity timestamp before being checked.
+    checkConnectionTimeouts();
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
