@@ -69,7 +69,7 @@ HandlerResult CgiHandler::start(Connection& conn) {
     return HR_DONE;
   }
 
-  if (!(st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+  if ((st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0) {
     LOG(ERROR) << "CgiHandler: script file is not executable";
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
     return HR_DONE;
