@@ -17,8 +17,10 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
-CgiHandler::CgiHandler(const std::string& script_path)
+CgiHandler::CgiHandler(const std::string& script_path,
+                       const std::string& path_info)
     : script_path_(script_path),
+      path_info_(path_info),
       script_pid_(-1),
       pipe_read_fd_(-1),
       pipe_write_fd_(-1),
@@ -359,24 +361,12 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Query string
   std::string uri = conn.request.request_line.uri;
   size_t query_pos = uri.find('?');
-  std::string uri_no_query =
-      (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
   std::string query_string =
       (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
-  // Determine PATH_INFO: extra path after script name
-  std::string path_info;
-  if (uri_no_query.find(script_path_) == 0) {
-    path_info = uri_no_query.substr(script_path_.length());
-    // Ensure path_info starts with '/' if present and not empty
-    if (!path_info.empty() && path_info[0] != '/') {
-      path_info = "/" + path_info;
-    }
-  } else {
-    path_info = "";
-  }
-  setenv("PATH_INFO", path_info.c_str(), 1);
+  // PATH_INFO: use the path_info passed to constructor
+  setenv("PATH_INFO", path_info_.c_str(), 1);
 
   // Content headers
   std::string content_type, content_length;

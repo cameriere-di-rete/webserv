@@ -43,6 +43,12 @@ class Connection {
   // On failure it prepares an error response and returns false.
   bool resolvePathForLocation(const class Location& location,
                               std::string& out_path, bool& out_is_directory);
+  // Resolve CGI script path from request URI. Finds the actual CGI script
+  // in the path and extracts PATH_INFO (extra path after the script).
+  // Returns true on success, false if no valid script found.
+  bool resolveCgiPathForLocation(const class Location& location,
+                                 std::string& out_script_path,
+                                 std::string& out_path_info);
   void setHandler(IHandler* h);
   void clearHandler();
   // Helper to run a handler's start() and perform common error handling.

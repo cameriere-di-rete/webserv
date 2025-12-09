@@ -8,7 +8,8 @@ class Connection;
 
 class CgiHandler : public IHandler {
  public:
-  explicit CgiHandler(const std::string& script_path);
+  explicit CgiHandler(const std::string& script_path,
+                      const std::string& path_info = "");
   virtual ~CgiHandler();
 
   virtual HandlerResult start(Connection& conn);
@@ -27,6 +28,7 @@ class CgiHandler : public IHandler {
   bool isPathTraversalSafe(const std::string& path);
 
   std::string script_path_;
+  std::string path_info_;
   int script_pid_;
   int pipe_read_fd_;
   int pipe_write_fd_;

@@ -248,19 +248,14 @@ void Connection::processResponse(const Location& location) {
   }
 
   if (location.cgi) {
-    // CGI handling
-    std::string resolved_path;
-    bool is_directory = false;
-    if (!resolvePathForLocation(location, resolved_path, is_directory)) {
-      return;  // resolvePathForLocation prepared an error response
+    // CGI handling - use specialized path resolution that extracts PATH_INFO
+    std::string script_path;
+    std::string path_info;
+    if (!resolveCgiPathForLocation(location, script_path, path_info)) {
+      return;  // resolveCgiPathForLocation prepared an error response
     }
 
-    if (is_directory) {
-      prepareErrorResponse(http::S_403_FORBIDDEN);
-      return;
-    }
-
-    IHandler* handler = new CgiHandler(resolved_path);
+    IHandler* handler = new CgiHandler(script_path, path_info);
     setHandler(handler);
 
     HandlerResult hr = active_handler->start(*this);
@@ -446,4 +441,115 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   out_path = path;
   return true;
+}
+
+bool Connection::resolveCgiPathForLocation(const Location& location,
+                                           std::string& out_script_path,
+                                           std::string& out_path_info) {
+  out_path_info = "";
+
+  // Use the request URI (strip query string)
+  std::string uri = request.request_line.uri;
+  std::size_t q = uri.find('?');
+  if (q != std::string::npos) {
+    uri = uri.substr(0, q);
+  }
+
+  // Path traversal protection
+  if (uri.find("..") != std::string::npos ||
+      uri.find("%2e%2e") != std::string::npos ||
+      uri.find("%2E%2E") != std::string::npos ||
+      uri.find("%2e%2E") != std::string::npos ||
+      uri.find("%2E%2e") != std::string::npos) {
+    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+    prepareErrorResponse(http::S_403_FORBIDDEN);
+    return false;
+  }
+
+  // Allowed CGI extensions
+  const char* cgi_extensions[] = {".py", ".sh", ".pl", ".php", ".cgi", NULL};
+
+  // Get the relative path inside the location
+  std::string rel = uri;
+  if (!location.path.empty() && location.path != "/") {
+    if (rel.find(location.path) == 0) {
+      rel = rel.substr(location.path.size());
+      if (rel.empty()) {
+        rel = "/";
+      }
+    }
+  }
+
+  if (location.root.empty()) {
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return false;
+  }
+
+  // Build the base path from root
+  std::string root = location.root;
+  std::string base_path;
+  if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
+      rel[0] == '/') {
+    base_path = root + rel.substr(1);
+  } else if (!root.empty() && root[root.size() - 1] != '/' && !rel.empty() &&
+             rel[0] != '/') {
+    base_path = root + "/" + rel;
+  } else {
+    base_path = root + rel;
+  }
+
+  // Scan through the path to find a valid CGI script
+  // For example, for path "/www/cgi-bin/script.py/extra/path"
+  // we want to find "/www/cgi-bin/script.py" as script and "/extra/path" as
+  // PATH_INFO
+  std::string current_path = base_path;
+  std::string path_info_part = "";
+
+  // Iterate from the full path, removing segments from the end until we find a
+  // valid script
+  while (!current_path.empty()) {
+    struct stat st;
+    if (stat(current_path.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+      // Found a regular file, check if it has a valid CGI extension
+      for (int i = 0; cgi_extensions[i] != NULL; ++i) {
+        std::string ext = cgi_extensions[i];
+        if (current_path.length() >= ext.length() &&
+            current_path.substr(current_path.length() - ext.length()) == ext) {
+          // Found a valid CGI script
+          out_script_path = current_path;
+          out_path_info = path_info_part;
+          return true;
+        }
+      }
+      // File exists but not a valid CGI extension - check if path_info is
+      // empty If no path_info, this is the final file (might be valid script
+      // without matching extension list)
+      if (path_info_part.empty()) {
+        // Let the CgiHandler's validation decide
+        out_script_path = current_path;
+        out_path_info = "";
+        return true;
+      }
+    }
+
+    // Remove the last path segment and add it to path_info
+    std::size_t last_slash = current_path.find_last_of('/');
+    if (last_slash == std::string::npos) {
+      break;
+    }
+
+    // Add the removed segment to the beginning of path_info
+    std::string removed_segment = current_path.substr(last_slash);
+    path_info_part = removed_segment + path_info_part;
+    current_path = current_path.substr(0, last_slash);
+
+    // Don't go beyond the root
+    if (current_path.length() < root.length()) {
+      break;
+    }
+  }
+
+  // No valid CGI script found in the path
+  prepareErrorResponse(http::S_404_NOT_FOUND);
+  return false;
 }
