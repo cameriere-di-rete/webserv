@@ -55,14 +55,16 @@ HandlerResult CgiHandler::start(Connection& conn) {
 
   // Check if script exists (404 if not)
   std::string error_msg;
-  if (!scriptExists(script_path_, error_msg)) {
-    LOG(ERROR) << "CgiHandler: script not found: " << error_msg;
+  struct stat st;
+  if (stat(script_path_.c_str(), &st) != 0) {
+    LOG(ERROR) << "CgiHandler: script not found";
     conn.prepareErrorResponse(http::S_404_NOT_FOUND);
     return HR_DONE;
   }
 
   // Security validation: check script path (403 if fails)
-  if (!validateScriptPath(script_path_, error_msg)) {
+  // Pass the stat result to avoid redundant stat() calls
+  if (!validateScriptPath(script_path_, st, error_msg)) {
     LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
     return HR_DONE;
@@ -402,30 +404,17 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Note: Request class needs to provide header iteration interface
 }
 
-// Check if script file exists
-bool CgiHandler::scriptExists(const std::string& path, std::string& error_msg) {
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    error_msg = "Script file not found";
-    return false;
-  }
-  return true;
-}
-
 // Check if path is a regular file (not a directory, symlink, etc.)
-bool CgiHandler::isRegularFile(const std::string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    return false;
-  }
+bool CgiHandler::isRegularFile(const struct stat& st) {
   return S_ISREG(st.st_mode);
 }
 
 // Security validation: check if script path is safe to execute
 bool CgiHandler::validateScriptPath(const std::string& path,
+                                    const struct stat& st,
                                     std::string& error_msg) {
   // Check if path is a regular file (not a directory, symlink, etc.)
-  if (!isRegularFile(path)) {
+  if (!isRegularFile(st)) {
     error_msg = "Script path is not a regular file";
     return false;
   }
@@ -437,7 +426,7 @@ bool CgiHandler::validateScriptPath(const std::string& path,
   }
 
   // Check if file has executable permissions
-  if (!isExecutable(path)) {
+  if (!isExecutable(st)) {
     error_msg = "Script file is not executable";
     return false;
   }
@@ -498,12 +487,7 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
 }
 
 // Check if file has executable permissions
-bool CgiHandler::isExecutable(const std::string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    return false;
-  }
-
+bool CgiHandler::isExecutable(const struct stat& st) {
   // Check if file has execute permission for owner, group, or others
   return (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
 }
