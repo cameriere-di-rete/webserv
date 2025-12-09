@@ -5,7 +5,9 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <sstream>
 
 #include "Connection.hpp"
@@ -151,17 +153,85 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 }
 
 HandlerResult FileHandler::handlePost(Connection& conn) {
-  // Simple POST implementation: echo back the POST data with success message
+  // POST creates a new resource in the target directory
+  // If path_ is a directory, create a new file inside it
+  // If path_ is a file, append or create alongside it
+
+  struct stat st;
+  std::string target_path;
+
+  if (stat(path_.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+    // path_ is a directory - generate a unique filename
+    std::string base_dir = path_;
+    if (!base_dir.empty() && base_dir[base_dir.size() - 1] != '/') {
+      base_dir += '/';
+    }
+
+    // Generate unique filename using timestamp and counter
+    std::ostringstream filename;
+    filename << "upload_" << time(NULL) << "_" << rand() % 10000;
+
+    // Determine extension from Content-Type
+    std::string content_type;
+    if (conn.request.getHeader("Content-Type", content_type)) {
+      filename << file_utils::mimeToExtension(content_type);
+    } else {
+      filename << ".bin";
+    }
+
+    target_path = base_dir + filename.str();
+  } else {
+    // path_ is a file or doesn't exist - use it directly
+    target_path = path_;
+  }
+
+  // Check if file already exists (POST should create new, not overwrite)
+  if (stat(target_path.c_str(), &st) == 0) {
+    // File exists - 409 Conflict
+    conn.prepareErrorResponse(http::S_409_CONFLICT);
+    return HR_DONE;
+  }
+
+  // Create the new file
+  int fd = open(target_path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0644);
+  if (fd < 0) {
+    LOG_PERROR(ERROR, "FileHandler: Failed to create file for POST");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
+  }
+
+  // Write request body to file
+  const std::string& body = conn.request.getBody().data;
+  size_t total_written = 0;
+  ssize_t n = 0;
+  while (total_written < body.size()) {
+    n = write(fd, body.c_str() + total_written, body.size() - total_written);
+    if (n < 0) {
+      break;
+    }
+    total_written += static_cast<size_t>(n);
+  }
+  close(fd);
+
+  if (n < 0 || total_written != body.size()) {
+    LOG_PERROR(ERROR, "FileHandler: Failed to write file for POST");
+    unlink(target_path.c_str());
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
+  }
+
+  // 201 Created with Location header pointing to new resource
   conn.response.status_line.version = HTTP_VERSION;
   conn.response.status_line.status_code = http::S_201_CREATED;
   conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
 
+  // Add Location header with the URI of the created resource
+  conn.response.addHeader("Location", target_path);
+
   std::ostringstream resp_body;
-  resp_body << "POST request processed successfully" << CRLF;
-  resp_body << "URI: " << conn.request.request_line.uri << CRLF;
-  resp_body << "Content received: " << conn.request.getBody().size() << " bytes"
-            << CRLF;
-  resp_body << "Data:" << CRLF << conn.request.getBody().data;
+  resp_body << "Resource created successfully" << CRLF;
+  resp_body << "Location: " << target_path << CRLF;
+  resp_body << "Size: " << total_written << " bytes" << CRLF;
 
   conn.response.getBody().data = resp_body.str();
   conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
@@ -171,6 +241,9 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
   conn.response.addHeader("Content-Length", len.str());
 
   conn.write_buffer = conn.response.serialize();
+
+  LOG(INFO) << "FileHandler: Created resource " << target_path << " ("
+            << total_written << " bytes)";
   return HR_DONE;
 }
 
