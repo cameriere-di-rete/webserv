@@ -53,8 +53,15 @@ int CgiHandler::getMonitorFd() const {
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
 
-  // Security validation: check script path
+  // Check if script exists (404 if not)
   std::string error_msg;
+  if (!scriptExists(script_path_, error_msg)) {
+    LOG(ERROR) << "CgiHandler: script not found: " << error_msg;
+    conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+    return HR_DONE;
+  }
+
+  // Security validation: check script path (403 if fails)
   if (!validateScriptPath(script_path_, error_msg)) {
     LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
@@ -395,24 +402,37 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Note: Request class needs to provide header iteration interface
 }
 
-// Security validation: check if script path is safe to execute
-bool CgiHandler::validateScriptPath(const std::string& path,
-                                    std::string& error_msg) {
-  // Check for path traversal attacks
-  if (!isPathTraversalSafe(path)) {
-    error_msg = "Path traversal detected in script path";
-    return false;
-  }
-
-  // Check if file exists and is a regular file
+// Check if script file exists
+bool CgiHandler::scriptExists(const std::string& path, std::string& error_msg) {
   struct stat st;
   if (stat(path.c_str(), &st) != 0) {
     error_msg = "Script file not found";
     return false;
   }
+  return true;
+}
 
-  if (!S_ISREG(st.st_mode)) {
+// Check if path is a regular file (not a directory, symlink, etc.)
+bool CgiHandler::isRegularFile(const std::string& path) {
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0) {
+    return false;
+  }
+  return S_ISREG(st.st_mode);
+}
+
+// Security validation: check if script path is safe to execute
+bool CgiHandler::validateScriptPath(const std::string& path,
+                                    std::string& error_msg) {
+  // Check if path is a regular file (not a directory, symlink, etc.)
+  if (!isRegularFile(path)) {
     error_msg = "Script path is not a regular file";
+    return false;
+  }
+
+  // Check for path traversal attacks
+  if (!isPathTraversalSafe(path)) {
+    error_msg = "Path traversal detected in script path";
     return false;
   }
 
