@@ -256,11 +256,27 @@ void Connection::processResponse(const Location& location) {
   }
 
   if (location.cgi) {
-    // CGI handling
+    // CGI handling - need to find the actual script in the path
+    // For URIs like /cgi-bin/test.py/extra/path, we need to find test.py
     std::string resolved_path;
     bool is_directory = false;
     if (!resolvePathForLocation(location, resolved_path, is_directory)) {
       return;  // resolvePathForLocation prepared an error response
+    }
+
+    // If the resolved path doesn't exist as a file, try to find the CGI script
+    // by progressively removing path segments from the end
+    struct stat st;
+    std::string script_path = resolved_path;
+    while (stat(script_path.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+      // Remove last path segment
+      size_t last_slash = script_path.find_last_of('/');
+      if (last_slash == std::string::npos || last_slash == 0) {
+        // No more segments to remove, script not found
+        prepareErrorResponse(http::S_404_NOT_FOUND);
+        return;
+      }
+      script_path = script_path.substr(0, last_slash);
     }
 
     if (is_directory) {
@@ -268,7 +284,7 @@ void Connection::processResponse(const Location& location) {
       return;
     }
 
-    IHandler* handler = new CgiHandler(resolved_path);
+    IHandler* handler = new CgiHandler(script_path);
     setHandler(handler);
 
     HandlerResult hr = active_handler->start(*this);
