@@ -1,5 +1,5 @@
 /**
- * @file MaxRequestBody_test.cpp
+ * @file Connection_test.cpp
  * @brief Unit tests for max_request_body validation during request processing
  *
  * These tests verify that the server correctly rejects requests with bodies
@@ -167,7 +167,7 @@ TEST(MaxRequestBodyValidation, UnsetLimitAllowsAnyBodySize) {
   conn.request.request_line.version = "HTTP/1.1";
   conn.request.getBody().data = std::string(1000000, 'X');  // 1MB body
 
-  Location loc = createLocationWithMaxBody(MAX_REQUEST_BODY_UNSET);
+  Location loc = createLocationWithMaxBody(MAX_REQUEST_BODY_UNLIMITED);
 
   conn.processResponse(loc);
 
