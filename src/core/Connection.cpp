@@ -247,7 +247,7 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  if (location.cgi) {
+  if (!location.cgi_root.empty()) {
     // CGI handling
     std::string resolved_path;
     bool is_directory = false;
