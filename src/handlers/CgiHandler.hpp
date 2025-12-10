@@ -23,7 +23,6 @@ class CgiHandler : public IHandler {
   std::string getInterpreter(const std::string& path);
   bool validateScriptPath(const std::string& path, std::string& error_msg);
   bool isAllowedExtension(const std::string& path);
-  bool isExecutable(const std::string& path);
   bool isPathTraversalSafe(const std::string& path);
 
   std::string script_path_;
