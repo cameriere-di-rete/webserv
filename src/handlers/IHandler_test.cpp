@@ -6,17 +6,17 @@
 class TestHandler : public IHandler {
  public:
   TestHandler() : start_called(false), resume_called(false) {}
-  
+
   virtual HandlerResult start(Connection&) {
     start_called = true;
     return HR_DONE;
   }
-  
+
   virtual HandlerResult resume(Connection&) {
     resume_called = true;
     return HR_DONE;
   }
-  
+
   bool start_called;
   bool resume_called;
 };

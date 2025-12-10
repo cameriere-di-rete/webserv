@@ -25,7 +25,7 @@ TEST(ConnectionTests, CopyConstructorCopiesFields) {
   c1.server_fd = 5;
   c1.read_buffer = "test data";
   c1.write_ready = true;
-  
+
   Connection c2(c1);
   EXPECT_EQ(c2.fd, 10);
   EXPECT_EQ(c2.server_fd, 5);
@@ -38,7 +38,7 @@ TEST(ConnectionTests, AssignmentOperatorCopiesFields) {
   c1.server_fd = 15;
   c1.write_buffer = "response";
   c1.write_offset = 5;
-  
+
   Connection c2;
   c2 = c1;
   EXPECT_EQ(c2.fd, 20);

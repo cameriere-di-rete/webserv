@@ -20,7 +20,7 @@ TEST(ServerTests, CopyConstructorCopiesFields) {
   Server s1(3000);
   s1.root = "/var/www";
   s1.autoindex = true;
-  
+
   Server s2(s1);
   EXPECT_EQ(s2.port, 3000);
   EXPECT_EQ(s2.root, "/var/www");
@@ -31,7 +31,7 @@ TEST(ServerTests, AssignmentOperatorCopiesFields) {
   Server s1(4000);
   s1.root = "/usr/share";
   s1.autoindex = false;
-  
+
   Server s2;
   s2 = s1;
   EXPECT_EQ(s2.port, 4000);
