@@ -90,8 +90,15 @@ HandlerResult CgiHandler::start(Connection& conn) {
 
   // Create pipes for communication
   int pipe_to_cgi[2], pipe_from_cgi[2];
-  if (pipe(pipe_to_cgi) == -1 || pipe(pipe_from_cgi) == -1) {
+  if (pipe(pipe_to_cgi) == -1) {
     LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
+  }
+  if (pipe(pipe_from_cgi) == -1) {
+    LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    close(pipe_to_cgi[0]);
+    close(pipe_to_cgi[1]);
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
