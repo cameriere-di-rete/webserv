@@ -11,8 +11,8 @@
 // Tri-state for boolean directives that need to distinguish "not set"
 enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
 
-// Default value for max_request_body when not explicitly configured (4KB)
-extern const std::size_t DEFAULT_MAX_REQUEST_BODY;
+// Sentinel value for max_request_body meaning "no limit"
+extern const std::size_t MAX_REQUEST_BODY_UNLIMITED;
 class Location {
  public:
   Location();

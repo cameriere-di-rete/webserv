@@ -22,7 +22,7 @@ Server::Server(void)
       autoindex(false),
       root(),
       error_page(),
-      max_request_body(DEFAULT_MAX_REQUEST_BODY),
+      max_request_body(MAX_REQUEST_BODY_UNLIMITED),
       locations() {
   LOG(DEBUG) << "Server() default constructor called";
   initDefaultHttpMethods(allow_methods);
@@ -38,7 +38,7 @@ Server::Server(int port)
       autoindex(false),
       root(),
       error_page(),
-      max_request_body(DEFAULT_MAX_REQUEST_BODY),
+      max_request_body(MAX_REQUEST_BODY_UNLIMITED),
       locations() {
   LOG(DEBUG) << "Server(port) constructor called with port: " << port;
   initDefaultHttpMethods(allow_methods);
@@ -194,10 +194,8 @@ Location Server::matchLocation(const std::string& path) const {
   if (result.autoindex == UNSET) {
     result.autoindex = autoindex ? ON : OFF;
   }
-  // max_request_body: inherit from server if location still has default
-  // and server has a different (explicitly set) value
-  if (result.max_request_body == DEFAULT_MAX_REQUEST_BODY &&
-      max_request_body != DEFAULT_MAX_REQUEST_BODY) {
+  // max_request_body: inherit from server if location didn't set it
+  if (result.max_request_body == MAX_REQUEST_BODY_UNLIMITED) {
     result.max_request_body = max_request_body;
   }
 
