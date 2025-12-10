@@ -15,6 +15,7 @@
 
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
+#include "Location.hpp"
 #include "Logger.hpp"
 #include "utils.hpp"
 
@@ -25,7 +26,7 @@ Config::Config()
       root_(),
       servers_(),
       global_error_pages_(),
-      global_max_request_body_(0),
+      global_max_request_body_(MAX_REQUEST_BODY_UNLIMITED),
       idx_(0),
       current_server_index_(kGlobalContext),
       current_location_path_() {}
@@ -118,7 +119,7 @@ std::vector<Server> Config::getServers(void) {
   }
 
   // Parse and validate global directives
-  global_max_request_body_ = 0;
+  global_max_request_body_ = MAX_REQUEST_BODY_UNLIMITED;
   global_error_pages_.clear();
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
@@ -631,7 +632,7 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   }
 
   if (srv.max_request_body == MAX_REQUEST_BODY_UNLIMITED &&
-      global_max_request_body_ > 0) {
+      global_max_request_body_ != MAX_REQUEST_BODY_UNLIMITED) {
     srv.max_request_body = global_max_request_body_;
     LOG(DEBUG) << "Applied global max_request_body to server: "
                << srv.max_request_body;
