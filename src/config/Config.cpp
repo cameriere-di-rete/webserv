@@ -630,7 +630,7 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     throw std::runtime_error(msg);
   }
 
-  if (srv.max_request_body == MAX_REQUEST_BODY_UNSET &&
+  if (srv.max_request_body == MAX_REQUEST_BODY_UNLIMITED &&
       global_max_request_body_ > 0) {
     srv.max_request_body = global_max_request_body_;
     LOG(DEBUG) << "Applied global max_request_body to server: "
