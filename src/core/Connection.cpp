@@ -229,7 +229,7 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Check if request body exceeds the configured max_request_body limit
-  if (location.max_request_body != MAX_REQUEST_BODY_UNLIMITED &&
+  if (location.max_request_body != MAX_REQUEST_BODY_UNSET &&
       request.getBody().size() > location.max_request_body) {
     LOG(DEBUG) << "Request body size " << request.getBody().size()
                << " exceeds max_request_body " << location.max_request_body;

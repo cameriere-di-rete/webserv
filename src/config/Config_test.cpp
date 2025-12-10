@@ -1319,11 +1319,11 @@ TEST(MaxRequestBodyInheritance, UnsetMeansNoLimit) {
 
   std::vector<Server> servers = cfg.getServers();
 
-  // No max_request_body set anywhere, should be UNLIMITED (no limit)
-  EXPECT_EQ(servers[0].max_request_body, MAX_REQUEST_BODY_UNLIMITED);
+  // No max_request_body set anywhere, should be DEFAULT (4096)
+  EXPECT_EQ(servers[0].max_request_body, DEFAULT_MAX_REQUEST_BODY);
 
   Location loc = servers[0].matchLocation("/");
-  EXPECT_EQ(loc.max_request_body, MAX_REQUEST_BODY_UNLIMITED);
+  EXPECT_EQ(loc.max_request_body, DEFAULT_MAX_REQUEST_BODY);
 }
 
 TEST(MaxRequestBodyInheritance, MultipleLocationsWithDifferentLimits) {

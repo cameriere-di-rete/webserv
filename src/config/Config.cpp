@@ -26,7 +26,7 @@ Config::Config()
       root_(),
       servers_(),
       global_error_pages_(),
-      global_max_request_body_(MAX_REQUEST_BODY_UNLIMITED),
+      global_max_request_body_(MAX_REQUEST_BODY_UNSET),
       idx_(0),
       current_server_index_(kGlobalContext),
       current_location_path_() {}
@@ -119,7 +119,7 @@ std::vector<Server> Config::getServers(void) {
   }
 
   // Parse and validate global directives
-  global_max_request_body_ = MAX_REQUEST_BODY_UNLIMITED;
+  global_max_request_body_ = MAX_REQUEST_BODY_UNSET;
   global_error_pages_.clear();
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
@@ -631,11 +631,19 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     throw std::runtime_error(msg);
   }
 
-  if (srv.max_request_body == MAX_REQUEST_BODY_UNLIMITED &&
-      global_max_request_body_ != MAX_REQUEST_BODY_UNLIMITED) {
-    srv.max_request_body = global_max_request_body_;
-    LOG(DEBUG) << "Applied global max_request_body to server: "
-               << srv.max_request_body;
+  // max_request_body inheritance: global -> server -> default
+  // If server didn't set it and global did, use global
+  // If neither set it, use DEFAULT
+  if (srv.max_request_body == MAX_REQUEST_BODY_UNSET) {
+    if (global_max_request_body_ != MAX_REQUEST_BODY_UNSET) {
+      srv.max_request_body = global_max_request_body_;
+      LOG(DEBUG) << "Applied global max_request_body to server: "
+                 << srv.max_request_body;
+    } else {
+      srv.max_request_body = DEFAULT_MAX_REQUEST_BODY;
+      LOG(DEBUG) << "Applied default max_request_body to server: "
+                 << srv.max_request_body;
+    }
   }
 
   LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
