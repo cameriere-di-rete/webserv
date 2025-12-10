@@ -30,7 +30,8 @@ Connection::Connection()
       request(),
       response(),
       active_handler(NULL),
-      last_activity(time(NULL)) {}
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -41,7 +42,8 @@ Connection::Connection(int fd)
       request(),
       response(),
       active_handler(NULL),
-      last_activity(time(NULL)) {}
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -54,7 +56,8 @@ Connection::Connection(const Connection& other)
       request(other.request),
       response(other.response),
       active_handler(NULL),
-      last_activity(other.last_activity) {}
+      read_start(other.read_start),
+      write_start(other.write_start) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -71,19 +74,28 @@ Connection& Connection::operator=(const Connection& other) {
     write_ready = other.write_ready;
     request = other.request;
     response = other.response;
-    last_activity = other.last_activity;
+    read_start = other.read_start;
+    write_start = other.write_start;
     clearHandler();
   }
   return *this;
 }
 
-void Connection::updateActivity() {
-  last_activity = time(NULL);
+void Connection::startWritePhase() {
+  write_start = time(NULL);
 }
 
-bool Connection::isTimedOut(int timeout_seconds) const {
+bool Connection::isReadTimedOut(int timeout_seconds) const {
   time_t now = time(NULL);
-  return (now - last_activity) >= timeout_seconds;
+  return (now - read_start) >= timeout_seconds;
+}
+
+bool Connection::isWriteTimedOut(int timeout_seconds) const {
+  if (write_start == 0) {
+    return false;  // Write phase hasn't started yet
+  }
+  time_t now = time(NULL);
+  return (now - write_start) >= timeout_seconds;
 }
 
 int Connection::handleRead() {

@@ -2,8 +2,8 @@
  * @file ConnectionTimeout_test.cpp
  * @brief Unit tests for client request timeout handling
  *
- * These tests verify that the Connection class properly tracks activity
- * and can detect when a connection has timed out.
+ * These tests verify that the Connection class properly tracks separate
+ * read and write timeouts for connection management.
  */
 
 #include <cstring>
@@ -16,186 +16,237 @@
 #include "gtest/gtest.h"
 
 // =============================================================================
-// Test: Connection should have last_activity timestamp
+// Test: Connection should have read_start timestamp
 // =============================================================================
 
-TEST(ConnectionTimeout, ConnectionShouldHaveLastActivityField) {
+TEST(ConnectionTimeout, ConnectionShouldHaveReadStartField) {
   Connection conn;
-  // Connection should have a last_activity field of type time_t
-  EXPECT_TRUE((std::is_same<decltype(conn.last_activity), time_t>::value));
+  // Connection should have a read_start field of type time_t
+  EXPECT_TRUE((std::is_same<decltype(conn.read_start), time_t>::value));
 }
 
-TEST(ConnectionTimeout, ConnectionShouldInitializeLastActivityOnConstruction) {
+TEST(ConnectionTimeout, ConnectionShouldHaveWriteStartField) {
+  Connection conn;
+  // Connection should have a write_start field of type time_t
+  EXPECT_TRUE((std::is_same<decltype(conn.write_start), time_t>::value));
+}
+
+TEST(ConnectionTimeout, ConnectionShouldInitializeReadStartOnConstruction) {
   time_t before = time(NULL);
   Connection conn;
   time_t after = time(NULL);
 
-  // last_activity should be set to current time on construction
-  EXPECT_GE(conn.last_activity, before);
-  EXPECT_LE(conn.last_activity, after);
+  // read_start should be set to current time on construction
+  EXPECT_GE(conn.read_start, before);
+  EXPECT_LE(conn.read_start, after);
 }
 
-TEST(ConnectionTimeout, ConnectionFdConstructorShouldInitializeLastActivity) {
+TEST(ConnectionTimeout, ConnectionShouldInitializeWriteStartToZero) {
+  Connection conn;
+  // write_start should be 0 (not started) on construction
+  EXPECT_EQ(conn.write_start, 0);
+}
+
+TEST(ConnectionTimeout, ConnectionFdConstructorShouldInitializeReadStart) {
   time_t before = time(NULL);
   Connection conn(42);  // fd constructor
   time_t after = time(NULL);
 
-  EXPECT_GE(conn.last_activity, before);
-  EXPECT_LE(conn.last_activity, after);
+  EXPECT_GE(conn.read_start, before);
+  EXPECT_LE(conn.read_start, after);
+  EXPECT_EQ(conn.write_start, 0);
 }
 
-TEST(ConnectionTimeout, CopyConstructorShouldCopyLastActivity) {
+TEST(ConnectionTimeout, CopyConstructorShouldCopyReadStart) {
   Connection conn1;
-  conn1.last_activity = 12345;
+  conn1.read_start = 12345;
 
   Connection conn2(conn1);
 
-  EXPECT_EQ(conn2.last_activity, 12345);
+  EXPECT_EQ(conn2.read_start, 12345);
 }
 
-TEST(ConnectionTimeout, AssignmentOperatorShouldCopyLastActivity) {
+TEST(ConnectionTimeout, CopyConstructorShouldCopyWriteStart) {
   Connection conn1;
-  conn1.last_activity = 67890;
+  conn1.write_start = 67890;
+
+  Connection conn2(conn1);
+
+  EXPECT_EQ(conn2.write_start, 67890);
+}
+
+TEST(ConnectionTimeout, AssignmentOperatorShouldCopyReadStart) {
+  Connection conn1;
+  conn1.read_start = 12345;
 
   Connection conn2;
   conn2 = conn1;
 
-  EXPECT_EQ(conn2.last_activity, 67890);
+  EXPECT_EQ(conn2.read_start, 12345);
+}
+
+TEST(ConnectionTimeout, AssignmentOperatorShouldCopyWriteStart) {
+  Connection conn1;
+  conn1.write_start = 67890;
+
+  Connection conn2;
+  conn2 = conn1;
+
+  EXPECT_EQ(conn2.write_start, 67890);
 }
 
 // =============================================================================
-// Test: Connection should update timestamp on activity
+// Test: startWritePhase should set write_start timestamp
 // =============================================================================
 
-TEST(ConnectionTimeout, UpdateActivityShouldExist) {
+TEST(ConnectionTimeout, StartWritePhaseShouldExist) {
   Connection conn;
-  conn.last_activity = 0;
+  EXPECT_EQ(conn.write_start, 0);
 
-  // Connection should have an updateActivity() method
-  conn.updateActivity();
+  conn.startWritePhase();
 
-  EXPECT_GT(conn.last_activity, 0);
+  EXPECT_GT(conn.write_start, 0);
 }
 
-TEST(ConnectionTimeout, UpdateActivityShouldSetCurrentTime) {
+TEST(ConnectionTimeout, StartWritePhaseShouldSetCurrentTime) {
   Connection conn;
-  conn.last_activity = 0;
 
   time_t before = time(NULL);
-  conn.updateActivity();
+  conn.startWritePhase();
   time_t after = time(NULL);
 
-  EXPECT_GE(conn.last_activity, before);
-  EXPECT_LE(conn.last_activity, after);
-}
-
-TEST(ConnectionTimeout, MultipleUpdateActivityCallsShouldWork) {
-  Connection conn;
-  conn.last_activity = 0;
-
-  conn.updateActivity();
-  time_t first = conn.last_activity;
-
-  conn.updateActivity();
-  time_t second = conn.last_activity;
-
-  EXPECT_GE(second, first);
+  EXPECT_GE(conn.write_start, before);
+  EXPECT_LE(conn.write_start, after);
 }
 
 // =============================================================================
-// Test: Connection should detect if it's timed out
+// Test: Read timeout detection
 // =============================================================================
 
-TEST(ConnectionTimeout, IsTimedOutShouldExist) {
+TEST(ConnectionTimeout, IsReadTimedOutShouldExist) {
   Connection conn;
-  conn.last_activity = time(NULL);
-
-  // Connection should have isTimedOut(timeout_seconds) method
-  bool result = conn.isTimedOut(30);
-
+  // Connection should have isReadTimedOut(timeout_seconds) method
+  bool result = conn.isReadTimedOut(30);
   EXPECT_FALSE(result);  // Just created, should not be timed out
 }
 
-TEST(ConnectionTimeout, IsTimedOutReturnsFalseWhenWithinTimeout) {
+TEST(ConnectionTimeout, IsReadTimedOutReturnsFalseWhenWithinTimeout) {
   Connection conn;
-  conn.last_activity = time(NULL);
-
-  EXPECT_FALSE(conn.isTimedOut(30));
-  EXPECT_FALSE(conn.isTimedOut(60));
-  EXPECT_FALSE(conn.isTimedOut(1));
+  // read_start is set to now on construction
+  EXPECT_FALSE(conn.isReadTimedOut(30));
+  EXPECT_FALSE(conn.isReadTimedOut(60));
+  EXPECT_FALSE(conn.isReadTimedOut(1));
 }
 
-TEST(ConnectionTimeout, IsTimedOutReturnsTrueWhenExpired) {
+TEST(ConnectionTimeout, IsReadTimedOutReturnsTrueWhenExpired) {
   Connection conn;
-  conn.last_activity = time(NULL) - 100;  // 100 seconds ago
+  conn.read_start = time(NULL) - 100;  // 100 seconds ago
 
-  EXPECT_TRUE(conn.isTimedOut(30));    // 30 sec timeout -> expired
-  EXPECT_TRUE(conn.isTimedOut(60));    // 60 sec timeout -> expired
-  EXPECT_TRUE(conn.isTimedOut(99));    // 99 sec timeout -> expired
-  EXPECT_FALSE(conn.isTimedOut(101));  // 101 sec timeout -> not expired
+  EXPECT_TRUE(conn.isReadTimedOut(30));    // 30 sec timeout -> expired
+  EXPECT_TRUE(conn.isReadTimedOut(60));    // 60 sec timeout -> expired
+  EXPECT_TRUE(conn.isReadTimedOut(99));    // 99 sec timeout -> expired
+  EXPECT_FALSE(conn.isReadTimedOut(101));  // 101 sec timeout -> not expired
 }
 
-TEST(ConnectionTimeout, IsTimedOutEdgeCaseExactlyAtTimeout) {
+TEST(ConnectionTimeout, IsReadTimedOutEdgeCaseExactlyAtTimeout) {
   Connection conn;
-  conn.last_activity = time(NULL) - 30;  // Exactly 30 seconds ago
+  conn.read_start = time(NULL) - 30;  // Exactly 30 seconds ago
 
   // At exactly timeout boundary, should be considered timed out
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, IsTimedOutWithZeroTimeoutAlwaysTimesOut) {
+TEST(ConnectionTimeout, IsReadTimedOutWithZeroTimeoutAlwaysTimesOut) {
   Connection conn;
-  conn.last_activity = time(NULL);
-
   // Zero timeout means immediate timeout
-  EXPECT_TRUE(conn.isTimedOut(0));
+  EXPECT_TRUE(conn.isReadTimedOut(0));
 }
 
-TEST(ConnectionTimeout, IsTimedOutWithVeryOldTimestamp) {
+TEST(ConnectionTimeout, IsReadTimedOutWithVeryOldTimestamp) {
   Connection conn;
-  conn.last_activity = 0;  // Unix epoch - very old
+  conn.read_start = 0;  // Unix epoch - very old
 
-  EXPECT_TRUE(conn.isTimedOut(1));
-  EXPECT_TRUE(conn.isTimedOut(86400));  // 24 hours
+  EXPECT_TRUE(conn.isReadTimedOut(1));
+  EXPECT_TRUE(conn.isReadTimedOut(86400));  // 24 hours
 }
 
-TEST(ConnectionTimeout, IsTimedOutWithNegativeTimeout) {
-  Connection conn;
-  conn.last_activity = time(NULL);
+// =============================================================================
+// Test: Write timeout detection
+// =============================================================================
 
-  // Negative timeout should always return true (invalid input)
-  EXPECT_TRUE(conn.isTimedOut(-1));
+TEST(ConnectionTimeout, IsWriteTimedOutShouldExist) {
+  Connection conn;
+  // Connection should have isWriteTimedOut(timeout_seconds) method
+  bool result = conn.isWriteTimedOut(30);
+  // write_start is 0, so write phase hasn't started -> false
+  EXPECT_FALSE(result);
+}
+
+TEST(ConnectionTimeout, IsWriteTimedOutReturnsFalseWhenWriteNotStarted) {
+  Connection conn;
+  // write_start is 0 on construction
+  EXPECT_EQ(conn.write_start, 0);
+  EXPECT_FALSE(conn.isWriteTimedOut(30));
+  EXPECT_FALSE(conn.isWriteTimedOut(1));
+  EXPECT_FALSE(conn.isWriteTimedOut(0));
+}
+
+TEST(ConnectionTimeout, IsWriteTimedOutReturnsFalseWhenWithinTimeout) {
+  Connection conn;
+  conn.startWritePhase();  // Sets write_start to now
+
+  EXPECT_FALSE(conn.isWriteTimedOut(30));
+  EXPECT_FALSE(conn.isWriteTimedOut(60));
+  EXPECT_FALSE(conn.isWriteTimedOut(1));
+}
+
+TEST(ConnectionTimeout, IsWriteTimedOutReturnsTrueWhenExpired) {
+  Connection conn;
+  conn.write_start = time(NULL) - 100;  // 100 seconds ago
+
+  EXPECT_TRUE(conn.isWriteTimedOut(30));    // 30 sec timeout -> expired
+  EXPECT_TRUE(conn.isWriteTimedOut(60));    // 60 sec timeout -> expired
+  EXPECT_TRUE(conn.isWriteTimedOut(99));    // 99 sec timeout -> expired
+  EXPECT_FALSE(conn.isWriteTimedOut(101));  // 101 sec timeout -> not expired
+}
+
+TEST(ConnectionTimeout, IsWriteTimedOutEdgeCaseExactlyAtTimeout) {
+  Connection conn;
+  conn.write_start = time(NULL) - 30;  // Exactly 30 seconds ago
+
+  // At exactly timeout boundary, should be considered timed out
+  EXPECT_TRUE(conn.isWriteTimedOut(30));
 }
 
 // =============================================================================
 // Test: Different connection states and timeout behavior
 // =============================================================================
 
-TEST(ConnectionTimeout, EmptyBufferConnectionShouldTimeout) {
+TEST(ConnectionTimeout, EmptyBufferConnectionShouldReadTimeout) {
   Connection conn;
   conn.read_buffer = "";
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, PartialRequestLineConnectionShouldTimeout) {
+TEST(ConnectionTimeout, PartialRequestLineConnectionShouldReadTimeout) {
   Connection conn;
   conn.read_buffer = "GET /";
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, PartialHeadersConnectionShouldTimeout) {
+TEST(ConnectionTimeout, PartialHeadersConnectionShouldReadTimeout) {
   Connection conn;
   conn.read_buffer = "GET / HTTP/1.1\r\nHost: localhost";
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, PartialBodyConnectionShouldTimeout) {
+TEST(ConnectionTimeout, PartialBodyConnectionShouldReadTimeout) {
   Connection conn;
   conn.read_buffer =
       "POST /upload HTTP/1.1\r\n"
@@ -203,36 +254,52 @@ TEST(ConnectionTimeout, PartialBodyConnectionShouldTimeout) {
       "Content-Length: 100\r\n"
       "\r\n"
       "partial";
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, ActiveConnectionShouldNotTimeout) {
+TEST(ConnectionTimeout, ActiveConnectionShouldNotReadTimeout) {
   Connection conn;
   conn.read_buffer = "GET /";
-  conn.last_activity = time(NULL);  // Just now
+  // read_start is set to now on construction
 
-  EXPECT_FALSE(conn.isTimedOut(30));
+  EXPECT_FALSE(conn.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, ConnectionWithLargeBufferShouldStillTimeout) {
+TEST(ConnectionTimeout, ConnectionWithLargeBufferShouldStillReadTimeout) {
   Connection conn;
   conn.read_buffer = std::string(10000, 'A');  // 10KB of data
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 }
 
 // =============================================================================
-// Test: Timeout with active handler (e.g., CGI)
+// Test: Write phase timeout scenarios
 // =============================================================================
 
-TEST(ConnectionTimeout, ConnectionWithActiveHandlerShouldStillCheckTimeout) {
+TEST(ConnectionTimeout, WritePhaseNotStartedShouldNotWriteTimeout) {
   Connection conn;
-  conn.last_activity = time(NULL) - 120;
+  conn.read_start = time(NULL) - 100;  // Old read
 
-  EXPECT_TRUE(conn.isTimedOut(60));
+  // Even though connection is old, write phase hasn't started
+  EXPECT_FALSE(conn.isWriteTimedOut(30));
+}
+
+TEST(ConnectionTimeout, WritePhaseStartedShouldWriteTimeout) {
+  Connection conn;
+  conn.write_start = time(NULL) - 60;  // Started 60 seconds ago
+
+  EXPECT_TRUE(conn.isWriteTimedOut(30));
+}
+
+TEST(ConnectionTimeout, SlowResponseShouldWriteTimeout) {
+  Connection conn;
+  conn.write_buffer = "HTTP/1.1 200 OK\r\n...";
+  conn.write_start = time(NULL) - 60;
+
+  EXPECT_TRUE(conn.isWriteTimedOut(30));
 }
 
 // =============================================================================
@@ -260,81 +327,59 @@ TEST(ConnectionTimeout, Http408IntToStatusConversion) {
 }
 
 // =============================================================================
-// Test: Default timeout constant
+// Test: Default timeout constants
 // =============================================================================
 
-TEST(ConnectionTimeout, DefaultTimeoutConstantExists) {
-  EXPECT_GT(CONNECTION_TIMEOUT_SECONDS, 0);
-  EXPECT_LE(CONNECTION_TIMEOUT_SECONDS, 300);  // Max 5 minutes reasonable
+TEST(ConnectionTimeout, ReadTimeoutConstantExists) {
+  EXPECT_GT(READ_TIMEOUT_SECONDS, 0);
+  EXPECT_LE(READ_TIMEOUT_SECONDS, 300);  // Max 5 minutes reasonable
 }
 
-TEST(ConnectionTimeout, DefaultTimeoutIsReasonableValue) {
+TEST(ConnectionTimeout, WriteTimeoutConstantExists) {
+  EXPECT_GT(WRITE_TIMEOUT_SECONDS, 0);
+  EXPECT_LE(WRITE_TIMEOUT_SECONDS, 300);  // Max 5 minutes reasonable
+}
+
+TEST(ConnectionTimeout, ReadTimeoutIsReasonableValue) {
   // Typical HTTP server timeout is 30-60 seconds
-  EXPECT_GE(CONNECTION_TIMEOUT_SECONDS, 10);
-  EXPECT_LE(CONNECTION_TIMEOUT_SECONDS, 120);
+  EXPECT_GE(READ_TIMEOUT_SECONDS, 10);
+  EXPECT_LE(READ_TIMEOUT_SECONDS, 120);
+}
+
+TEST(ConnectionTimeout, WriteTimeoutIsReasonableValue) {
+  // Typical HTTP server timeout is 30-60 seconds
+  EXPECT_GE(WRITE_TIMEOUT_SECONDS, 10);
+  EXPECT_LE(WRITE_TIMEOUT_SECONDS, 120);
 }
 
 // =============================================================================
 // Test: Timeout scenarios for real-world usage
 // =============================================================================
 
-TEST(ConnectionTimeout, SlowClientScenario) {
-  // Simulates a slow client that sends data sporadically
-  Connection conn;
-
-  // Client connects
-  conn.last_activity = time(NULL);
-  EXPECT_FALSE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-
-  // Simulate 25 seconds passing (still within timeout)
-  conn.last_activity = time(NULL) - 25;
-  EXPECT_FALSE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-
-  // Client sends more data, resetting timer
-  conn.updateActivity();
-  EXPECT_FALSE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-
-  // Simulate timeout exceeded
-  conn.last_activity = time(NULL) - (CONNECTION_TIMEOUT_SECONDS + 1);
-  EXPECT_TRUE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-}
-
 TEST(ConnectionTimeout, SlowLorisAttackScenario) {
   // Simulates Slow Loris attack: client sends data very slowly
+  // With fixed timeout, attack is mitigated
   Connection conn;
   conn.read_buffer = "GET / HTTP/1.1\r\n";  // Partial request
+  conn.read_start = time(NULL) - (READ_TIMEOUT_SECONDS + 10);
 
-  // Even with some data, old activity should timeout
-  conn.last_activity = time(NULL) - (CONNECTION_TIMEOUT_SECONDS + 10);
-  EXPECT_TRUE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
+  // Fixed timeout means connection will be closed regardless of partial data
+  EXPECT_TRUE(conn.isReadTimedOut(READ_TIMEOUT_SECONDS));
 }
 
-TEST(ConnectionTimeout, IdleConnectionAfterRequestScenario) {
-  // Connection that was active but became idle
+TEST(ConnectionTimeout, SlowLorisCannotResetTimer) {
+  // Unlike updateActivity(), read_start is fixed
   Connection conn;
-  conn.read_buffer = "";  // Empty after previous request was processed
-  conn.write_buffer = "";
+  conn.read_start = time(NULL) - 100;
 
-  conn.last_activity = time(NULL) - (CONNECTION_TIMEOUT_SECONDS + 5);
-  EXPECT_TRUE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
+
+  // There's no way to reset the timer - this is intentional for security
+  // The only field is read_start which is set once at connection creation
 }
 
-TEST(ConnectionTimeout, KeepAliveConnectionScenario) {
-  // Keep-alive connection waiting for next request
-  Connection conn;
-  conn.read_buffer = "";
-
-  // Just after completing previous request
-  conn.last_activity = time(NULL);
-  EXPECT_FALSE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-
-  // After timeout, should be closed
-  conn.last_activity = time(NULL) - (CONNECTION_TIMEOUT_SECONDS + 1);
-  EXPECT_TRUE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-}
-
-TEST(ConnectionTimeout, LargeFileUploadPartialScenario) {
-  // Client uploading large file but stalled
+TEST(ConnectionTimeout, LargeFileUploadMustCompleteWithinTimeout) {
+  // Client uploading large file must complete within timeout
   Connection conn;
   conn.read_buffer =
       "POST /upload HTTP/1.1\r\n"
@@ -343,49 +388,59 @@ TEST(ConnectionTimeout, LargeFileUploadPartialScenario) {
       "\r\n" +
       std::string(5000, 'X');  // Only 5KB received
 
-  // Active upload
-  conn.last_activity = time(NULL);
-  EXPECT_FALSE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
-
-  // Stalled upload
-  conn.last_activity = time(NULL) - (CONNECTION_TIMEOUT_SECONDS + 1);
-  EXPECT_TRUE(conn.isTimedOut(CONNECTION_TIMEOUT_SECONDS));
+  // Even if still receiving data, timeout is fixed
+  conn.read_start = time(NULL) - (READ_TIMEOUT_SECONDS + 1);
+  EXPECT_TRUE(conn.isReadTimedOut(READ_TIMEOUT_SECONDS));
 }
 
 TEST(ConnectionTimeout, MultipleConnectionsIndependentTimeouts) {
   // Each connection tracks its own timeout independently
   Connection conn1, conn2, conn3;
 
-  conn1.last_activity = time(NULL);       // Active
-  conn2.last_activity = time(NULL) - 20;  // 20 seconds old
-  conn3.last_activity = time(NULL) - 50;  // 50 seconds old
+  conn1.read_start = time(NULL);       // Just connected
+  conn2.read_start = time(NULL) - 20;  // 20 seconds old
+  conn3.read_start = time(NULL) - 50;  // 50 seconds old
 
-  EXPECT_FALSE(conn1.isTimedOut(30));
-  EXPECT_FALSE(conn2.isTimedOut(30));
-  EXPECT_TRUE(conn3.isTimedOut(30));
+  EXPECT_FALSE(conn1.isReadTimedOut(30));
+  EXPECT_FALSE(conn2.isReadTimedOut(30));
+  EXPECT_TRUE(conn3.isReadTimedOut(30));
 }
 
-TEST(ConnectionTimeout, UpdateActivityResetsTimeout) {
+TEST(ConnectionTimeout, ReadAndWriteTimeoutsAreIndependent) {
   Connection conn;
-  conn.last_activity = time(NULL) - 100;  // Very old
+  conn.read_start = time(NULL) - 100;  // Read phase was 100s ago
+  conn.write_start = time(NULL) - 10;  // Write started 10s ago
 
-  EXPECT_TRUE(conn.isTimedOut(30));
-
-  // Activity resets the timeout
-  conn.updateActivity();
-
-  EXPECT_FALSE(conn.isTimedOut(30));
+  // Read timeout expired, but write hasn't
+  EXPECT_TRUE(conn.isReadTimedOut(30));
+  EXPECT_FALSE(conn.isWriteTimedOut(30));
 }
 
 TEST(ConnectionTimeout, TimeoutCheckIsIdempotent) {
   Connection conn;
-  conn.last_activity = time(NULL) - 60;
+  conn.read_start = time(NULL) - 60;
 
   // Multiple checks should return same result
-  EXPECT_TRUE(conn.isTimedOut(30));
-  EXPECT_TRUE(conn.isTimedOut(30));
-  EXPECT_TRUE(conn.isTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
+  EXPECT_TRUE(conn.isReadTimedOut(30));
 
-  // isTimedOut should not modify last_activity
-  EXPECT_EQ(conn.last_activity, time(NULL) - 60);
+  // isReadTimedOut should not modify read_start
+  EXPECT_EQ(conn.read_start, time(NULL) - 60);
+}
+
+TEST(ConnectionTimeout, TypicalRequestResponseFlow) {
+  // Simulate normal request-response flow
+  Connection conn;
+
+  // Phase 1: Reading request (read_start set on construction)
+  EXPECT_FALSE(conn.isReadTimedOut(READ_TIMEOUT_SECONDS));
+  EXPECT_EQ(conn.write_start, 0);
+
+  // Phase 2: Start writing response
+  conn.startWritePhase();
+  EXPECT_GT(conn.write_start, 0);
+  EXPECT_FALSE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+
+  // Both timeouts should be checked based on their respective start times
 }

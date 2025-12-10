@@ -30,12 +30,13 @@ class Connection {
   Request request;
   Response response;
   IHandler* active_handler;
-  time_t last_activity;  // Timestamp of last activity for timeout detection
+  time_t read_start;   // Timestamp when connection started (for read timeout)
+  time_t write_start;  // Timestamp when write phase started (0 if not started)
 
   int handleRead();
-  void updateActivity();  // Update last_activity to current time
-  bool isTimedOut(
-      int timeout_seconds) const;  // Check if connection has timed out
+  void startWritePhase();  // Mark the start of write phase
+  bool isReadTimedOut(int timeout_seconds) const;   // Check if read phase timed out
+  bool isWriteTimedOut(int timeout_seconds) const;  // Check if write phase timed out
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);
