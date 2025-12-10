@@ -5,7 +5,7 @@
 TEST(ServerTests, DefaultConstructorInitializesFields) {
   Server s;
   EXPECT_EQ(s.fd, -1);
-  EXPECT_EQ(s.port, -1);  // Default port is -1, not 8080
+  EXPECT_EQ(s.port, -1);
   EXPECT_FALSE(s.autoindex);
   EXPECT_EQ(s.root, "");
 }
