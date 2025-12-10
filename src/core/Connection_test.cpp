@@ -7,9 +7,10 @@
  * Large.
  */
 
+#include "Connection.hpp"
+
 #include <string>
 
-#include "Connection.hpp"
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "gtest/gtest.h"
