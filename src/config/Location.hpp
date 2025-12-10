@@ -25,7 +25,7 @@ class Location {
   std::set<http::Method> allow_methods;
   http::Status redirect_code;
   std::string redirect_location;
-  bool cgi;
+  std::string cgi_root;  // Dedicated root directory for CGI scripts
   std::set<std::string> index;
   Tristate autoindex;
   std::string root;

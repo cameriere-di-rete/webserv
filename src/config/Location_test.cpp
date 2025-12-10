@@ -11,7 +11,7 @@ TEST(LocationTests, DefaultConstructorInitializesFields) {
   EXPECT_TRUE(loc.allow_methods.empty());
   EXPECT_EQ(loc.redirect_code, http::S_0_UNKNOWN);
   EXPECT_EQ(loc.redirect_location, "");
-  EXPECT_EQ(loc.cgi, false);
+  EXPECT_EQ(loc.cgi_root, "");
   EXPECT_TRUE(loc.index.empty());
   EXPECT_EQ(loc.autoindex, UNSET);
   EXPECT_EQ(loc.root, "");
@@ -32,7 +32,7 @@ TEST(LocationTests, CopyConstructorCopiesFields) {
   loc1.allow_methods.insert(http::POST);
   loc1.redirect_code = http::S_301_MOVED_PERMANENTLY;
   loc1.redirect_location = "/new-location";
-  loc1.cgi = true;
+  loc1.cgi_root = "/usr/lib/cgi-bin";
   loc1.index.insert("index.html");
   loc1.autoindex = ON;
   loc1.root = "/var/www";
@@ -46,7 +46,7 @@ TEST(LocationTests, CopyConstructorCopiesFields) {
   EXPECT_NE(loc2.allow_methods.find(http::POST), loc2.allow_methods.end());
   EXPECT_EQ(loc2.redirect_code, http::S_301_MOVED_PERMANENTLY);
   EXPECT_EQ(loc2.redirect_location, "/new-location");
-  EXPECT_EQ(loc2.cgi, true);
+  EXPECT_EQ(loc2.cgi_root, "/usr/lib/cgi-bin");
   EXPECT_EQ(loc2.index.size(), 1u);
   EXPECT_NE(loc2.index.find("index.html"), loc2.index.end());
   EXPECT_EQ(loc2.autoindex, ON);
@@ -59,7 +59,7 @@ TEST(LocationTests, CopyConstructorCopiesFields) {
 TEST(LocationTests, AssignmentOperatorCopiesFields) {
   Location loc1("/original");
   loc1.allow_methods.insert(http::DELETE);
-  loc1.cgi = true;
+  loc1.cgi_root = "/cgi-bin";
   loc1.autoindex = OFF;
 
   Location loc2;
@@ -67,7 +67,7 @@ TEST(LocationTests, AssignmentOperatorCopiesFields) {
   EXPECT_EQ(loc2.path, "/original");
   EXPECT_EQ(loc2.allow_methods.size(), 1u);
   EXPECT_NE(loc2.allow_methods.find(http::DELETE), loc2.allow_methods.end());
-  EXPECT_EQ(loc2.cgi, true);
+  EXPECT_EQ(loc2.cgi_root, "/cgi-bin");
   EXPECT_EQ(loc2.autoindex, OFF);
 }
 
