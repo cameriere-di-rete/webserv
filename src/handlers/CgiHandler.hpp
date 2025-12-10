@@ -21,11 +21,8 @@ class CgiHandler : public IHandler {
   HandlerResult readCgiOutput(Connection& conn);
   HandlerResult parseOutput(Connection& conn, const std::string& data);
   std::string getInterpreter(const std::string& path);
-  bool scriptExists(const std::string& path, std::string& error_msg);
   bool validateScriptPath(const std::string& path, std::string& error_msg);
-  bool isRegularFile(const std::string& path);
   bool isAllowedExtension(const std::string& path);
-  bool isExecutable(const std::string& path);
   bool isPathTraversalSafe(const std::string& path);
 
   std::string script_path_;
