@@ -33,6 +33,11 @@ add_executable(runTests test_main.cpp
   ../src/http/Header_test.cpp
   ../src/http/RequestLine_test.cpp
   ../src/http/StatusLine_test.cpp
+  ../src/core/Server_test.cpp
+  ../src/core/Connection_test.cpp
+  ../src/handlers/IHandler_test.cpp
+  ../src/handlers/FileHandler_test.cpp
+  ../src/handlers/AutoindexHandler_test.cpp
 )
 target_link_libraries(runTests PRIVATE GTest::gtest_main webserv_core webserv_http webserv_config webserv_handlers webserv_utils pthread)
 

@@ -27,12 +27,17 @@ class WebservTestCase(unittest.TestCase):
         # Get the path to the webserv executable and config
         project_root = os.path.join(os.path.dirname(__file__), "..", "..")
         webserv_path = os.path.join(project_root, "webserv")
+        
+        # Try build directory if root doesn't have it
+        if not os.path.exists(webserv_path):
+            webserv_path = os.path.join(project_root, "build", "webserv")
+        
         config_path = os.path.join(project_root, "conf", cls.config_file)
 
         if not os.path.exists(webserv_path):
             raise RuntimeError(
                 f"webserv executable not found at {webserv_path}. "
-                "Please build the project first."
+                "Please build the project first with 'make' or 'cmake --build build'."
             )
 
         # Start the server from the project root directory so relative paths work
