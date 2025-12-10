@@ -9,7 +9,8 @@
 #define EXIT_NOT_FOUND 127  // Standard shell exit code for "command not found"
 
 // Connection timeout in seconds for reading client requests
-// If request is not fully received within this time, respond with 408 Request Timeout
+// If request is not fully received within this time, respond with 408 Request
+// Timeout
 #define READ_TIMEOUT_SECONDS 30
 
 // Connection timeout in seconds for writing responses to client

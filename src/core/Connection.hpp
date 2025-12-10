@@ -35,8 +35,10 @@ class Connection {
 
   int handleRead();
   void startWritePhase();  // Mark the start of write phase
-  bool isReadTimedOut(int timeout_seconds) const;   // Check if read phase timed out
-  bool isWriteTimedOut(int timeout_seconds) const;  // Check if write phase timed out
+  bool isReadTimedOut(
+      int timeout_seconds) const;  // Check if read phase timed out
+  bool isWriteTimedOut(
+      int timeout_seconds) const;  // Check if write phase timed out
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);
