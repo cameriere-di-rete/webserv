@@ -710,6 +710,20 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi = parseBooleanValue_(d.args[0]);
       LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+    } else if (d.name == "cgi_extensions") {
+      requireArgsAtLeast_(d, 1);
+      std::set<std::string> exts;
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        std::string ext = trim_copy(d.args[j]);
+        // Ensure extension starts with a dot
+        if (!ext.empty() && ext[0] != '.') {
+          ext = "." + ext;
+        }
+        exts.insert(ext);
+      }
+      loc.cgi_extensions = exts;
+      LOG(DEBUG) << "  Location CGI extensions: " << d.args.size()
+                 << " extension(s)";
     } else if (d.name == "max_request_body") {
       requireArgsEqual_(d, 1);
       loc.max_request_body = parsePositiveNumber_(d.args[0]);

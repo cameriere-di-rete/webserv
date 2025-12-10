@@ -26,6 +26,7 @@ class Location {
   http::Status redirect_code;
   std::string redirect_location;
   bool cgi;
+  std::set<std::string> cgi_extensions;
   std::set<std::string> index;
   Tristate autoindex;
   std::string root;
