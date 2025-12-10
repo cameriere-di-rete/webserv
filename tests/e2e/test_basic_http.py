@@ -70,16 +70,21 @@ class TestAutoindex(WebservTestCase):
 
 
 if __name__ == "__main__":
-    # Check if webserv is built
+    # Check if webserv is built (try both locations)
     webserv_path = os.path.join(
         os.path.dirname(__file__), "..", "..", "webserv"
     )
     if not os.path.exists(webserv_path):
+        webserv_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "build", "webserv"
+        )
+    
+    if not os.path.exists(webserv_path):
         print(
-            f"Error: webserv executable not found at {webserv_path}",
+            f"Error: webserv executable not found in ../../webserv or ../../build/webserv",
             file=sys.stderr,
         )
-        print("Please build the project first with 'make'", file=sys.stderr)
+        print("Please build the project first with 'make' or 'cmake --build build'", file=sys.stderr)
         sys.exit(1)
 
     unittest.main()
