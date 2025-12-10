@@ -54,6 +54,7 @@ TEST(ConnectionTests, AssignmentOperatorCopiesFields) {
 TEST(ConnectionTests, ActiveHandlerIsNull) {
   Connection c;
   EXPECT_EQ(c.active_handler, static_cast<IHandler*>(NULL));
+}
 
 // Test that HTTP/1.1 requests are accepted
 TEST(ConnectionTests, AcceptsHttp11Requests) {
