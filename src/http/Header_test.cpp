@@ -31,6 +31,7 @@ TEST(HeaderTests, AssignmentOperatorCopiesFields) {
 
 TEST(HeaderTests, AssignmentOperatorHandlesSelfAssignment) {
   Header h("Accept", "application/json");
+  // NOLINTNEXTLINE(clang-diagnostic-self-assign-overloaded)
   h = h;
   EXPECT_EQ(h.name, "Accept");
   EXPECT_EQ(h.value, "application/json");
