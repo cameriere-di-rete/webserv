@@ -157,26 +157,6 @@ TEST(MaxRequestBodyValidation, ZeroLimitRejectsNonEmptyBody) {
 }
 
 // =============================================================================
-// Test: Unset max_request_body (sentinel value) allows any body size
-// =============================================================================
-
-TEST(MaxRequestBodyValidation, UnsetLimitAllowsAnyBodySize) {
-  Connection conn;
-  conn.request.request_line.method = "POST";
-  conn.request.request_line.uri = "/";
-  conn.request.request_line.version = "HTTP/1.1";
-  conn.request.getBody().data = std::string(1000000, 'X');  // 1MB body
-
-  Location loc = createLocationWithMaxBody(MAX_REQUEST_BODY_UNLIMITED);
-
-  conn.processResponse(loc);
-
-  // With unset limit, body size check should be skipped
-  EXPECT_NE(conn.response.status_line.status_code,
-            http::S_413_PAYLOAD_TOO_LARGE);
-}
-
-// =============================================================================
 // Test: Large body with large limit
 // =============================================================================
 

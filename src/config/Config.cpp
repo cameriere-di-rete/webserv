@@ -26,7 +26,7 @@ Config::Config()
       root_(),
       servers_(),
       global_error_pages_(),
-      global_max_request_body_(MAX_REQUEST_BODY_UNLIMITED),
+      global_max_request_body_(DEFAULT_MAX_REQUEST_BODY),
       idx_(0),
       current_server_index_(kGlobalContext),
       current_location_path_() {}
@@ -119,7 +119,7 @@ std::vector<Server> Config::getServers(void) {
   }
 
   // Parse and validate global directives
-  global_max_request_body_ = MAX_REQUEST_BODY_UNLIMITED;
+  global_max_request_body_ = DEFAULT_MAX_REQUEST_BODY;
   global_error_pages_.clear();
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
@@ -546,6 +546,14 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   current_server_index_ = server_index;
   current_location_path_.clear();
 
+  // Apply global max_request_body inheritance BEFORE parsing server directives
+  // This way, if server explicitly sets max_request_body, it will override
+  if (global_max_request_body_ != DEFAULT_MAX_REQUEST_BODY) {
+    srv.max_request_body = global_max_request_body_;
+    LOG(DEBUG) << "Applied global max_request_body to server: "
+               << srv.max_request_body;
+  }
+
   // Process server directives (handle listen + others in one pass)
   LOG(DEBUG) << "Processing " << server_block.directives.size()
              << " server directive(s)";
@@ -629,13 +637,6 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
-  }
-
-  if (srv.max_request_body == MAX_REQUEST_BODY_UNLIMITED &&
-      global_max_request_body_ != MAX_REQUEST_BODY_UNLIMITED) {
-    srv.max_request_body = global_max_request_body_;
-    LOG(DEBUG) << "Applied global max_request_body to server: "
-               << srv.max_request_body;
   }
 
   LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
