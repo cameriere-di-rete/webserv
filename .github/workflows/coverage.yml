@@ -2,7 +2,7 @@ name: Code Coverage
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize]
     paths:
       - '**.cpp'
       - '**.hpp'
@@ -10,6 +10,10 @@ on:
       - '**/CMakeLists.txt'
       - 'cmake/**'
       - 'tests/**'
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   coverage:
@@ -21,21 +25,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install LLVM tools
+      - name: Setup GTest
+        uses: ./.github/actions/setup-gtest
+
+      - name: Install LLVM/Clang
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm clang
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: coverage-${{ runner.os }}
+          max-size: 100M
+
       - name: Configure with coverage enabled
         run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           cmake -S . -B build \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DENABLE_COVERAGE=ON \
             -DBUILD_TESTS=ON
 
       - name: Build tests
-        run: cmake --build build --target runTests -- -j2
+        run: cmake --build build --target runTests -- -j$(nproc)
 
       - name: Run tests and generate coverage data
         run: |
@@ -48,18 +64,13 @@ jobs:
           cd build
           llvm-profdata merge -sparse coverage.profraw -o coverage.profdata
 
-          # Ignore test files and build dependencies in coverage report
           IGNORE_REGEX='(_test\.cpp|test_main\.cpp|tests/|_deps)'
 
-          # Generate summary report
           REPORT=$(llvm-cov report ./tests/runTests -instr-profile=coverage.profdata -ignore-filename-regex="$IGNORE_REGEX" 2>/dev/null || echo "Failed to generate report")
 
-          # Extract totals line (last line with TOTAL)
           TOTAL_LINE=$(echo "$REPORT" | grep "^TOTAL" || echo "")
 
           if [ -n "$TOTAL_LINE" ]; then
-            # Parse coverage percentages from TOTAL line
-            # Format: TOTAL  Regions  Miss  Cover  Functions  Miss  Cover  Lines  Miss  Cover  Branches  Miss  Cover
             LINE_COV=$(echo "$TOTAL_LINE" | awk '{print $10}')
             FUNC_COV=$(echo "$TOTAL_LINE" | awk '{print $7}')
             REGION_COV=$(echo "$TOTAL_LINE" | awk '{print $4}')
@@ -73,18 +84,13 @@ jobs:
             echo "region_coverage=N/A" >> $GITHUB_OUTPUT
           fi
 
-          # Save full report for the comment
           echo "$REPORT" > coverage_report.txt
-
-          # Generate per-file summary (excluding test files)
           llvm-cov report ./tests/runTests -instr-profile=coverage.profdata -ignore-filename-regex="$IGNORE_REGEX" --show-functions=false 2>/dev/null > coverage_files.txt || true
 
       - name: Generate coverage comment
         id: comment
         run: |
           cd build
-
-          # Build the markdown comment
           {
             echo "## 📊 Code Coverage Report"
             echo ""
@@ -98,7 +104,6 @@ jobs:
             echo "<summary>📁 Coverage by File</summary>"
             echo ""
             echo "\`\`\`"
-            # Show file coverage, limit to reasonable size
             head -100 coverage_files.txt
             if [ $(wc -l < coverage_files.txt) -gt 100 ]; then
               echo "... (truncated)"
@@ -110,7 +115,6 @@ jobs:
             echo "*Coverage generated from commit ${{ github.event.pull_request.head.sha }}*"
           } > comment.md
 
-          # Save comment body to output
           {
             echo 'body<<EOF'
             cat comment.md
