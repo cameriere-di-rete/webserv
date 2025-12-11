@@ -71,7 +71,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: build-${{ steps.cache-key.outputs.key }}
           path: |
             build/
             !build/_deps/
@@ -96,7 +96,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-${{ needs.build.outputs.build-cache-key }}
           path: build
 
       - name: Fix permissions
