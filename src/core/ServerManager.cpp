@@ -106,15 +106,21 @@ void ServerManager::acceptConnection(int listen_fd) {
     connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
-    updateEvents(conn_fd, EPOLLIN | EPOLLET);
+    if (!updateEvents(conn_fd, EPOLLIN | EPOLLET)) {
+      LOG(ERROR) << "Failed to register connection fd " << conn_fd
+                 << " with epoll, closing connection";
+      connections_.erase(conn_fd);
+      close(conn_fd);
+      continue;
+    }
     LOG(DEBUG) << "Connection fd " << conn_fd << " registered with EPOLLIN";
   }
 }
 
-void ServerManager::updateEvents(int fd, uint32_t events) {
+bool ServerManager::updateEvents(int fd, uint32_t events) {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
-    return;
+    return false;
   }
 
   struct epoll_event ev;
@@ -125,13 +131,14 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
     if (errno == ENOENT) {
       if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
-        throw std::runtime_error("Failed to add file descriptor to epoll");
+        return false;
       }
     } else {
       LOG_PERROR(ERROR, "epoll_ctl MOD");
-      throw std::runtime_error("Failed to modify epoll events");
+      return false;
     }
   }
+  return true;
 }
 
 int ServerManager::run() {
@@ -299,7 +306,13 @@ int ServerManager::run() {
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
         conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
+          cleanupHandlerResources(conn);
+          connections_.erase(conn_fd);
+          close(conn_fd);
+        }
         continue;
       }
 
@@ -307,7 +320,13 @@ int ServerManager::run() {
       int body_result = extractRequestBody(conn, conn_fd);
       if (body_result < 0) {
         // Error occurred, response already prepared
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
+          cleanupHandlerResources(conn);
+          connections_.erase(conn_fd);
+          close(conn_fd);
+        }
         continue;
       } else if (body_result == 0) {
         // Body not fully received yet, wait for more data
@@ -324,7 +343,13 @@ int ServerManager::run() {
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
         conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
+          cleanupHandlerResources(conn);
+          connections_.erase(conn_fd);
+          close(conn_fd);
+        }
         continue;
       }
 
@@ -347,7 +372,13 @@ int ServerManager::run() {
                        << conn_fd;
             conn.clearHandler();
             conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-            updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+            if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+              LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                         << ", closing connection";
+              cleanupHandlerResources(conn);
+              connections_.erase(conn_fd);
+              close(conn_fd);
+            }
             continue;
           }
           // Don't enable EPOLLOUT yet - wait for CGI to complete
@@ -356,7 +387,13 @@ int ServerManager::run() {
       }
 
       /* enable EPOLLOUT now that we have data to send */
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+        LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                   << ", closing connection";
+        cleanupHandlerResources(conn);
+        connections_.erase(conn_fd);
+        close(conn_fd);
+      }
     }
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
@@ -541,7 +578,13 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Enable write events to send response
-  updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+  if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+    LOG(ERROR) << "Failed to update events for fd " << conn_fd
+               << ", closing connection";
+    cleanupHandlerResources(conn);
+    connections_.erase(conn_fd);
+    close(conn_fd);
+  }
 }
 
 void ServerManager::cleanupHandlerResources(Connection& c) {

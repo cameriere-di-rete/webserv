@@ -48,7 +48,8 @@ class ServerManager {
   int run();
 
   // Updates epoll events for a file descriptor
-  void updateEvents(int fd, u_int32_t events);
+  // Returns true on success, false on error
+  bool updateEvents(int fd, u_int32_t events);
 
   void setupSignalHandlers();
 
