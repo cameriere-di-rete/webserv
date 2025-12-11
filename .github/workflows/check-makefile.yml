@@ -2,7 +2,7 @@ name: Check generated Makefile
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize]
     paths:
       - 'Makefile'
       - 'CMakeLists.txt'
@@ -28,23 +28,12 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 1
 
+      - name: Setup GTest
+        uses: ./.github/actions/setup-gtest
+
       - name: Save committed Makefile
         run: |
           if [ -f Makefile ]; then cp Makefile Makefile.committed; else touch Makefile.committed; fi
-
-      - name: Cache CMake dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/_deps
-          key: cmake-deps-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            cmake-deps-
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake libgtest-dev
 
       - name: Regenerate Makefile from CMake
         run: |

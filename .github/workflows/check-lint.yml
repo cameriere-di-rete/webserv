@@ -1,4 +1,4 @@
-name: Lint Check
+name: Check lint
 
 permissions:
   contents: read
@@ -7,7 +7,7 @@ permissions:
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize]
     paths:
       - '**.cpp'
       - '**.hpp'
@@ -34,19 +34,12 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Cache CMake dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            build/_deps
-          key: cmake-deps-${{ hashFiles('**/CMakeLists.txt') }}
-          restore-keys: |
-            cmake-deps-
+      - name: Setup GTest
+        uses: ./.github/actions/setup-gtest
 
-      - name: Fetch dependencies with CMake
+      - name: Generate compile_commands.json
         run: |
           cmake -B build -S . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          # This fetches GoogleTest and generates compile_commands.json
 
       - uses: cpp-linter/cpp-linter-action@v2
         id: linter
