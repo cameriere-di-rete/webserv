@@ -198,8 +198,7 @@ Location Server::matchLocation(const std::string& path) const {
   // Resolve error_page paths to absolute filesystem paths using root
   if (!result.root.empty()) {
     std::string resolved_root = result.root;
-    if (!resolved_root.empty() &&
-        resolved_root[resolved_root.size() - 1] == '/') {
+    if (resolved_root[resolved_root.size() - 1] == '/') {
       resolved_root = resolved_root.substr(0, resolved_root.size() - 1);
     }
     for (std::map<http::Status, std::string>::iterator it =
