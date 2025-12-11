@@ -17,6 +17,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compile:
     runs-on: ubuntu-latest
@@ -28,10 +32,26 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ runner.os }}
+          max-size: 100M
+
+      - name: Cache CMake dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/_deps
+          key: cmake-deps-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            cmake-deps-
+
       - name: Configure and build with CMake
         run: |
-          cmake -S . -B build
-          cmake --build build -- -j2
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake -S . -B build -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build -- -j$(nproc)
 
       - name: Verify binary was created
         run: |
