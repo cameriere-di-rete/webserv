@@ -30,7 +30,7 @@ Connection::Connection()
       request(),
       response(),
       active_handler(NULL),
-      error_pages_() {}
+      error_pages() {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -41,7 +41,7 @@ Connection::Connection(int fd)
       request(),
       response(),
       active_handler(NULL),
-      error_pages_() {}
+      error_pages() {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -54,7 +54,7 @@ Connection::Connection(const Connection& other)
       request(other.request),
       response(other.response),
       active_handler(NULL),
-      error_pages_(other.error_pages_) {}
+      error_pages(other.error_pages) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -72,7 +72,7 @@ Connection& Connection::operator=(const Connection& other) {
     request = other.request;
     response = other.response;
     clearHandler();
-    error_pages_ = other.error_pages_;
+    error_pages = other.error_pages;
   }
   return *this;
 }
@@ -154,8 +154,8 @@ void Connection::prepareErrorResponse(http::Status status) {
 
   // Check if there's a custom error page configured for this status
   std::map<http::Status, std::string>::const_iterator it =
-      error_pages_.find(status);
-  if (it != error_pages_.end()) {
+      error_pages.find(status);
+  if (it != error_pages.end()) {
     // Try to serve the custom error page using FileHandler
     FileHandler* fh = new FileHandler(it->second);
     HandlerResult hr = fh->start(*this);
@@ -249,7 +249,7 @@ void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
 
   // Store error page config (paths already resolved in matchLocation)
-  error_pages_ = location.error_page;
+  error_pages = location.error_page;
 
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();

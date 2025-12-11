@@ -30,7 +30,7 @@ class Connection {
   Request request;
   Response response;
   IHandler* active_handler;
-  std::map<http::Status, std::string> error_pages_;
+  std::map<http::Status, std::string> error_pages;
 
   int handleRead();
   int handleWrite();
