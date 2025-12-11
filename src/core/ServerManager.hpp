@@ -33,6 +33,8 @@ class ServerManager {
   // Extract and validate request body from read buffer
   // Returns: 1 = body ready, 0 = need more data, -1 = error (response prepared)
   int extractRequestBody(Connection& conn, int conn_fd);
+  // Check all connections for timeout and close stale ones
+  void checkConnectionTimeouts();
 
  public:
   ServerManager();
