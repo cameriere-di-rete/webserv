@@ -545,6 +545,10 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   current_server_index_ = server_index;
   current_location_path_.clear();
 
+  // Track mandatory directives
+  bool has_listen = false;
+  bool has_root = false;
+
   // Process server directives (handle listen + others in one pass)
   LOG(DEBUG) << "Processing " << server_block.directives.size()
              << " server directive(s)";
@@ -556,12 +560,14 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       Config::ListenInfo li = parseListen(d.args[0]);
       srv.port = li.port;
       srv.host = li.host;
+      has_listen = true;
       LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr*)&srv.host) << ":"
                  << srv.port;
 
     } else if (d.name == "root") {
       requireArgsEqual_(d, 1);
       srv.root = d.args[0];
+      has_root = true;
       LOG(DEBUG) << "Server root: " << srv.root;
 
     } else if (d.name == "index") {
@@ -612,16 +618,16 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     LOG(DEBUG) << "Applied global error pages to server";
   }
 
-  // Minimum requirements: ensure listen was specified and root is set
-  if (srv.port <= 0) {
+  // Minimum requirements: ensure listen and root were specified
+  if (!has_listen) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "server #" << server_index
-        << " missing 'listen' directive or invalid port";
+        << " missing 'listen' directive";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
   }
-  if (srv.root.empty()) {
+  if (!has_root) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "server #" << server_index
         << " missing 'root' directive";

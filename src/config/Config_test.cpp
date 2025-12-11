@@ -149,6 +149,39 @@ TEST(ConfigListen, MissingListenThrows) {
   EXPECT_THROW(cfg.getServers(), std::runtime_error);
 }
 
+TEST(ConfigListen, MissingListenErrorMessage) {
+  std::string config =
+      "server {\n"
+      "  root /var/www;\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  try {
+    cfg.getServers();
+    FAIL() << "Expected std::runtime_error";
+  } catch (const std::runtime_error& e) {
+    std::string msg = e.what();
+    EXPECT_NE(msg.find("missing 'listen' directive"), std::string::npos)
+        << "Error message should mention missing 'listen' directive: " << msg;
+  }
+}
+
+TEST(ConfigListen, MissingBothListenAndRoot) {
+  std::string config =
+      "server {\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  // Should throw for missing listen (checked first)
+  EXPECT_THROW(cfg.getServers(), std::runtime_error);
+}
+
 TEST(ConfigListen, PortOnly) {
   std::string config =
       "server {\n"
@@ -262,6 +295,26 @@ TEST(ConfigRoot, MissingRootThrows) {
   cfg.parseFile(tmpFile.path());
 
   EXPECT_THROW(cfg.getServers(), std::runtime_error);
+}
+
+TEST(ConfigRoot, MissingRootErrorMessage) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  try {
+    cfg.getServers();
+    FAIL() << "Expected std::runtime_error";
+  } catch (const std::runtime_error& e) {
+    std::string msg = e.what();
+    EXPECT_NE(msg.find("missing 'root' directive"), std::string::npos)
+        << "Error message should mention missing 'root' directive: " << msg;
+  }
 }
 
 TEST(ConfigRoot, ValidRootPath) {
