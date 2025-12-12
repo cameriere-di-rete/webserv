@@ -31,8 +31,9 @@ TEST(HeaderTests, AssignmentOperatorCopiesFields) {
 
 TEST(HeaderTests, AssignmentOperatorHandlesSelfAssignment) {
   Header h("Accept", "application/json");
-  // NOLINTNEXTLINE(clang-diagnostic-self-assign-overloaded)
-  h = h;
+  // Use a reference to test self-assignment without triggering lint warnings
+  Header& h_ref = h;
+  h = h_ref;
   EXPECT_EQ(h.name, "Accept");
   EXPECT_EQ(h.value, "application/json");
 }
