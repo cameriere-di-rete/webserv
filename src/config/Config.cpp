@@ -195,7 +195,7 @@ void Config::throwUnrecognizedDirective_(const DirectiveNode& directive,
 
 // ==================== DEBUG OUTPUT ====================
 
-static void printBlockRec(const BlockNode& block, int indent) {
+static void printBlockRecursive(const BlockNode& block, int indent) {
   std::string pad(indent, ' ');
   {
     std::ostringstream stream;
@@ -219,12 +219,12 @@ static void printBlockRec(const BlockNode& block, int indent) {
     LOG(DEBUG) << stream.str();
   }
   for (size_t i = 0; i < block.sub_blocks.size(); ++i) {
-    printBlockRec(block.sub_blocks[i], indent + 2);
+    printBlockRecursive(block.sub_blocks[i], indent + 2);
   }
 }
 
 void Config::debug(void) const {
-  printBlockRec(root_, 0);
+  printBlockRecursive(root_, 0);
 }
 
 // ==================== PARSING HELPERS ====================
