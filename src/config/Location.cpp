@@ -3,9 +3,7 @@
 #include "Logger.hpp"
 
 Location::Location()
-    : redirect_code(http::S_0_UNKNOWN),
-      autoindex(UNSET),
-      max_request_body(0) {
+    : redirect_code(http::S_0_UNKNOWN), autoindex(UNSET), max_request_body(0) {
   LOG(DEBUG) << "Location() default constructor called";
 }
 
