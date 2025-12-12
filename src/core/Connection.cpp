@@ -331,7 +331,7 @@ void Connection::processResponse(const Location& location) {
   if (qpos != std::string::npos) {
     uri_path = uri_path.substr(0, qpos);
   }
-  
+
   IHandler* handler = new FileHandler(resolved_path, uri_path);
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {

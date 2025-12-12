@@ -107,8 +107,9 @@ std::string mimeToExtension(const std::string& mime_type) {
 
   // Extract base MIME type (before any ';'), and trim whitespace
   std::string::size_type semi = mime_type.find(';');
-  std::string base_type = (semi == std::string::npos) ? mime_type : mime_type.substr(0, semi);
-  
+  std::string base_type =
+      (semi == std::string::npos) ? mime_type : mime_type.substr(0, semi);
+
   // Trim whitespace from base_type
   std::string::size_type start = base_type.find_first_not_of(" \t\r\n");
   if (start == std::string::npos) {
@@ -122,7 +123,7 @@ std::string mimeToExtension(const std::string& mime_type) {
   if (it != m.end()) {
     return it->second;
   }
-  
+
   return kDefaultExt;
 }
 

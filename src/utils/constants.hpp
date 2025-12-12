@@ -7,4 +7,5 @@
 #define CRLF "\r\n"
 #define DEFAULT_CONFIG_PATH "conf/default.conf"
 #define EXIT_NOT_FOUND 127  // Standard shell exit code for "command not found"
-#define FILE_UPLOAD_MODE 0600  // File permissions for uploaded files (owner read/write only)
+#define FILE_UPLOAD_MODE \
+  0600  // File permissions for uploaded files (owner read/write only)

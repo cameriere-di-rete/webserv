@@ -18,7 +18,12 @@
 #include "file_utils.hpp"
 
 FileHandler::FileHandler(const std::string& path, const std::string& uri)
-    : path_(path), uri_(uri), fi_(), start_offset_(0), end_offset_(-1), active_(false) {
+    : path_(path),
+      uri_(uri),
+      fi_(),
+      start_offset_(0),
+      end_offset_(-1),
+      active_(false) {
   fi_.fd = -1;
 }
 
@@ -180,8 +185,8 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
     // This combination provides good uniqueness even across server restarts
     static unsigned int counter = 0;
     std::ostringstream filename;
-    filename << "upload_" << time(NULL) << "_" << getpid() << "_" 
-             << (++counter) << "_" << (rand() % 10000);
+    filename << "upload_" << time(NULL) << "_" << getpid() << "_" << (++counter)
+             << "_" << (rand() % 10000);
 
     // Determine extension from Content-Type
     std::string content_type;
@@ -192,7 +197,7 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
     }
 
     target_path = base_dir + filename.str();
-    
+
     // Build resource URI by appending filename to URI path
     resource_uri = uri_;
     if (!resource_uri.empty() && resource_uri[resource_uri.size() - 1] != '/') {
@@ -206,7 +211,8 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
   }
 
   // Create the new file with O_EXCL to ensure atomicity
-  int fd = open(target_path.c_str(), O_WRONLY | O_CREAT | O_EXCL, FILE_UPLOAD_MODE);
+  int fd =
+      open(target_path.c_str(), O_WRONLY | O_CREAT | O_EXCL, FILE_UPLOAD_MODE);
   if (fd < 0) {
     if (errno == EEXIST) {
       // File exists - 409 Conflict
