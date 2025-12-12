@@ -13,7 +13,7 @@ enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
 class Location {
  public:
   Location();
-  Location(const std::string& path);
+  Location(const std::string& path_str);
   Location(const Location& other);
   Location& operator=(const Location& other);
   ~Location();

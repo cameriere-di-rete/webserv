@@ -55,8 +55,10 @@ void ServerManager::initServers(std::vector<Server>& servers) {
        ++it) {
     std::pair<in_addr_t, int> addr(it->host, it->port);
     if (listen_addresses.find(addr) != listen_addresses.end()) {
-      LOG(ERROR) << "Duplicate listen address found: "
-                 << inet_ntoa(*(in_addr*)&it->host) << ":" << it->port;
+      in_addr host_addr = {};
+      host_addr.s_addr = it->host;
+      LOG(ERROR) << "Duplicate listen address found: " << inet_ntoa(host_addr)
+                 << ":" << it->port;
       throw std::runtime_error("Duplicate listen address in configuration");
     }
     listen_addresses.insert(addr);
@@ -64,13 +66,15 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 
   for (std::vector<Server>::iterator it = servers.begin(); it != servers.end();
        ++it) {
-    LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr*)&it->host)
-               << ":" << it->port;
+    in_addr host_addr = {};
+    host_addr.s_addr = it->host;
+    LOG(DEBUG) << "Initializing server on " << inet_ntoa(host_addr) << ":"
+               << it->port;
     it->init();
     /* store by listening fd */
     servers_[it->fd] = *it;
-    LOG(DEBUG) << "Server registered (" << inet_ntoa(*(in_addr*)&it->host)
-               << ":" << it->port << ") with fd: " << it->fd;
+    LOG(DEBUG) << "Server registered (" << inet_ntoa(host_addr) << ":"
+               << it->port << ") with fd: " << it->fd;
     /* prevent server destructor from closing the fd of the temporary */
     it->fd = -1;
   }
@@ -81,7 +85,7 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 
 void ServerManager::acceptConnection(int listen_fd) {
   LOG(DEBUG) << "Accepting new connections on listen_fd: " << listen_fd;
-  while (1) {
+  while (true) {
     int conn_fd = accept(listen_fd, NULL, NULL);
     if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -111,19 +115,19 @@ void ServerManager::acceptConnection(int listen_fd) {
   }
 }
 
-void ServerManager::updateEvents(int fd, uint32_t events) {
+void ServerManager::updateEvents(int file_descriptor, uint32_t events) const {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
   }
 
-  struct epoll_event ev;
-  ev.events = events;
-  ev.data.fd = fd;
+  struct epoll_event event = {};
+  event.events = events;
+  event.data.fd = file_descriptor;
 
-  if (epoll_ctl(efd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_MOD, file_descriptor, &event) < 0) {
     if (errno == ENOENT) {
-      if (epoll_ctl(efd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
+      if (epoll_ctl(efd_, EPOLL_CTL_ADD, file_descriptor, &event) < 0) {
         LOG_PERROR(ERROR, "epoll_ctl ADD");
         throw std::runtime_error("Failed to add file descriptor to epoll");
       }
@@ -151,10 +155,10 @@ int ServerManager::run() {
   for (std::map<int, Server>::const_iterator it = servers_.begin();
        it != servers_.end(); ++it) {
     int listen_fd = it->first;
-    struct epoll_event ev;
-    ev.events = EPOLLIN; /* only need read events for the listener */
-    ev.data.fd = listen_fd;
-    if (epoll_ctl(efd_, EPOLL_CTL_ADD, listen_fd, &ev) < 0) {
+    struct epoll_event event = {};
+    event.events = EPOLLIN; /* only need read events for the listener */
+    event.data.fd = listen_fd;
+    if (epoll_ctl(efd_, EPOLL_CTL_ADD, listen_fd, &event) < 0) {
       LOG_PERROR(ERROR, "epoll_ctl ADD listen_fd");
       return EXIT_FAILURE;
     }
@@ -166,21 +170,21 @@ int ServerManager::run() {
     LOG(ERROR) << "signalfd not initialized";
     return EXIT_FAILURE;
   }
-  struct epoll_event signal_ev;
-  signal_ev.events = EPOLLIN;
-  signal_ev.data.fd = sfd_;
-  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &signal_ev) < 0) {
+  struct epoll_event signal_event = {};
+  signal_event.events = EPOLLIN;
+  signal_event.data.fd = sfd_;
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, sfd_, &signal_event) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD signalfd");
     return EXIT_FAILURE;
   }
 
   /* event loop */
-  struct epoll_event events[MAX_EVENTS];
+  std::vector<struct epoll_event> events(MAX_EVENTS);
   LOG(INFO) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
-    if (n < 0) {
+    int num_events = epoll_wait(efd_, events.data(), MAX_EVENTS, -1);
+    if (num_events < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
           LOG(INFO)
@@ -193,13 +197,13 @@ int ServerManager::run() {
       return EXIT_FAILURE;
     }
 
-    LOG(DEBUG) << "epoll_wait returned " << n << " event(s)";
+    LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
-    for (int i = 0; i < n; ++i) {
-      int fd = events[i].data.fd;
-      LOG(DEBUG) << "Processing event for fd: " << fd;
+    for (size_t i = 0; i < static_cast<size_t>(num_events); ++i) {
+      int event_fd = events[i].data.fd;
+      LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
-      if (fd == sfd_) {
+      if (event_fd == sfd_) {
         // process pending signals from signalfd
         if (processSignalsFromFd()) {
           LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
@@ -210,61 +214,62 @@ int ServerManager::run() {
         continue;
       }
 
-      std::map<int, Server>::iterator s_it = servers_.find(fd);
-      if (s_it != servers_.end()) {
+      std::map<int, Server>::iterator server_it = servers_.find(event_fd);
+      if (server_it != servers_.end()) {
         LOG(DEBUG)
             << "Event is on server listen socket, accepting connections...";
-        acceptConnection(fd);
+        acceptConnection(event_fd);
         continue;
       }
 
       // Check if this is a CGI pipe FD
-      std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(fd);
+      std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(event_fd);
       if (cgi_it != cgi_pipe_to_conn_.end()) {
-        LOG(DEBUG) << "EPOLLIN event on CGI pipe fd: " << fd;
-        handleCgiPipeEvent(fd);
+        LOG(DEBUG) << "EPOLLIN event on CGI pipe fd: " << event_fd;
+        handleCgiPipeEvent(event_fd);
         continue;
       }
 
-      std::map<int, Connection>::iterator c_it = connections_.find(fd);
-      if (c_it == connections_.end()) {
-        LOG(DEBUG) << "Unknown fd: " << fd << ", skipping";
+      std::map<int, Connection>::iterator conn_it = connections_.find(event_fd);
+      if (conn_it == connections_.end()) {
+        LOG(DEBUG) << "Unknown fd: " << event_fd << ", skipping";
         continue; /* unknown fd */
       }
 
-      Connection& c = c_it->second;
-      uint32_t ev_mask = events[i].events;
+      Connection& conn = conn_it->second;
+      uint32_t event_mask = events[i].events;
 
       /* readable */
-      if (ev_mask & EPOLLIN) {
-        LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
-        int status = c.handleRead();
+      if ((event_mask & EPOLLIN) != 0U) {
+        LOG(DEBUG) << "EPOLLIN event on connection fd: " << event_fd;
+        int status = conn.handleRead();
 
         if (status < 0) {
-          LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
-          cleanupHandlerResources(c);
-          close(fd);
-          connections_.erase(fd);
+          LOG(DEBUG) << "handleRead failed, closing connection fd: "
+                     << event_fd;
+          cleanupHandlerResources(conn);
+          close(event_fd);
+          connections_.erase(event_fd);
           continue;
         }
 
-        if (c.headers_end_pos != std::string::npos) {
-          LOG(DEBUG) << "Headers complete on fd: " << fd;
+        if (conn.headers_end_pos != std::string::npos) {
+          LOG(DEBUG) << "Headers complete on fd: " << event_fd;
         }
       }
 
       /* writable */
-      if (ev_mask & EPOLLOUT) {
-        LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
-        int status = c.handleWrite();
+      if ((event_mask & EPOLLOUT) != 0U) {
+        LOG(DEBUG) << "EPOLLOUT event on connection fd: " << event_fd;
+        int status = conn.handleWrite();
 
         if (status <= 0) {
           LOG(DEBUG)
               << "handleWrite complete or failed, closing connection fd: "
-              << fd;
-          cleanupHandlerResources(c);
-          close(fd);
-          connections_.erase(fd);
+              << event_fd;
+          cleanupHandlerResources(conn);
+          close(event_fd);
+          connections_.erase(event_fd);
         }
       }
     }
@@ -309,7 +314,8 @@ int ServerManager::run() {
         // Error occurred, response already prepared
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
-      } else if (body_result == 0) {
+      }
+      if (body_result == 0) {
         // Body not fully received yet, wait for more data
         continue;
       }
@@ -387,7 +393,7 @@ void ServerManager::setupSignalHandlers() {
   }
 
   // Ignore SIGPIPE
-  struct sigaction sa_pipe;
+  struct sigaction sa_pipe = {};
   std::memset(&sa_pipe, 0, sizeof(sa_pipe));
   sa_pipe.sa_handler = SIG_IGN;
   sigemptyset(&sa_pipe.sa_mask);
@@ -400,22 +406,22 @@ void ServerManager::setupSignalHandlers() {
 }
 
 bool ServerManager::processSignalsFromFd() {
-  struct signalfd_siginfo fdsi;
+  struct signalfd_siginfo fdsi = {};
   while (true) {
-    ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
-    if (s < 0) {
+    ssize_t bytes_read = read(sfd_, &fdsi, sizeof(fdsi));
+    if (bytes_read < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         return stop_requested_;
       }
       LOG_PERROR(ERROR, "read(signalfd)");
       return stop_requested_;
     }
-    if (s == 0) {
+    if (bytes_read == 0) {
       LOG(ERROR) << "signals: signalfd closed unexpectedly";
       return stop_requested_;
     }
-    if (s != sizeof(fdsi)) {
-      LOG(ERROR) << "signals: partial read from signalfd (" << s
+    if (bytes_read != static_cast<ssize_t>(sizeof(fdsi))) {
+      LOG(ERROR) << "signals: partial read from signalfd (" << bytes_read
                  << " bytes, expected " << sizeof(fdsi) << ")";
       return stop_requested_;
     }
@@ -470,11 +476,11 @@ void ServerManager::shutdown() {
 bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
-  struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLET;
-  ev.data.fd = pipe_fd;
+  struct epoll_event event = {};
+  event.events = EPOLLIN | EPOLLET;
+  event.data.fd = pipe_fd;
 
-  if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &event) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD CGI pipe");
     cgi_pipe_to_conn_.erase(pipe_fd);
     return false;
@@ -483,15 +489,15 @@ bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
 }
 
 void ServerManager::unregisterCgiPipe(int pipe_fd) {
-  std::map<int, int>::iterator it = cgi_pipe_to_conn_.find(pipe_fd);
-  if (it == cgi_pipe_to_conn_.end()) {
+  std::map<int, int>::iterator pipe_iter = cgi_pipe_to_conn_.find(pipe_fd);
+  if (pipe_iter == cgi_pipe_to_conn_.end()) {
     return;
   }
 
   if (efd_ >= 0) {
     epoll_ctl(efd_, EPOLL_CTL_DEL, pipe_fd, NULL);
   }
-  cgi_pipe_to_conn_.erase(it);
+  cgi_pipe_to_conn_.erase(pipe_iter);
 }
 
 void ServerManager::handleCgiPipeEvent(int pipe_fd) {
@@ -518,9 +524,9 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Resume the handler to read more CGI output
-  HandlerResult hr = conn.active_handler->resume(conn);
+  HandlerResult handler_result = conn.active_handler->resume(conn);
 
-  if (hr == HR_WOULD_BLOCK) {
+  if (handler_result == HR_WOULD_BLOCK) {
     // More data expected, keep monitoring the pipe
     LOG(DEBUG) << "CGI handler would block, continuing to monitor pipe fd "
                << pipe_fd;
@@ -530,7 +536,7 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   // CGI finished (HR_DONE) or error (HR_ERROR)
   unregisterCgiPipe(pipe_fd);
 
-  if (hr == HR_ERROR) {
+  if (handler_result == HR_ERROR) {
     LOG(ERROR) << "CGI handler error on connection fd " << conn_fd;
     conn.clearHandler();
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);

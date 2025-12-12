@@ -56,14 +56,16 @@ bool openFile(const std::string& path, FileInfo& out) {
 
   int fd = open(path.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG_PERROR(ERROR, "file_utils: openFile failed for '" << path << "'");
+    LOG(ERROR) << "file_utils: openFile failed for '" << path
+               << "': " << std::strerror(errno);
     return false;
   }
 
   struct stat st;
   if (fstat(fd, &st) < 0) {
     close(fd);
-    LOG_PERROR(ERROR, "file_utils: fstat failed for '" << path << "'");
+    LOG(ERROR) << "file_utils: fstat failed for '" << path
+               << "': " << std::strerror(errno);
     return false;
   }
 
