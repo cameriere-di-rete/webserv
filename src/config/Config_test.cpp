@@ -814,6 +814,7 @@ TEST(ConfigCgi, CgiOn) {
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
       "    cgi on;\n"
+      "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n";
 
@@ -962,7 +963,7 @@ TEST(ConfigCgiExtensions, EmptyExtensionsSetByDefault) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi off;\n"
       "  }\n"
       "}\n";
 
@@ -972,7 +973,7 @@ TEST(ConfigCgiExtensions, EmptyExtensionsSetByDefault) {
 
   std::vector<Server> servers = cfg.getServers();
   const Location& loc = servers[0].locations["/cgi-bin"];
-  EXPECT_TRUE(loc.cgi);
+  EXPECT_FALSE(loc.cgi);
   EXPECT_TRUE(loc.cgi_extensions.empty());
 }
 
@@ -1111,6 +1112,34 @@ TEST(ConfigLocationValidation, LocationWithBothCgiAndRedirectThrows) {
       std::runtime_error);
 }
 
+TEST(ConfigLocationValidation, LocationWithCgiEnabledRequiresCgiExtensions) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi on;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  EXPECT_THROW(
+      {
+        try {
+          cfg.getServers();
+        } catch (const std::runtime_error& e) {
+          std::string msg = e.what();
+          EXPECT_NE(msg.find("cgi"), std::string::npos);
+          EXPECT_NE(msg.find("cgi_extensions"), std::string::npos);
+          throw;
+        }
+      },
+      std::runtime_error);
+}
+
 TEST(ConfigLocationValidation, LocationWithOnlyCgiIsValid) {
   std::string config =
       "server {\n"
@@ -1118,6 +1147,7 @@ TEST(ConfigLocationValidation, LocationWithOnlyCgiIsValid) {
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
       "    cgi on;\n"
+      "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n";
 
@@ -1411,6 +1441,7 @@ TEST(ConfigEdgeCases, ComplexConfiguration) {
       "  }\n"
       "  location /cgi-bin {\n"
       "    cgi on;\n"
+      "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n"
       "server {\n"

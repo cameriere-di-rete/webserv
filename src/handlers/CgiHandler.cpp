@@ -490,14 +490,6 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
 
 // Check if file extension is in the allowed list
 bool CgiHandler::isAllowedExtension(const std::string& path) {
-  // Default whitelist of allowed CGI script extensions if none configured
-  static const char* default_extensions[] = {".sh",   // Shell scripts
-                                             ".py",   // Python scripts
-                                             ".pl",   // Perl scripts
-                                             ".php",  // PHP scripts
-                                             ".cgi",  // Generic CGI scripts
-                                             NULL};
-
   size_t dot_pos = path.find_last_of('.');
   if (dot_pos == std::string::npos) {
     // No extension found
@@ -506,17 +498,6 @@ bool CgiHandler::isAllowedExtension(const std::string& path) {
 
   std::string extension = path.substr(dot_pos);
 
-  // If configured extensions are provided, use them
-  if (!allowed_extensions_.empty()) {
-    return allowed_extensions_.find(extension) != allowed_extensions_.end();
-  }
-
-  // Otherwise, use default whitelist
-  for (int i = 0; default_extensions[i] != NULL; ++i) {
-    if (extension == default_extensions[i]) {
-      return true;
-    }
-  }
-
-  return false;
+  // Only accept explicitly configured extensions
+  return allowed_extensions_.find(extension) != allowed_extensions_.end();
 }
