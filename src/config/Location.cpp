@@ -7,7 +7,7 @@ Location::Location()
       allow_methods(),
       redirect_code(http::S_0_UNKNOWN),
       redirect_location(),
-      cgi(false),
+      cgi_root(),
       cgi_extensions(),
       index(),
       autoindex(UNSET),
@@ -22,7 +22,7 @@ Location::Location(const std::string& p)
       allow_methods(),
       redirect_code(http::S_0_UNKNOWN),
       redirect_location(),
-      cgi(false),
+      cgi_root(),
       cgi_extensions(),
       index(),
       autoindex(UNSET),
@@ -37,7 +37,7 @@ Location::Location(const Location& other)
       allow_methods(other.allow_methods),
       redirect_code(other.redirect_code),
       redirect_location(other.redirect_location),
-      cgi(other.cgi),
+      cgi_root(other.cgi_root),
       cgi_extensions(other.cgi_extensions),
       index(other.index),
       autoindex(other.autoindex),
@@ -51,7 +51,7 @@ Location& Location::operator=(const Location& other) {
     allow_methods = other.allow_methods;
     redirect_code = other.redirect_code;
     redirect_location = other.redirect_location;
-    cgi = other.cgi;
+    cgi_root = other.cgi_root;
     cgi_extensions = other.cgi_extensions;
     index = other.index;
     autoindex = other.autoindex;

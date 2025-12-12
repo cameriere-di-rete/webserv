@@ -805,15 +805,15 @@ TEST(ConfigRedirect, MissingArgumentsThrows) {
   EXPECT_THROW(cfg.getServers(), std::runtime_error);
 }
 
-// ==================== CGI DIRECTIVE TESTS ====================
+// ==================== CGI ROOT TESTS ====================
 
-TEST(ConfigCgi, CgiOn) {
+TEST(ConfigCgiRoot, CgiRootSet) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi;\n"
       "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n";
@@ -823,16 +823,17 @@ TEST(ConfigCgi, CgiOn) {
   cfg.parseFile(tmpFile.path());
 
   std::vector<Server> servers = cfg.getServers();
-  EXPECT_TRUE(servers[0].locations["/cgi-bin"].cgi);
+  EXPECT_EQ(servers[0].locations["/cgi-bin"].cgi_root, "/var/www/cgi");
+  EXPECT_FALSE(servers[0].locations["/cgi-bin"].cgi_root.empty());
 }
 
-TEST(ConfigCgi, CgiOff) {
+TEST(ConfigCgiRoot, CgiRootNotSet) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
-      "  location /nocgi {\n"
-      "    cgi off;\n"
+      "  location /static {\n"
+      "    autoindex on;\n"
       "  }\n"
       "}\n";
 
@@ -841,16 +842,16 @@ TEST(ConfigCgi, CgiOff) {
   cfg.parseFile(tmpFile.path());
 
   std::vector<Server> servers = cfg.getServers();
-  EXPECT_FALSE(servers[0].locations["/nocgi"].cgi);
+  EXPECT_TRUE(servers[0].locations["/static"].cgi_root.empty());
 }
 
-TEST(ConfigCgi, InvalidCgiValueThrows) {
+TEST(ConfigCgiRoot, CgiRootMissingValueThrows) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi {\n"
-      "    cgi enabled;\n"
+      "    cgi_root;\n"
       "  }\n"
       "}\n";
 
@@ -1083,13 +1084,13 @@ TEST(ConfigCgiExtensions, ExtensionsInComplexConfig) {
 
 // ==================== CGI AND REDIRECT VALIDATION TESTS ====================
 
-TEST(ConfigLocationValidation, LocationWithBothCgiAndRedirectThrows) {
+TEST(ConfigLocationValidation, LocationWithBothCgiRootAndRedirectThrows) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /test {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi;\n"
       "    redirect 301 /new-location;\n"
       "  }\n"
       "}\n";
@@ -1104,7 +1105,7 @@ TEST(ConfigLocationValidation, LocationWithBothCgiAndRedirectThrows) {
           cfg.getServers();
         } catch (const std::runtime_error& e) {
           std::string msg = e.what();
-          EXPECT_NE(msg.find("cgi"), std::string::npos);
+          EXPECT_NE(msg.find("cgi_root"), std::string::npos);
           EXPECT_NE(msg.find("redirect"), std::string::npos);
           throw;
         }
@@ -1112,13 +1113,13 @@ TEST(ConfigLocationValidation, LocationWithBothCgiAndRedirectThrows) {
       std::runtime_error);
 }
 
-TEST(ConfigLocationValidation, LocationWithCgiEnabledRequiresCgiExtensions) {
+TEST(ConfigLocationValidation, LocationWithCgiRootRequiresCgiExtensions) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi;\n"
       "  }\n"
       "}\n";
 
@@ -1132,30 +1133,12 @@ TEST(ConfigLocationValidation, LocationWithCgiEnabledRequiresCgiExtensions) {
           cfg.getServers();
         } catch (const std::runtime_error& e) {
           std::string msg = e.what();
-          EXPECT_NE(msg.find("cgi"), std::string::npos);
+          EXPECT_NE(msg.find("cgi_root"), std::string::npos);
           EXPECT_NE(msg.find("cgi_extensions"), std::string::npos);
           throw;
         }
       },
       std::runtime_error);
-}
-
-TEST(ConfigLocationValidation, LocationWithOnlyCgiIsValid) {
-  std::string config =
-      "server {\n"
-      "  listen 8080;\n"
-      "  root /var/www;\n"
-      "  location /cgi-bin {\n"
-      "    cgi on;\n"
-      "    cgi_extensions .py .sh;\n"
-      "  }\n"
-      "}\n";
-
-  TempConfigFile tmpFile(config);
-  Config cfg;
-  cfg.parseFile(tmpFile.path());
-
-  EXPECT_NO_THROW(cfg.getServers());
 }
 
 TEST(ConfigLocationValidation, LocationWithOnlyRedirectIsValid) {
@@ -1175,7 +1158,7 @@ TEST(ConfigLocationValidation, LocationWithOnlyRedirectIsValid) {
   EXPECT_NO_THROW(cfg.getServers());
 }
 
-TEST(ConfigLocationValidation, LocationWithNeitherCgiNorRedirectIsValid) {
+TEST(ConfigLocationValidation, LocationWithNeitherCgiRootNorRedirectIsValid) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
@@ -1191,25 +1174,6 @@ TEST(ConfigLocationValidation, LocationWithNeitherCgiNorRedirectIsValid) {
 
   EXPECT_NO_THROW(cfg.getServers());
 }
-
-TEST(ConfigLocationValidation, LocationWithCgiOffAndRedirectIsValid) {
-  std::string config =
-      "server {\n"
-      "  listen 8080;\n"
-      "  root /var/www;\n"
-      "  location /test {\n"
-      "    cgi off;\n"
-      "    redirect 302 /other;\n"
-      "  }\n"
-      "}\n";
-
-  TempConfigFile tmpFile(config);
-  Config cfg;
-  cfg.parseFile(tmpFile.path());
-
-  EXPECT_NO_THROW(cfg.getServers());
-}
-
 // ==================== UNRECOGNIZED DIRECTIVE TESTS ====================
 
 TEST(ConfigUnrecognized, UnrecognizedGlobalDirectiveThrows) {
@@ -1440,7 +1404,7 @@ TEST(ConfigEdgeCases, ComplexConfiguration) {
       "    redirect 301 /new;\n"
       "  }\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/cgi-bin;\n"
       "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n"
