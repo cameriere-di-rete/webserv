@@ -37,6 +37,8 @@ std::string reasonPhrase(Status status) {
       return "Forbidden";
     case S_405_METHOD_NOT_ALLOWED:
       return "Method Not Allowed";
+    case S_409_CONFLICT:
+      return "Conflict";
     case S_413_PAYLOAD_TOO_LARGE:
       return "Payload Too Large";
     case S_414_URI_TOO_LONG:
@@ -88,6 +90,8 @@ Status intToStatus(int status) {
       return S_404_NOT_FOUND;
     case 405:
       return S_405_METHOD_NOT_ALLOWED;
+    case 409:
+      return S_409_CONFLICT;
     case 413:
       return S_413_PAYLOAD_TOO_LARGE;
     case 414:

@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <sstream>
 
 #include "HttpStatus.hpp"
@@ -18,35 +19,112 @@
 
 namespace file_utils {
 
+// Static MIME type mappings
+namespace {
+
+typedef std::map<std::string, std::string> MimeMap;
+
+// Extension to MIME type mapping
+MimeMap createExtToMimeMap() {
+  MimeMap m;
+  // Text types
+  m["html"] = "text/html; charset=utf-8";
+  m["htm"] = "text/html; charset=utf-8";
+  m["txt"] = "text/plain; charset=utf-8";
+  m["css"] = "text/css";
+  m["csv"] = "text/csv";
+  // Application types
+  m["js"] = "application/javascript";
+  m["json"] = "application/json";
+  m["xml"] = "application/xml";
+  m["pdf"] = "application/pdf";
+  m["zip"] = "application/zip";
+  // Image types
+  m["jpg"] = "image/jpeg";
+  m["jpeg"] = "image/jpeg";
+  m["png"] = "image/png";
+  m["gif"] = "image/gif";
+  m["ico"] = "image/x-icon";
+  m["svg"] = "image/svg+xml";
+  m["webp"] = "image/webp";
+  return m;
+}
+
+// MIME type to extension mapping (for reverse lookup)
+MimeMap createMimeToExtMap() {
+  MimeMap m;
+  m["text/plain"] = ".txt";
+  m["text/html"] = ".html";
+  m["text/css"] = ".css";
+  m["text/csv"] = ".csv";
+  m["application/javascript"] = ".js";
+  m["application/json"] = ".json";
+  m["application/xml"] = ".xml";
+  m["application/pdf"] = ".pdf";
+  m["application/zip"] = ".zip";
+  m["image/jpeg"] = ".jpg";
+  m["image/png"] = ".png";
+  m["image/gif"] = ".gif";
+  m["image/x-icon"] = ".ico";
+  m["image/svg+xml"] = ".svg";
+  m["image/webp"] = ".webp";
+  return m;
+}
+
+const MimeMap& extToMime() {
+  static MimeMap instance = createExtToMimeMap();
+  return instance;
+}
+
+const MimeMap& mimeToExt() {
+  static MimeMap instance = createMimeToExtMap();
+  return instance;
+}
+
+}  // anonymous namespace
+
 std::string guessMime(const std::string& path) {
-  std::string def = "application/octet-stream";
+  static const std::string kDefaultMime = "application/octet-stream";
+
   std::size_t pos = path.rfind('.');
   if (pos == std::string::npos) {
-    return def;
+    return kDefaultMime;
   }
+
   std::string ext = path.substr(pos + 1);
-  if (ext == "html" || ext == "htm") {
-    return "text/html; charset=utf-8";
+  const MimeMap& m = extToMime();
+  MimeMap::const_iterator it = m.find(ext);
+  if (it != m.end()) {
+    return it->second;
   }
-  if (ext == "txt") {
-    return "text/plain; charset=utf-8";
+  return kDefaultMime;
+}
+
+std::string mimeToExtension(const std::string& mime_type) {
+  static const std::string kDefaultExt = ".bin";
+
+  const MimeMap& m = mimeToExt();
+
+  // Extract base MIME type (before any ';'), and trim whitespace
+  std::string::size_type semi = mime_type.find(';');
+  std::string base_type =
+      (semi == std::string::npos) ? mime_type : mime_type.substr(0, semi);
+
+  // Trim whitespace from base_type
+  std::string::size_type start = base_type.find_first_not_of(" \t\r\n");
+  if (start == std::string::npos) {
+    return kDefaultExt;
   }
-  if (ext == "css") {
-    return "text/css";
+  std::string::size_type end = base_type.find_last_not_of(" \t\r\n");
+  base_type = base_type.substr(start, end - start + 1);
+
+  // Try exact match
+  MimeMap::const_iterator it = m.find(base_type);
+  if (it != m.end()) {
+    return it->second;
   }
-  if (ext == "js") {
-    return "application/javascript";
-  }
-  if (ext == "jpg" || ext == "jpeg") {
-    return "image/jpeg";
-  }
-  if (ext == "png") {
-    return "image/png";
-  }
-  if (ext == "gif") {
-    return "image/gif";
-  }
-  return def;
+
+  return kDefaultExt;
 }
 
 bool openFile(const std::string& path, FileInfo& out) {

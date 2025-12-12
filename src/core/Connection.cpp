@@ -317,7 +317,7 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  IHandler* handler = new FileHandler(resolved_path);
+  IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
