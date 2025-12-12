@@ -323,6 +323,9 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
 
   http::Status status = created ? http::S_201_CREATED : http::S_200_OK;
   prepareUploadResponse(conn, status, path_, total_written);
+
+  LOG(INFO) << "FileHandler: " << (created ? "Created" : "Updated")
+            << " resource " << path_ << " (" << total_written << " bytes)";
   return HR_DONE;
 }
 
