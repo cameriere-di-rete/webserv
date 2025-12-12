@@ -17,13 +17,12 @@ class Logger {
   Logger(LogLevel level, const char* file, int line);
   ~Logger();
 
-  // Disable copying since this is a temporary RAII object
-  Logger(const Logger&);
-  Logger& operator=(const Logger&);
-
   std::ostringstream& stream();
 
  private:
+  // Disable copying since this is a temporary RAII object
+  Logger(const Logger&);
+  Logger& operator=(const Logger&);
   // Instance fields used by the temporary RAII Logger
   LogLevel msgLevel_;
   const char* file_;
