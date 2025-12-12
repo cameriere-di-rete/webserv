@@ -298,11 +298,7 @@ void Connection::processResponse(const Location& location) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
       // filesystem path to avoid leaking internal structure.
-      std::string display_path = request.request_line.uri;
-      std::size_t qpos = display_path.find('?');
-      if (qpos != std::string::npos) {
-        display_path = display_path.substr(0, qpos);
-      }
+      std::string display_path = request.uri.getPath();
       if (display_path.empty()) {
         display_path = "/";
       }
@@ -325,14 +321,7 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  // Extract clean URI path (without query string) for use in responses
-  std::string uri_path = request.request_line.uri;
-  std::size_t qpos = uri_path.find('?');
-  if (qpos != std::string::npos) {
-    uri_path = uri_path.substr(0, qpos);
-  }
-
-  IHandler* handler = new FileHandler(resolved_path, uri_path);
+  IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
