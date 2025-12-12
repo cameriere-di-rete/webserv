@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
   // 0 = DEBUG, 1 = INFO, 2 = ERROR
 
   std::string path;
-  int logLevel = 0;
+  int logLevel = 1;
 
   // collect path and log level from argv
   try {

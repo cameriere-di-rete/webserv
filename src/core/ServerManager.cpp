@@ -199,8 +199,8 @@ int ServerManager::run() {
 
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
-    for (int i = 0; i < num_events; ++i) {
-      int event_fd = events[static_cast<size_t>(i)].data.fd;
+    for (size_t i = 0; i < static_cast<size_t>(num_events); ++i) {
+      int event_fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
       if (event_fd == sfd_) {
