@@ -314,7 +314,8 @@ int ServerManager::run() {
         // Error occurred, response already prepared
         updateEvents(conn_fd, EPOLLOUT | EPOLLET);
         continue;
-      } else if (body_result == 0) {
+      }
+      if (body_result == 0) {
         // Body not fully received yet, wait for more data
         continue;
       }
@@ -475,11 +476,12 @@ void ServerManager::shutdown() {
 bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
-  struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLET;
-  ev.data.fd = pipe_fd;
+  struct epoll_event event;
+  std::memset(&event, 0, sizeof(event));
+  event.events = EPOLLIN | EPOLLET;
+  event.data.fd = pipe_fd;
 
-  if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
+  if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &event) < 0) {
     LOG_PERROR(ERROR, "epoll_ctl ADD CGI pipe");
     cgi_pipe_to_conn_.erase(pipe_fd);
     return false;
@@ -488,15 +490,15 @@ bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
 }
 
 void ServerManager::unregisterCgiPipe(int pipe_fd) {
-  std::map<int, int>::iterator it = cgi_pipe_to_conn_.find(pipe_fd);
-  if (it == cgi_pipe_to_conn_.end()) {
+  std::map<int, int>::iterator pipe_iter = cgi_pipe_to_conn_.find(pipe_fd);
+  if (pipe_iter == cgi_pipe_to_conn_.end()) {
     return;
   }
 
   if (efd_ >= 0) {
     epoll_ctl(efd_, EPOLL_CTL_DEL, pipe_fd, NULL);
   }
-  cgi_pipe_to_conn_.erase(it);
+  cgi_pipe_to_conn_.erase(pipe_iter);
 }
 
 void ServerManager::handleCgiPipeEvent(int pipe_fd) {
@@ -523,9 +525,9 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Resume the handler to read more CGI output
-  HandlerResult hr = conn.active_handler->resume(conn);
+  HandlerResult handler_result = conn.active_handler->resume(conn);
 
-  if (hr == HR_WOULD_BLOCK) {
+  if (handler_result == HR_WOULD_BLOCK) {
     // More data expected, keep monitoring the pipe
     LOG(DEBUG) << "CGI handler would block, continuing to monitor pipe fd "
                << pipe_fd;
@@ -535,7 +537,7 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   // CGI finished (HR_DONE) or error (HR_ERROR)
   unregisterCgiPipe(pipe_fd);
 
-  if (hr == HR_ERROR) {
+  if (handler_result == HR_ERROR) {
     LOG(ERROR) << "CGI handler error on connection fd " << conn_fd;
     conn.clearHandler();
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);

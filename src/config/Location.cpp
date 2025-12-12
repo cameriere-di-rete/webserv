@@ -3,15 +3,8 @@
 #include "Logger.hpp"
 
 Location::Location()
-    : path(),
-      allow_methods(),
-      redirect_code(http::S_0_UNKNOWN),
-      redirect_location(),
-      cgi_root(),
-      index(),
+    : redirect_code(http::S_0_UNKNOWN),
       autoindex(UNSET),
-      root(),
-      error_page(),
       max_request_body(0) {
   LOG(DEBUG) << "Location() default constructor called";
 }
@@ -19,12 +12,7 @@ Location::Location()
 Location::Location(const std::string& path_str)
     : path(path_str),
       redirect_code(http::S_0_UNKNOWN),
-      redirect_location(),
-      cgi_root(),
-      index(),
       autoindex(UNSET),
-      root(),
-      error_page(),
       max_request_body(0) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << path_str;
 }
