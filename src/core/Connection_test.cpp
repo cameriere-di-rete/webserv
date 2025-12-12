@@ -1,10 +1,11 @@
 /**
  * @file Connection_test.cpp
- * @brief Unit tests for max_request_body validation during request processing
+ * @brief Unit tests for Connection class: HTTP validation and request body limits
  *
- * These tests verify that the server correctly rejects requests with bodies
- * exceeding the configured max_request_body limit with HTTP 413 Payload Too
- * Large.
+ * These tests verify that the server correctly:
+ * - Validates HTTP versions (1.0, 1.1 accepted; others rejected with 505)
+ * - Rejects requests with bodies exceeding max_request_body limit (413)
+ * - Prepares error responses with correct status codes and versions
  */
 
 #include "Connection.hpp"
@@ -14,6 +15,7 @@
 #include "HttpStatus.hpp"
 #include "Location.hpp"
 #include "gtest/gtest.h"
+#include "utils.hpp"
 
 // =============================================================================
 // Helper: Create a Location with specific max_request_body
@@ -29,7 +31,102 @@ static Location createLocationWithMaxBody(std::size_t max_body) {
 }
 
 // =============================================================================
-// Test: Request body exceeds max_request_body should return 413
+// HTTP Version Validation Tests
+// =============================================================================
+
+TEST(ConnectionTests, AcceptsHttp11Requests) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/1.1";
+  conn.request.request_line.method = "GET";
+
+  Location location;
+  location.path = "/";
+  initDefaultHttpMethods(location.allow_methods);
+
+  http::Status status = conn.validateRequestForLocation(location);
+
+  // S_0_UNKNOWN (0) indicates validation success
+  EXPECT_EQ(status, http::S_0_UNKNOWN);
+}
+
+TEST(ConnectionTests, AcceptsHttp10Requests) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/1.0";
+  conn.request.request_line.method = "GET";
+
+  Location location;
+  location.path = "/";
+  initDefaultHttpMethods(location.allow_methods);
+
+  http::Status status = conn.validateRequestForLocation(location);
+
+  // S_0_UNKNOWN (0) indicates validation success
+  EXPECT_EQ(status, http::S_0_UNKNOWN);
+}
+
+TEST(ConnectionTests, RejectsOtherHttpVersions) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/2.0";
+  conn.request.request_line.method = "GET";
+
+  Location location;
+  location.path = "/";
+  initDefaultHttpMethods(location.allow_methods);
+
+  http::Status status = conn.validateRequestForLocation(location);
+
+  EXPECT_EQ(status, http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+}
+
+TEST(ConnectionTests, RejectsInvalidHttpVersions) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/1.2";
+  conn.request.request_line.method = "GET";
+
+  Location location;
+  location.path = "/";
+  initDefaultHttpMethods(location.allow_methods);
+
+  http::Status status = conn.validateRequestForLocation(location);
+
+  EXPECT_EQ(status, http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+}
+
+TEST(ConnectionTests, ErrorResponseUsesRequestVersion) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/1.0";
+  conn.request.request_line.method = "GET";
+
+  conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+
+  EXPECT_EQ(conn.response.status_line.version, "HTTP/1.0");
+  EXPECT_EQ(conn.response.status_line.status_code, http::S_404_NOT_FOUND);
+}
+
+TEST(ConnectionTests, ErrorResponseDefaultsToHttp11) {
+  Connection conn;
+  conn.request.request_line.version = "";
+
+  conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+
+  EXPECT_EQ(conn.response.status_line.version, "HTTP/1.1");
+  EXPECT_EQ(conn.response.status_line.status_code,
+            http::S_500_INTERNAL_SERVER_ERROR);
+}
+
+TEST(ConnectionTests, ErrorResponseForUnsupportedVersionUsesHttp11) {
+  Connection conn;
+  conn.request.request_line.version = "HTTP/2.0";
+
+  conn.prepareErrorResponse(http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+
+  EXPECT_EQ(conn.response.status_line.version, "HTTP/1.1");
+  EXPECT_EQ(conn.response.status_line.status_code,
+            http::S_505_HTTP_VERSION_NOT_SUPPORTED);
+}
+
+// =============================================================================
+// Max Request Body Validation Tests
 // =============================================================================
 
 TEST(MaxRequestBodyValidation, BodyExceedsLimitReturns413) {
