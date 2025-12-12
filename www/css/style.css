@@ -1,0 +1,284 @@
+/* webserv - Shared styles */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0b0f12;
+  color: #e6eef6;
+  font-family: ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Landing page styles */
+body.landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box {
+  text-align: center;
+  padding: 2rem;
+}
+
+.title {
+  font-size: 3rem;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.by {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: #9fb0c8;
+}
+
+.nav-link {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: #1e293b;
+  border-radius: 8px;
+  color: #7dd3fc;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.nav-link:hover {
+  background: #334155;
+  transform: translateY(-2px);
+}
+
+/* Test pages styles */
+body.test-page {
+  padding: 2rem;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.02em;
+}
+
+.subtitle {
+  color: #9fb0c8;
+  margin-bottom: 2rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  color: #7dd3fc;
+  margin: 2rem 0 1rem 0;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 0.5rem;
+}
+
+h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #f0f9ff;
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.test-card {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.test-card:hover {
+  background: #334155;
+  transform: translateY(-2px);
+}
+
+.test-card h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.test-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.method {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.get {
+  background: #166534;
+  color: #bbf7d0;
+}
+
+.post {
+  background: #1e40af;
+  color: #bfdbfe;
+}
+
+.put {
+  background: #a16207;
+  color: #fef08a;
+}
+
+.delete {
+  background: #991b1b;
+  color: #fecaca;
+}
+
+.interactive {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+input[type="text"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.75rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e6eef6;
+  font-family: inherit;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #7dd3fc;
+}
+
+button {
+  padding: 0.75rem 1.5rem;
+  background: #0ea5e9;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #38bdf8;
+}
+
+.response-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0f172a;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+}
+
+.response-box.show {
+  display: block;
+}
+
+.status-ok {
+  color: #4ade80;
+}
+
+.status-error {
+  color: #f87171;
+}
+
+ul {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: #7dd3fc;
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.back-link:hover {
+  color: #7dd3fc;
+  background: #1e293b;
+}
+
+/* Menu navigation */
+.menu-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.menu-nav a {
+  padding: 0.5rem 1rem;
+  background: #1e293b;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s;
+}
+
+.menu-nav a:hover,
+.menu-nav a.active {
+  background: #334155;
+}

@@ -259,6 +259,8 @@ int ServerManager::run() {
         int status = c.handleWrite();
 
         if (status <= 0) {
+          // Log the completed request in nginx-style format
+          c.logAccess();
           LOG(DEBUG)
               << "handleWrite complete or failed, closing connection fd: "
               << fd;

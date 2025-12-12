@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Redirects - webserv</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="test-page">
+    <div class="container">
+      <a href="/tests/" class="back-link">← Back to Test Suite</a>
+      <h1>🔀 Redirects</h1>
+      <p class="subtitle">Test HTTP redirect responses</p>
+
+      <h2>Configured Redirects</h2>
+      <div class="test-grid">
+        <a href="/ciaone" class="test-card">
+          <h3><span class="method get">GET</span> /ciaone</h3>
+          <p>302 redirect to google.com</p>
+        </a>
+      </div>
+
+      <h2>Test Redirect (without following)</h2>
+      <div class="interactive">
+        <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem">
+          This test fetches the redirect without following it, so you can see the redirect response.
+        </p>
+        <label for="redirect-path">Redirect Path:</label>
+        <input type="text" id="redirect-path" value="/ciaone" />
+
+        <button onclick="testRedirect()">Test Redirect</button>
+        <div id="redirect-response" class="response-box"></div>
+      </div>
+
+      <h2>Redirect Status Codes</h2>
+      <div class="interactive">
+        <p style="color: #94a3b8; font-size: 0.875rem">
+          Common HTTP redirect status codes:
+        </p>
+        <ul>
+          <li><strong>301</strong> - Moved Permanently</li>
+          <li><strong>302</strong> - Found (Temporary Redirect)</li>
+          <li><strong>303</strong> - See Other</li>
+          <li><strong>307</strong> - Temporary Redirect</li>
+          <li><strong>308</strong> - Permanent Redirect</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      async function testRedirect() {
+        const path = document.getElementById("redirect-path").value;
+        const responseDiv = document.getElementById("redirect-response");
+
+        try {
+          // Use redirect: 'manual' to prevent automatic redirect following
+          const response = await fetch(path, { redirect: "manual" });
+
+          const statusClass =
+            response.status >= 300 && response.status < 400
+              ? "status-ok"
+              : "status-error";
+
+          // Get Location header if present
+          const location = response.headers.get("Location") || "(none)";
+
+          responseDiv.innerHTML = `<span class="${statusClass}">Status: ${response.status} ${response.statusText}</span>
+
+Location: ${location}
+
+Headers:
+${Array.from(response.headers.entries())
+            .map(([k, v]) => `  ${k}: ${v}`)
+            .join("\n")}`;
+          responseDiv.classList.add("show");
+        } catch (e) {
+          responseDiv.innerHTML = `<span class="status-error">Error: ${e.message}</span>`;
+          responseDiv.classList.add("show");
+        }
+      }
+    </script>
+  </body>
+</html>
