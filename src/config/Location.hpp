@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <set>
 #include <string>
@@ -10,6 +11,10 @@
 // Tri-state for boolean directives that need to distinguish "not set"
 enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
 
+// Sentinel value for max_request_body meaning "not set in config"
+extern const std::size_t MAX_REQUEST_BODY_UNSET;
+// Default value when no max_request_body is specified anywhere
+extern const std::size_t DEFAULT_MAX_REQUEST_BODY;
 class Location {
  public:
   Location();

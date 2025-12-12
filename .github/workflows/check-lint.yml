@@ -26,6 +26,11 @@ jobs:
   cpp-linter:
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libgtest-dev
+
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref || github.ref }}

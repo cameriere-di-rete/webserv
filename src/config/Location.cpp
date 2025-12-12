@@ -2,6 +2,10 @@
 
 #include "Logger.hpp"
 
+// Definition of the sentinel values declared in Location.hpp
+const std::size_t MAX_REQUEST_BODY_UNSET = static_cast<std::size_t>(-1);
+const std::size_t DEFAULT_MAX_REQUEST_BODY = 4096;
+
 Location::Location()
     : path(),
       allow_methods(),
@@ -12,7 +16,7 @@ Location::Location()
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(MAX_REQUEST_BODY_UNSET) {
   LOG(DEBUG) << "Location() default constructor called";
 }
 
@@ -26,7 +30,7 @@ Location::Location(const std::string& p)
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(MAX_REQUEST_BODY_UNSET) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
 }
 
