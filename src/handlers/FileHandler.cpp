@@ -169,16 +169,19 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
       base_dir += '/';
     }
 
-    // Seed random number generator (thread-safe per-invocation approach)
+    // Seed random number generator on first use
     static bool seeded = false;
     if (!seeded) {
-      srand(time(NULL));
+      srand(time(NULL) ^ (getpid() << 16));
       seeded = true;
     }
 
-    // Generate unique filename using timestamp and random value
+    // Generate unique filename using timestamp, process ID, and random value
+    // This combination provides good uniqueness even across server restarts
+    static unsigned int counter = 0;
     std::ostringstream filename;
-    filename << "upload_" << time(NULL) << "_" << rand() % 10000;
+    filename << "upload_" << time(NULL) << "_" << getpid() << "_" 
+             << (++counter) << "_" << (rand() % 10000);
 
     // Determine extension from Content-Type
     std::string content_type;
