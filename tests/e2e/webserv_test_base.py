@@ -66,8 +66,12 @@ class WebservTestCase(unittest.TestCase):
         if cls.server_process:
             # Kill the entire process group
             os.killpg(os.getpgid(cls.server_process.pid), signal.SIGTERM)
-            cls.server_process.wait(timeout=5)
-
+            try:
+                cls.server_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Force kill if not terminated
+                os.killpg(os.getpgid(cls.server_process.pid), signal.SIGKILL)
+                cls.server_process.wait()
     def make_request(self, method, path, headers=None, body=None):
         """Make an HTTP request to the test server."""
         conn = http.client.HTTPConnection(self.server_host, self.server_port)
