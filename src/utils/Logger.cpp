@@ -21,9 +21,13 @@ Logger::~Logger() {
 }
 
 // Empty implementations to disable copying
-Logger::Logger(const Logger&) : msgLevel_(INFO), file_(""), line_(0) {}
+Logger::Logger(const Logger& /* other */)
+    : msgLevel_(INFO), file_(""), line_(0) {}
 
-Logger& Logger::operator=(const Logger&) {
+Logger& Logger::operator=(const Logger& other) {
+  if (this != &other) {
+    // Empty implementation - copying is disabled
+  }
   return *this;
 }
 
