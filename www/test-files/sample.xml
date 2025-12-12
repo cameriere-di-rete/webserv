@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML Test File -->
+<!-- Expected Content-Type: application/xml or text/xml -->
+<root>
+    <test>
+        <name>MIME Type Test</name>
+        <type>XML</type>
+        <description>XML test file for webserv</description>
+    </test>
+    <items>
+        <item id="1">First Item</item>
+        <item id="2">Second Item</item>
+        <item id="3">Third Item</item>
+    </items>
+</root>

@@ -10,6 +10,7 @@ types {
 
   text/mathml                                      mml;
   text/plain                                       txt;
+  text/csv                                         csv;
   text/vnd.sun.j2me.app-descriptor                 jad;
   text/vnd.wap.wml                                 wml;
   text/x-component                                 htc;

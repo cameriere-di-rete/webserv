@@ -17,8 +17,10 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
-CgiHandler::CgiHandler(const std::string& script_path)
+CgiHandler::CgiHandler(const std::string& script_path,
+                       const std::set<std::string>& allowed_extensions)
     : script_path_(script_path),
+      allowed_extensions_(allowed_extensions),
       script_pid_(-1),
       pipe_read_fd_(-1),
       pipe_write_fd_(-1),
@@ -487,14 +489,6 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
 
 // Check if file extension is in the allowed list
 bool CgiHandler::isAllowedExtension(const std::string& path) {
-  // Whitelist of allowed CGI script extensions
-  const char* allowed_extensions[] = {".sh",   // Shell scripts
-                                      ".py",   // Python scripts
-                                      ".pl",   // Perl scripts
-                                      ".php",  // PHP scripts
-                                      ".cgi",  // Generic CGI scripts
-                                      NULL};
-
   size_t dot_pos = path.find_last_of('.');
   if (dot_pos == std::string::npos) {
     // No extension found
@@ -503,11 +497,6 @@ bool CgiHandler::isAllowedExtension(const std::string& path) {
 
   std::string extension = path.substr(dot_pos);
 
-  for (int i = 0; allowed_extensions[i] != NULL; ++i) {
-    if (extension == allowed_extensions[i]) {
-      return true;
-    }
-  }
-
-  return false;
+  // Only accept explicitly configured extensions
+  return allowed_extensions_.find(extension) != allowed_extensions_.end();
 }
