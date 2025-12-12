@@ -158,6 +158,51 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
   return HR_DONE;
 }
 
+bool FileHandler::writeBodyToFile(int fd, const std::string& body,
+                                  size_t& bytes_written) {
+  bytes_written = 0;
+  ssize_t n = 0;
+  while (bytes_written < body.size()) {
+    n = write(fd, body.c_str() + bytes_written, body.size() - bytes_written);
+    if (n < 0) {
+      break;
+    }
+    bytes_written += static_cast<size_t>(n);
+  }
+  return n >= 0 && bytes_written == body.size();
+}
+
+void FileHandler::prepareUploadResponse(Connection& conn, http::Status status,
+                                        const std::string& resource_path,
+                                        size_t bytes_written,
+                                        const std::string* location_uri) {
+  conn.response.status_line.version = conn.getHttpVersion();
+  conn.response.status_line.status_code = status;
+  conn.response.status_line.reason = http::reasonPhrase(status);
+
+  if (location_uri) {
+    conn.response.addHeader("Location", *location_uri);
+  }
+
+  std::ostringstream resp_body;
+  if (status == http::S_201_CREATED) {
+    resp_body << "Resource created successfully" << CRLF;
+  } else {
+    resp_body << "Resource updated successfully" << CRLF;
+  }
+  resp_body << "Resource: " << resource_path << CRLF;
+  resp_body << "Size: " << bytes_written << " bytes" << CRLF;
+
+  conn.response.getBody().data = resp_body.str();
+  conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
+
+  std::ostringstream len;
+  len << conn.response.getBody().size();
+  conn.response.addHeader("Content-Length", len.str());
+
+  conn.write_buffer = conn.response.serialize();
+}
+
 HandlerResult FileHandler::handlePost(Connection& conn) {
   // POST creates a new resource in the target directory
   // If path_ is a directory, create a new file inside it
@@ -224,47 +269,20 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
     return HR_DONE;
   }
 
-  // Write request body to file
   const std::string& body = conn.request.getBody().data;
   size_t total_written = 0;
-  ssize_t n = 0;
-  while (total_written < body.size()) {
-    n = write(fd, body.c_str() + total_written, body.size() - total_written);
-    if (n < 0) {
-      break;
-    }
-    total_written += static_cast<size_t>(n);
-  }
+  bool success = writeBodyToFile(fd, body, total_written);
   close(fd);
 
-  if (n < 0 || total_written != body.size()) {
+  if (!success) {
     LOG_PERROR(ERROR, "FileHandler: Failed to write file for POST");
     unlink(target_path.c_str());
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
 
-  // 201 Created with Location header pointing to new resource
-  conn.response.status_line.version = conn.getHttpVersion();
-  conn.response.status_line.status_code = http::S_201_CREATED;
-  conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
-
-  // Add Location header with the URI of the created resource
-  conn.response.addHeader("Location", resource_uri);
-
-  std::ostringstream resp_body;
-  resp_body << "Resource created successfully" << CRLF;
-  resp_body << "Location: " << resource_uri << CRLF;
-  resp_body << "Size: " << total_written << " bytes" << CRLF;
-
-  conn.response.getBody().data = resp_body.str();
-  conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-
-  std::ostringstream len;
-  len << conn.response.getBody().size();
-  conn.response.addHeader("Content-Length", len.str());
-
-  conn.write_buffer = conn.response.serialize();
+  prepareUploadResponse(conn, http::S_201_CREATED, target_path, total_written,
+                        &resource_uri);
 
   LOG(INFO) << "FileHandler: Created resource " << target_path << " ("
             << total_written << " bytes)";
@@ -276,14 +294,14 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
   // First attempt to create exclusively (O_CREAT | O_EXCL), which fails if file
   // exists. If it fails with EEXIST, the file already exists and we overwrite.
   bool created = false;
-  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+  int fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_EXCL, FILE_UPLOAD_MODE);
   if (fd >= 0) {
     // File was created (did not exist before)
     created = true;
   } else if (errno == EEXIST) {
     // File already exists, open for overwriting (include O_CREAT for
     // robustness in case file is deleted between the two open calls)
-    fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    fd = open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, FILE_UPLOAD_MODE);
   }
   if (fd < 0) {
     LOG_PERROR(ERROR, "FileHandler: Failed to open file for PUT");
@@ -291,49 +309,20 @@ HandlerResult FileHandler::handlePut(Connection& conn) {
     return HR_DONE;
   }
 
-  // Write request body to file
   const std::string& body = conn.request.getBody().data;
   size_t total_written = 0;
-  ssize_t n = 0;
-  while (total_written < body.size()) {
-    n = write(fd, body.c_str() + total_written, body.size() - total_written);
-    if (n < 0) {
-      break;
-    }
-    total_written += static_cast<size_t>(n);
-  }
+  bool success = writeBodyToFile(fd, body, total_written);
   close(fd);
 
-  if (n < 0 || total_written != body.size()) {
+  if (!success) {
     LOG_PERROR(ERROR, "FileHandler: Failed to write file for PUT");
-    // Remove incomplete file to avoid accumulation of partial files
     unlink(path_.c_str());
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
 
-  conn.response.status_line.version = conn.getHttpVersion();
-  if (created) {
-    conn.response.status_line.status_code = http::S_201_CREATED;
-    conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
-  } else {
-    conn.response.status_line.status_code = http::S_200_OK;
-    conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  }
-
-  std::ostringstream resp_body;
-  resp_body << "PUT request processed successfully" << CRLF;
-  resp_body << "Resource: " << path_ << CRLF;
-  resp_body << "Bytes written: " << total_written << CRLF;
-
-  conn.response.getBody().data = resp_body.str();
-  conn.response.addHeader("Content-Type", "text/plain; charset=utf-8");
-
-  std::ostringstream len;
-  len << conn.response.getBody().size();
-  conn.response.addHeader("Content-Length", len.str());
-
-  conn.write_buffer = conn.response.serialize();
+  http::Status status = created ? http::S_201_CREATED : http::S_200_OK;
+  prepareUploadResponse(conn, status, path_, total_written);
   return HR_DONE;
 }
 
