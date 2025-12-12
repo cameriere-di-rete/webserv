@@ -21,8 +21,8 @@ class Logger {
 
  private:
   // Disable copying since this is a temporary RAII object
-  Logger(const Logger&);
-  Logger& operator=(const Logger&);
+  Logger(const Logger& other);
+  Logger& operator=(const Logger& other);
   // Instance fields used by the temporary RAII Logger
   LogLevel msgLevel_;
   const char* file_;

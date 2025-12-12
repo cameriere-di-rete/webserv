@@ -237,7 +237,7 @@ int ServerManager::run() {
       }
 
       Connection& conn = conn_it->second;
-      uint32_t event_mask = events[static_cast<size_t>(i)].events;
+      uint32_t event_mask = events[i].events;
 
       /* readable */
       if ((event_mask & EPOLLIN) != 0U) {
