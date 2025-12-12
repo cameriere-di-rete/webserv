@@ -9,12 +9,7 @@ This directory contains end-to-end tests for the webserv HTTP server.
 
 ## Running the Tests
 
-First, build the webserv executable:
-
-```bash
-cd ../..
-make
-```
+First, build the webserv executable (see the main [README](../../README.md) for compilation instructions).
 
 Then run the e2e tests:
 
