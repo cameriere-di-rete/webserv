@@ -7,34 +7,7 @@ CXXFLAGS	:=	-Wall -Wextra -Werror -std=c++98
 RM ?= rm -f
 
 NAME	:=	webserv
-SOURCES	:=	src/http/Body.cpp \
-			src/http/Header.cpp \
-			src/http/http_utils.cpp \
-			src/http/HttpMethod.cpp \
-			src/http/HttpStatus.cpp \
-			src/http/Message.cpp \
-			src/http/Request.cpp \
-			src/http/RequestLine.cpp \
-			src/http/Response.cpp \
-			src/http/StatusLine.cpp \
-			src/http/Uri.cpp \
-			src/utils/file_utils.cpp \
-			src/utils/Logger.cpp \
-			src/utils/utils.cpp \
-			src/config/BlockNode.cpp \
-			src/config/Config.cpp \
-			src/config/DirectiveNode.cpp \
-			src/config/Location.cpp \
-			src/handlers/IHandler.cpp \
-			src/handlers/AutoindexHandler.cpp \
-			src/handlers/EchoHandler.cpp \
-			src/handlers/FileHandler.cpp \
-			src/handlers/RedirectHandler.cpp \
-			src/handlers/CgiHandler.cpp \
-			src/core/Connection.cpp \
-			src/core/Server.cpp \
-			src/core/ServerManager.cpp \
-			src/core/main.cpp
+SOURCES	:=	@SOURCES_LIST@
 
 # Store object and dependency files under build/ to keep the source tree clean
 OBJDIR := build/obj
