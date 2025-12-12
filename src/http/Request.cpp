@@ -1,6 +1,6 @@
 #include "Request.hpp"
 
-Request::Request() : Message(), request_line(), uri() {}
+Request::Request() {}
 
 Request::Request(const Request& other)
     : Message(other), request_line(other.request_line), uri(other.uri) {}

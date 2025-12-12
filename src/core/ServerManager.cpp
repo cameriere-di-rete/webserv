@@ -476,8 +476,7 @@ void ServerManager::shutdown() {
 bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
-  struct epoll_event event;
-  std::memset(&event, 0, sizeof(event));
+  struct epoll_event event = {};
   event.events = EPOLLIN | EPOLLET;
   event.data.fd = pipe_fd;
 
