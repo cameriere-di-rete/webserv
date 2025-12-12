@@ -115,7 +115,7 @@ void ServerManager::acceptConnection(int listen_fd) {
   }
 }
 
-void ServerManager::updateEvents(int file_descriptor, uint32_t events) const {
+void ServerManager::updateEvents(int file_descriptor, uint32_t events) {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
@@ -199,8 +199,8 @@ int ServerManager::run() {
 
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
-    for (size_t i = 0; i < static_cast<size_t>(num_events); ++i) {
-      int event_fd = events[i].data.fd;
+    for (int i = 0; i < num_events; ++i) {
+      int event_fd = events[static_cast<size_t>(i)].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
       if (event_fd == sfd_) {
@@ -237,7 +237,7 @@ int ServerManager::run() {
       }
 
       Connection& conn = conn_it->second;
-      uint32_t event_mask = events[i].events;
+      uint32_t event_mask = events[static_cast<size_t>(i)].events;
 
       /* readable */
       if ((event_mask & EPOLLIN) != 0U) {
