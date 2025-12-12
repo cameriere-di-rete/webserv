@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HTTP Methods - webserv</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="test-page">
+    <div class="container">
+      <a href="/tests/" class="back-link">← Back to Test Suite</a>
+      <h1>🔧 HTTP Methods</h1>
+      <p class="subtitle">Test different HTTP request methods</p>
+
+      <div class="interactive">
+        <h3>Send Custom Request</h3>
+        <label for="method-select">Method:</label>
+        <select id="method-select">
+          <option value="GET">GET</option>
+          <option value="HEAD">HEAD</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+
+        <label for="url-input">URL Path:</label>
+        <input type="text" id="url-input" value="/test.txt" />
+
+        <label for="body-input">Request Body (for POST/PUT):</label>
+        <textarea id="body-input" rows="3" placeholder="Enter request body..."></textarea>
+
+        <button onclick="sendRequest()">Send Request</button>
+        <div id="response" class="response-box"></div>
+      </div>
+
+      <h2>Quick Tests</h2>
+      <div class="test-grid">
+        <div class="test-card" onclick="quickTest('GET', '/test.txt')" style="cursor:pointer">
+          <h3><span class="method get">GET</span> /test.txt</h3>
+          <p>Fetch file content</p>
+        </div>
+        <div class="test-card" onclick="quickTest('HEAD', '/test.txt')" style="cursor:pointer">
+          <h3><span class="method get">HEAD</span> /test.txt</h3>
+          <p>Fetch headers only (no body)</p>
+        </div>
+        <div class="test-card" onclick="quickTest('POST', '/test.txt', 'Hello POST')" style="cursor:pointer">
+          <h3><span class="method post">POST</span> /test.txt</h3>
+          <p>Send data to server</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function sendRequest() {
+        const method = document.getElementById("method-select").value;
+        const url = document.getElementById("url-input").value;
+        const body = document.getElementById("body-input").value;
+        await doRequest(method, url, body);
+      }
+
+      async function quickTest(method, url, body) {
+        document.getElementById("method-select").value = method;
+        document.getElementById("url-input").value = url;
+        document.getElementById("body-input").value = body || "";
+        await doRequest(method, url, body);
+      }
+
+      async function doRequest(method, url, body) {
+        const responseDiv = document.getElementById("response");
+
+        try {
+          const options = { method };
+          if ((method === "POST" || method === "PUT") && body) {
+            options.body = body;
+            options.headers = { "Content-Type": "text/plain" };
+          }
+
+          const startTime = performance.now();
+          const response = await fetch(url, options);
+          const endTime = performance.now();
+
+          let text = "";
+          if (method !== "HEAD") {
+            text = await response.text();
+          }
+
+          const statusClass =
+            response.status >= 200 && response.status < 400
+              ? "status-ok"
+              : "status-error";
+          responseDiv.innerHTML = `<span class="${statusClass}">Status: ${response.status} ${response.statusText}</span>
+Time: ${(endTime - startTime).toFixed(2)}ms
+
+Headers:
+${Array.from(response.headers.entries())
+            .map(([k, v]) => `  ${k}: ${v}`)
+            .join("\n")}
+
+Body:
+${text || "(empty)"}`;
+          responseDiv.classList.add("show");
+        } catch (e) {
+          responseDiv.innerHTML = `<span class="status-error">Error: ${e.message}</span>`;
+          responseDiv.classList.add("show");
+        }
+      }
+    </script>
+  </body>
+</html>
