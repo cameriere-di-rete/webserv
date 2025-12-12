@@ -147,8 +147,16 @@ int Connection::handleWrite() {
   return 0;
 }
 
+std::string Connection::getHttpVersion() const {
+  if (request.request_line.version == "HTTP/1.0" ||
+      request.request_line.version == "HTTP/1.1") {
+    return request.request_line.version;
+  }
+  return HTTP_VERSION;
+}
+
 void Connection::prepareErrorResponse(http::Status status) {
-  response.status_line.version = HTTP_VERSION;
+  response.status_line.version = getHttpVersion();
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
@@ -245,22 +253,18 @@ HandlerResult Connection::executeHandler(IHandler* handler) {
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
-  // 1. Parse request headers (already done in ServerManager)
-  // 2. Get pathname from URI
-  std::string path = request.request_line.uri;
-
-  // Extract path from URI (remove query string if present)
-  std::size_t query_pos = path.find('?');
-  if (query_pos != std::string::npos) {
-    path = path.substr(0, query_pos);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return;
   }
+  std::string path = request.uri.getPath();
 
   LOG(DEBUG) << "Request path: " << path;
 
-  // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
-  // 4. Process response based on location
   processResponse(location);
 }
 
@@ -299,7 +303,7 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  if (location.cgi) {
+  if (!location.cgi_root.empty()) {
     // CGI handling
     std::string resolved_path;
     bool is_directory = false;
@@ -342,11 +346,7 @@ void Connection::processResponse(const Location& location) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
       // filesystem path to avoid leaking internal structure.
-      std::string display_path = request.request_line.uri;
-      std::size_t qpos = display_path.find('?');
-      if (qpos != std::string::npos) {
-        display_path = display_path.substr(0, qpos);
-      }
+      std::string display_path = request.uri.getPath();
       if (display_path.empty()) {
         display_path = "/";
       }
@@ -377,8 +377,9 @@ void Connection::processResponse(const Location& location) {
 }
 
 http::Status Connection::validateRequestForLocation(const Location& location) {
-  // 1. Check HTTP protocol version
-  if (request.request_line.version != HTTP_VERSION) {
+  // 1. Check HTTP protocol version (accept both HTTP/1.0 and HTTP/1.1)
+  if (request.request_line.version != "HTTP/1.0" &&
+      request.request_line.version != "HTTP/1.1") {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
     return http::S_505_HTTP_VERSION_NOT_SUPPORTED;
   }
@@ -418,26 +419,25 @@ bool Connection::resolvePathForLocation(const Location& location,
                                         bool& out_is_directory) {
   out_is_directory = false;
 
-  // Use the request URI (strip query string)
-  std::string uri = request.request_line.uri;
-  std::size_t q = uri.find('?');
-  if (q != std::string::npos) {
-    uri = uri.substr(0, q);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  // Validation was done in processRequest(), but check again for safety
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return false;
   }
 
-  // Path traversal protection: check for ".." sequences
-  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
-  // by checking the raw URI and rejecting suspicious patterns.
-  // Note: A proper implementation would URL-decode first, then validate.
-  if (uri.find("..") != std::string::npos ||
-      uri.find("%2e%2e") != std::string::npos ||
-      uri.find("%2E%2E") != std::string::npos ||
-      uri.find("%2e%2E") != std::string::npos ||
-      uri.find("%2E%2e") != std::string::npos) {
-    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+  // Path traversal protection: check for ".." sequences in decoded path
+  // The Uri class properly URI-decodes before checking, handling all
+  // encoded variants (%2e%2e, %2E%2E, mixed case, etc.)
+  if (request.uri.hasPathTraversal()) {
+    LOG(INFO) << "Path traversal attempt blocked: " << request.uri.getPath();
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }
+
+  // Get the decoded path (query string already stripped by Uri parser)
+  std::string uri = request.uri.getDecodedPath();
 
   // Relative path inside the location
   std::string rel = uri;
@@ -450,11 +450,18 @@ bool Connection::resolvePathForLocation(const Location& location,
     }
   }
 
-  if (location.root.empty()) {
+  // Determine the root directory to use:
+  // - If cgi_root is set, use it (for CGI scripts)
+  // - Otherwise, use the regular root
+  std::string root;
+  if (!location.cgi_root.empty()) {
+    root = location.cgi_root;
+  } else if (!location.root.empty()) {
+    root = location.root;
+  } else {
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return false;
   }
-  std::string root = location.root;
 
   std::string path;
   if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&

@@ -53,8 +53,35 @@ int CgiHandler::getMonitorFd() const {
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
 
-  // Security validation: check script path
+  // Check if script exists (404 if not found, 500 for other errors)
   std::string error_msg;
+  struct stat st;
+  if (stat(script_path_.c_str(), &st) != 0) {
+    if (errno == ENOENT || errno == ENOTDIR) {
+      LOG(ERROR) << "CgiHandler: script not found: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+    } else {
+      LOG(ERROR) << "CgiHandler: stat() failed: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    }
+    return HR_DONE;
+  }
+
+  // Check if path is a regular file and has executable permissions
+  bool is_regular = S_ISREG(st.st_mode);
+  bool is_executable = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+
+  if (!is_regular || !is_executable) {
+    if (!is_regular) {
+      LOG(ERROR) << "CgiHandler: script path is not a regular file";
+    } else {
+      LOG(ERROR) << "CgiHandler: script file is not executable";
+    }
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
+
+  // Security validation: check script path (403 if fails)
   if (!validateScriptPath(script_path_, error_msg)) {
     LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
@@ -63,8 +90,15 @@ HandlerResult CgiHandler::start(Connection& conn) {
 
   // Create pipes for communication
   int pipe_to_cgi[2], pipe_from_cgi[2];
-  if (pipe(pipe_to_cgi) == -1 || pipe(pipe_from_cgi) == -1) {
+  if (pipe(pipe_to_cgi) == -1) {
     LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
+  }
+  if (pipe(pipe_from_cgi) == -1) {
+    LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    close(pipe_to_cgi[0]);
+    close(pipe_to_cgi[1]);
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
@@ -240,7 +274,7 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
 
   // Ensure we have response headers if none were parsed
   if (!headers_parsed_) {
-    conn.response.status_line.version = HTTP_VERSION;
+    conn.response.status_line.version = conn.getHttpVersion();
     conn.response.status_line.status_code = http::S_200_OK;
     conn.response.status_line.reason = "OK";
     conn.response.addHeader("Content-Type", "text/plain");
@@ -280,7 +314,7 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     std::string body_part = remaining_data_.substr(headers_end + separator_len);
 
     // Set default status
-    conn.response.status_line.version = HTTP_VERSION;
+    conn.response.status_line.version = conn.getHttpVersion();
     conn.response.status_line.status_code = http::S_200_OK;
     conn.response.status_line.reason = "OK";
 
@@ -356,13 +390,9 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_PORT", "8080", 1);
   setenv("SCRIPT_NAME", script_path_.c_str(), 1);
 
-  // Query string
-  std::string uri = conn.request.request_line.uri;
-  size_t query_pos = uri.find('?');
-  std::string uri_no_query =
-      (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
-  std::string query_string =
-      (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
+  // Query string - use pre-parsed Uri from request
+  std::string uri_no_query = conn.request.uri.getPath();
+  std::string query_string = conn.request.uri.getQuery();
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
   // Determine PATH_INFO: extra path after script name
@@ -404,24 +434,6 @@ bool CgiHandler::validateScriptPath(const std::string& path,
     return false;
   }
 
-  // Check if file exists and is a regular file
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    error_msg = "Script file not found";
-    return false;
-  }
-
-  if (!S_ISREG(st.st_mode)) {
-    error_msg = "Script path is not a regular file";
-    return false;
-  }
-
-  // Check if file has executable permissions
-  if (!isExecutable(path)) {
-    error_msg = "Script file is not executable";
-    return false;
-  }
-
   // Check if file extension is allowed
   if (!isAllowedExtension(path)) {
     error_msg = "Script file extension is not allowed";
@@ -431,13 +443,9 @@ bool CgiHandler::validateScriptPath(const std::string& path,
   return true;
 }
 
-// Check if path contains path traversal sequences
+// Check if path is within allowed CGI directories (defense against symlink
+// attacks)
 bool CgiHandler::isPathTraversalSafe(const std::string& path) {
-  // Check for obvious path traversal patterns
-  if (path.find("..") != std::string::npos) {
-    return false;
-  }
-
   // Get absolute path and verify it doesn't escape allowed directory
   char resolved_path[PATH_MAX];
   if (realpath(path.c_str(), resolved_path) == NULL) {
@@ -475,17 +483,6 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
   }
 
   return false;
-}
-
-// Check if file has executable permissions
-bool CgiHandler::isExecutable(const std::string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    return false;
-  }
-
-  // Check if file has execute permission for owner, group, or others
-  return (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
 }
 
 // Check if file extension is in the allowed list
