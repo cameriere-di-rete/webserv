@@ -1,6 +1,7 @@
 /**
  * @file Connection_test.cpp
- * @brief Unit tests for Connection class: HTTP validation and request body limits
+ * @brief Unit tests for Connection class: HTTP validation and request body
+ * limits
  *
  * These tests verify that the server correctly:
  * - Validates HTTP versions (1.0, 1.1 accepted; others rejected with 505)
