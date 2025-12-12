@@ -154,15 +154,24 @@ Location Server::matchLocation(const std::string& path) const {
     // Check if this location path is a prefix of the request path, respecting
     // path segment boundaries
     if (path.find(loc_path) == 0) {
-      // Ensure it's an exact match or followed by '/' (path boundary)
-      if (path.length() == loc_path.length() ||
-          (path.length() > loc_path.length() &&
-           path[loc_path.length()] == '/')) {
-        // This is a match. Keep the longest one.
-        if (loc_path.length() > best_match.length()) {
-          best_match = loc_path;
-          best_it = it;
-        }
+      // If location ends with '/', it's already a proper prefix
+      // Otherwise, ensure it's an exact match or followed by '/'
+      bool is_match = false;
+      if (!loc_path.empty() && loc_path[loc_path.length() - 1] == '/') {
+        // Location ends with '/', so it's a valid prefix match
+        is_match = true;
+      } else if (path.length() == loc_path.length()) {
+        // Exact match
+        is_match = true;
+      } else if (path.length() > loc_path.length() &&
+                 path[loc_path.length()] == '/') {
+        // Followed by '/' (path boundary)
+        is_match = true;
+      }
+
+      if (is_match && loc_path.length() > best_match.length()) {
+        best_match = loc_path;
+        best_it = it;
       }
     }
   }
