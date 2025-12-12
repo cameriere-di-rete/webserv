@@ -50,4 +50,6 @@ class Connection {
   // Helper to run a handler's start() and perform common error handling.
   // Returns the HandlerResult from the handler.
   HandlerResult executeHandler(IHandler* handler);
+  // Log the completed request/response in nginx-style access log format
+  void logAccess() const;
 };

@@ -462,3 +462,30 @@ bool Connection::resolvePathForLocation(const Location& location,
   out_path = path;
   return true;
 }
+
+void Connection::logAccess() const {
+  // nginx-style combined log format:
+  // remote_addr - - [time] "request" status bytes_sent
+  // Example: 127.0.0.1 - - [12/Dec/2025:15:45:00 +0000] "GET /index.html
+  // HTTP/1.1" 200 1234
+
+  std::string method = request.request_line.method;
+  std::string uri = request.request_line.uri;
+  std::string version = request.request_line.version;
+  int status = static_cast<int>(response.status_line.status_code);
+  std::size_t bytes = write_buffer.size();
+
+  // If request wasn't parsed, use placeholders
+  if (method.empty()) {
+    method = "-";
+  }
+  if (uri.empty()) {
+    uri = "-";
+  }
+  if (version.empty()) {
+    version = "-";
+  }
+
+  LOG(INFO) << "\"" << method << " " << uri << " " << version << "\" " << status
+            << " " << bytes;
+}
