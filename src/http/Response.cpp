@@ -1,5 +1,9 @@
 #include "Response.hpp"
 
+#include <sstream>
+
+#include "HttpStatus.hpp"
+
 Response::Response() : Message(), status_line() {}
 
 Response::Response(const Response& other)
@@ -29,4 +33,19 @@ bool Response::parseStartAndHeaders(const std::vector<std::string>& lines) {
   }
   parseHeaders(lines, 1);
   return true;
+}
+
+void Response::setStatus(http::Status status, const std::string& version) {
+  status_line.version = version;
+  status_line.status_code = status;
+  status_line.reason = http::reasonPhrase(status);
+}
+
+void Response::setBodyWithContentType(const std::string& data,
+                                      const std::string& contentType) {
+  body.data = data;
+  addHeader("Content-Type", contentType);
+  std::ostringstream oss;
+  oss << body.size();
+  addHeader("Content-Length", oss.str());
 }
