@@ -8,6 +8,7 @@ set(HTTP_SOURCES
   RequestLine.cpp
   Response.cpp
   StatusLine.cpp
+  Uri.cpp
 )
 
 foreach(f IN LISTS HTTP_SOURCES)

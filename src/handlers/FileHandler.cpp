@@ -17,8 +17,13 @@
 #include "constants.hpp"
 #include "file_utils.hpp"
 
-FileHandler::FileHandler(const std::string& path)
-    : path_(path), fi_(), start_offset_(0), end_offset_(-1), active_(false) {
+FileHandler::FileHandler(const std::string& path, const std::string& uri)
+    : path_(path),
+      uri_(uri),
+      fi_(),
+      start_offset_(0),
+      end_offset_(-1),
+      active_(false) {
   fi_.fd = -1;
 }
 
@@ -156,10 +161,11 @@ HandlerResult FileHandler::handleHead(Connection& conn) {
 HandlerResult FileHandler::handlePost(Connection& conn) {
   // POST creates a new resource in the target directory
   // If path_ is a directory, create a new file inside it
-  // If path_ is a file, append or create alongside it
+  // If path_ is not a directory, use it as the target path for file creation
 
   struct stat st;
   std::string target_path;
+  std::string resource_uri;
 
   if (stat(path_.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
     // path_ is a directory - generate a unique filename
@@ -168,9 +174,19 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
       base_dir += '/';
     }
 
-    // Generate unique filename using timestamp and counter
+    // Seed random number generator on first use
+    static bool seeded = false;
+    if (!seeded) {
+      srand(time(NULL) ^ (getpid() << 16));
+      seeded = true;
+    }
+
+    // Generate unique filename using timestamp, process ID, and random value
+    // This combination provides good uniqueness even across server restarts
+    static unsigned int counter = 0;
     std::ostringstream filename;
-    filename << "upload_" << time(NULL) << "_" << rand() % 10000;
+    filename << "upload_" << time(NULL) << "_" << getpid() << "_" << (++counter)
+             << "_" << (rand() % 10000);
 
     // Determine extension from Content-Type
     std::string content_type;
@@ -181,23 +197,30 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
     }
 
     target_path = base_dir + filename.str();
+
+    // Build resource URI by appending filename to URI path
+    resource_uri = uri_;
+    if (!resource_uri.empty() && resource_uri[resource_uri.size() - 1] != '/') {
+      resource_uri += '/';
+    }
+    resource_uri += filename.str();
   } else {
     // path_ is a file or doesn't exist - use it directly
     target_path = path_;
+    resource_uri = uri_;
   }
 
-  // Check if file already exists (POST should create new, not overwrite)
-  if (stat(target_path.c_str(), &st) == 0) {
-    // File exists - 409 Conflict
-    conn.prepareErrorResponse(http::S_409_CONFLICT);
-    return HR_DONE;
-  }
-
-  // Create the new file
-  int fd = open(target_path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0644);
+  // Create the new file with O_EXCL to ensure atomicity
+  int fd =
+      open(target_path.c_str(), O_WRONLY | O_CREAT | O_EXCL, FILE_UPLOAD_MODE);
   if (fd < 0) {
-    LOG_PERROR(ERROR, "FileHandler: Failed to create file for POST");
-    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    if (errno == EEXIST) {
+      // File exists - 409 Conflict
+      conn.prepareErrorResponse(http::S_409_CONFLICT);
+    } else {
+      LOG_PERROR(ERROR, "FileHandler: Failed to create file for POST");
+      conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    }
     return HR_DONE;
   }
 
@@ -227,11 +250,11 @@ HandlerResult FileHandler::handlePost(Connection& conn) {
   conn.response.status_line.reason = http::reasonPhrase(http::S_201_CREATED);
 
   // Add Location header with the URI of the created resource
-  conn.response.addHeader("Location", target_path);
+  conn.response.addHeader("Location", resource_uri);
 
   std::ostringstream resp_body;
   resp_body << "Resource created successfully" << CRLF;
-  resp_body << "Location: " << target_path << CRLF;
+  resp_body << "Location: " << resource_uri << CRLF;
   resp_body << "Size: " << total_written << " bytes" << CRLF;
 
   conn.response.getBody().data = resp_body.str();
