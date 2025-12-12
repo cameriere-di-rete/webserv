@@ -325,7 +325,14 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  IHandler* handler = new FileHandler(resolved_path);
+  // Extract clean URI path (without query string) for use in responses
+  std::string uri_path = request.request_line.uri;
+  std::size_t qpos = uri_path.find('?');
+  if (qpos != std::string::npos) {
+    uri_path = uri_path.substr(0, qpos);
+  }
+  
+  IHandler* handler = new FileHandler(resolved_path, uri_path);
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later

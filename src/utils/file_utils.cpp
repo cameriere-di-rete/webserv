@@ -105,12 +105,24 @@ std::string mimeToExtension(const std::string& mime_type) {
 
   const MimeMap& m = mimeToExt();
 
-  // Try exact match first
-  for (MimeMap::const_iterator it = m.begin(); it != m.end(); ++it) {
-    if (mime_type.find(it->first) != std::string::npos) {
-      return it->second;
-    }
+  // Extract base MIME type (before any ';'), and trim whitespace
+  std::string::size_type semi = mime_type.find(';');
+  std::string base_type = (semi == std::string::npos) ? mime_type : mime_type.substr(0, semi);
+  
+  // Trim whitespace from base_type
+  std::string::size_type start = base_type.find_first_not_of(" \t\r\n");
+  if (start == std::string::npos) {
+    return kDefaultExt;
   }
+  std::string::size_type end = base_type.find_last_not_of(" \t\r\n");
+  base_type = base_type.substr(start, end - start + 1);
+
+  // Try exact match
+  MimeMap::const_iterator it = m.find(base_type);
+  if (it != m.end()) {
+    return it->second;
+  }
+  
   return kDefaultExt;
 }
 

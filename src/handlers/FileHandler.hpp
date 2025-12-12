@@ -12,7 +12,7 @@ class Connection;
 // files.
 class FileHandler : public IHandler {
  public:
-  explicit FileHandler(const std::string& path);
+  explicit FileHandler(const std::string& path, const std::string& uri = "");
   virtual ~FileHandler();
 
   virtual HandlerResult start(Connection& conn);
@@ -27,6 +27,7 @@ class FileHandler : public IHandler {
   HandlerResult handleDelete(Connection& conn);
 
   std::string path_;
+  std::string uri_;
   FileInfo fi_;
   off_t start_offset_;
   off_t end_offset_;
