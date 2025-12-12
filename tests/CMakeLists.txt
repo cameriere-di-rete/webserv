@@ -22,10 +22,15 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR})
 
-add_executable(runTests test_main.cpp ../utils_test.cpp ../utils.cpp)
-target_link_libraries(runTests GTest::gtest GTest::gtest_main pthread)
+# Build tests by linking against the library target `webserv_lib` so we don't recompile sources
+add_executable(runTests test_main.cpp ../src/utils/utils_test.cpp ../src/utils/file_utils_test.cpp ../src/config/Config_test.cpp ../src/core/Connection_test.cpp ../src/http/Uri_test.cpp)
+target_link_libraries(runTests PRIVATE GTest::gtest_main webserv_core webserv_http webserv_config webserv_handlers webserv_utils pthread)
 
-target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)
+# Tests must be compiled with C++11 to support GoogleTest
 target_compile_features(runTests PRIVATE cxx_std_11)
+target_compile_options(runTests PRIVATE -Wall -Wextra -Werror)
+
+# Allow tests to see private headers next to sources
+target_include_directories(runTests PRIVATE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/src)
 
 add_test(NAME MyTest COMMAND runTests)
