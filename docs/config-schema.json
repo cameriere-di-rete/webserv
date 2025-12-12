@@ -74,9 +74,10 @@
           "examples": ["./www", "/var/www/html"]
         },
         "index": {
-          "type": "string",
-          "description": "Default index file name",
-          "examples": ["index.html", "index.htm"]
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Default index file names",
+          "examples": [["index.html", "index.htm"]]
         },
         "autoindex": {
           "type": "boolean",
@@ -119,8 +120,9 @@
           "description": "Override root directory for this location"
         },
         "index": {
-          "type": "string",
-          "description": "Override index file for this location"
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Override index file names for this location"
         },
         "autoindex": {
           "type": "boolean",
@@ -157,6 +159,11 @@
         "error_page": {
           "$ref": "#/definitions/errorPageMapping",
           "description": "Override error pages for this location"
+        },
+        "max_request_body": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Override maximum allowed size of the client request body in bytes for this location"
         }
       }
     },

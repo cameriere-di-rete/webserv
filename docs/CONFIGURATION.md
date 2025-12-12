@@ -45,7 +45,7 @@ Sets the maximum allowed size of the client request body in bytes.
 
 **Syntax:** `max_request_body <size>;`
 
-**Context:** global, server
+**Context:** global, server, location
 
 **Example:**
 ```
@@ -116,13 +116,14 @@ root /var/www/html;
 
 Defines files that will be used as an index when a directory is requested.
 
-**Syntax:** `index <file>;`
+**Syntax:** `index <file> [file...];`
 
 **Context:** server, location
 
 **Example:**
 ```
 index index.html;
+index index.html index.htm;
 ```
 
 ### autoindex
@@ -216,6 +217,7 @@ The following directives can also be used within location blocks to override ser
 - `autoindex` - Override directory listing
 - `allow_methods` - Override allowed methods
 - `error_page` - Override error pages
+- `max_request_body` - Override maximum request body size
 
 ## Complete Example
 
