@@ -160,16 +160,8 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   if (method == "HEAD") {
     // No body for HEAD; send headers only.
     conn.response.getBody().data = "";
-    std::ostringstream header_stream;
-    header_stream << conn.response.startLine() << CRLF;
-    header_stream << conn.response.serializeHeaders();
-    header_stream << CRLF;
-    conn.write_buffer = header_stream.str();
-    conn.write_offset = 0;
-    return HR_DONE;
   }
 
-  // GET (or other methods that return body) - include the body.
   conn.write_buffer = conn.response.serialize();
   conn.write_offset = 0;
 
