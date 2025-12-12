@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <map>
 #include <string>
 
 #include "HttpStatus.hpp"
@@ -29,6 +30,7 @@ class Connection {
   Request request;
   Response response;
   IHandler* active_handler;
+  std::map<http::Status, std::string> error_pages;
 
   int handleRead();
   int handleWrite();
