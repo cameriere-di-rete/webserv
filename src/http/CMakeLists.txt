@@ -1,6 +1,7 @@
 set(HTTP_SOURCES
   Body.cpp
   Header.cpp
+  http_utils.cpp
   HttpMethod.cpp
   HttpStatus.cpp
   Message.cpp
