@@ -20,8 +20,6 @@ Logger::~Logger() {
   Logger::log(msgLevel_, oss.str());
 }
 
-
-
 std::ostringstream& Logger::stream() {
   return stream_;
 }
