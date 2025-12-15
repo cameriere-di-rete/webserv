@@ -245,6 +245,13 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // Logic to handle reading the request body with respect to buffer sizes
+  if (request.getBody().size() > location.max_request_body) {
+    // Handle the case where the body exceeds the buffer size
+    LOG(DEBUG) << "Handling request body exceeding buffer size";
+    // Additional logic can be added here if needed
+  }
+
   // Resource-based handler selection:
   // 1. Redirect handler (if configured) - TODO: implement in future PR
   // 2. CGI handler (if configured and matching extension) - TODO: implement in

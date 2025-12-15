@@ -15,7 +15,6 @@
 
 #include "HttpStatus.hpp"
 #include "Location.hpp"
-#include "gtest/gtest.h"
 #include "utils.hpp"
 
 // =============================================================================
