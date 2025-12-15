@@ -716,10 +716,10 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
         LOG(DEBUG) << "  Location error_page: " << it->first << " -> "
                    << it->second;
       }
-    } else if (d.name == "cgi") {
+    } else if (d.name == "cgi_root") {
       requireArgsEqual_(d, 1);
-      loc.cgi = parseBooleanValue_(d.args[0]);
-      LOG(DEBUG) << "  Location CGI: " << (loc.cgi ? "on" : "off");
+      loc.cgi_root = d.args[0];
+      LOG(DEBUG) << "  Location CGI root: " << loc.cgi_root;
     } else if (d.name == "max_request_body") {
       requireArgsEqual_(d, 1);
       loc.max_request_body = parsePositiveNumber_(d.args[0]);
@@ -730,10 +730,10 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
   }
 
   // Validate: location cannot have both CGI and redirect
-  if (loc.cgi && loc.redirect_code != http::S_0_UNKNOWN) {
+  if (!loc.cgi_root.empty() && loc.redirect_code != http::S_0_UNKNOWN) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "location '" << loc.path
-        << "' cannot have both 'cgi' and 'redirect' directives";
+        << "' cannot have both 'cgi_root' and 'redirect' directives";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);

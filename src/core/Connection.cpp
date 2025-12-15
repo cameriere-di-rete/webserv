@@ -29,7 +29,8 @@ Connection::Connection()
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages() {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -39,7 +40,8 @@ Connection::Connection(int fd)
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages() {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -51,7 +53,8 @@ Connection::Connection(const Connection& other)
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages(other.error_pages) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -69,6 +72,7 @@ Connection& Connection::operator=(const Connection& other) {
     request = other.request;
     response = other.response;
     clearHandler();
+    error_pages = other.error_pages;
   }
   return *this;
 }
@@ -156,6 +160,51 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
+  // Check if there's a custom error page configured for this status.
+  // error_pages is temporarily cleared while serving custom error pages
+  // to prevent infinite recursion if the error page file itself triggers an
+  // error.
+  {
+    std::map<http::Status, std::string>::const_iterator it =
+        error_pages.find(status);
+    if (it != error_pages.end()) {
+      // Temporarily clear error_pages to prevent infinite recursion if the
+      // custom error page file itself triggers an error (e.g., 404).
+      std::map<http::Status, std::string> saved_error_pages = error_pages;
+      error_pages.clear();
+
+      // Try to serve the custom error page using FileHandler
+      FileHandler* fh = new FileHandler(it->second);
+      HandlerResult hr = fh->start(*this);
+      if (hr == HR_DONE) {
+        // FileHandler prepared the response successfully, but we need to
+        // override the status code to the error status (FileHandler sets 200)
+        response.status_line.status_code = status;
+        response.status_line.reason = http::reasonPhrase(status);
+        write_buffer = response.serialize();
+        delete fh;
+        error_pages = saved_error_pages;  // Restore for future requests
+        return;
+      } else if (hr == HR_WOULD_BLOCK) {
+        // Handler needs to stream the file; assign to active_handler
+        // Override the status code for the error page response
+        response.status_line.status_code = status;
+        response.status_line.reason = http::reasonPhrase(status);
+        setHandler(fh);
+        error_pages = saved_error_pages;  // Restore for future requests
+        return;
+      }
+      // HR_ERROR: Log a warning and fall through to default error page
+      LOG(ERROR) << "Failed to load custom error page: " << it->second;
+      delete fh;
+      error_pages = saved_error_pages;  // Restore for future requests
+      response = Response();            // Reset response for default error page
+      response.status_line.version = HTTP_VERSION;
+      response.status_line.status_code = status;
+      response.status_line.reason = http::reasonPhrase(status);
+    }
+  }
+
   std::string title = http::statusWithReason(status);
   std::ostringstream body;
   body << "<html>" << CRLF << "<head><title>" << title << "</title></head>"
@@ -204,27 +253,26 @@ HandlerResult Connection::executeHandler(IHandler* handler) {
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
-  // 1. Parse request headers (already done in ServerManager)
-  // 2. Get pathname from URI
-  std::string path = request.request_line.uri;
-
-  // Extract path from URI (remove query string if present)
-  std::size_t query_pos = path.find('?');
-  if (query_pos != std::string::npos) {
-    path = path.substr(0, query_pos);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return;
   }
+  std::string path = request.uri.getPath();
 
   LOG(DEBUG) << "Request path: " << path;
 
-  // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
-  // 4. Process response based on location
   processResponse(location);
 }
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+
+  // Store error page config (paths already resolved in matchLocation)
+  error_pages = location.error_page;
 
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();
@@ -271,7 +319,7 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  if (location.cgi) {
+  if (!location.cgi_root.empty()) {
     // CGI handling
     std::string resolved_path;
     bool is_directory = false;
@@ -314,11 +362,7 @@ void Connection::processResponse(const Location& location) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
       // filesystem path to avoid leaking internal structure.
-      std::string display_path = request.request_line.uri;
-      std::size_t qpos = display_path.find('?');
-      if (qpos != std::string::npos) {
-        display_path = display_path.substr(0, qpos);
-      }
+      std::string display_path = request.uri.getPath();
       if (display_path.empty()) {
         display_path = "/";
       }
@@ -341,7 +385,7 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  IHandler* handler = new FileHandler(resolved_path);
+  IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
@@ -391,26 +435,25 @@ bool Connection::resolvePathForLocation(const Location& location,
                                         bool& out_is_directory) {
   out_is_directory = false;
 
-  // Use the request URI (strip query string)
-  std::string uri = request.request_line.uri;
-  std::size_t q = uri.find('?');
-  if (q != std::string::npos) {
-    uri = uri.substr(0, q);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  // Validation was done in processRequest(), but check again for safety
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return false;
   }
 
-  // Path traversal protection: check for ".." sequences
-  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
-  // by checking the raw URI and rejecting suspicious patterns.
-  // Note: A proper implementation would URL-decode first, then validate.
-  if (uri.find("..") != std::string::npos ||
-      uri.find("%2e%2e") != std::string::npos ||
-      uri.find("%2E%2E") != std::string::npos ||
-      uri.find("%2e%2E") != std::string::npos ||
-      uri.find("%2E%2e") != std::string::npos) {
-    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+  // Path traversal protection: check for ".." sequences in decoded path
+  // The Uri class properly URI-decodes before checking, handling all
+  // encoded variants (%2e%2e, %2E%2E, mixed case, etc.)
+  if (request.uri.hasPathTraversal()) {
+    LOG(INFO) << "Path traversal attempt blocked: " << request.uri.getPath();
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }
+
+  // Get the decoded path (query string already stripped by Uri parser)
+  std::string uri = request.uri.getDecodedPath();
 
   // Relative path inside the location
   std::string rel = uri;
@@ -423,11 +466,18 @@ bool Connection::resolvePathForLocation(const Location& location,
     }
   }
 
-  if (location.root.empty()) {
+  // Determine the root directory to use:
+  // - If cgi_root is set, use it (for CGI scripts)
+  // - Otherwise, use the regular root
+  std::string root;
+  if (!location.cgi_root.empty()) {
+    root = location.cgi_root;
+  } else if (!location.root.empty()) {
+    root = location.root;
+  } else {
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return false;
   }
-  std::string root = location.root;
 
   std::string path;
   if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
