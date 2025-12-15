@@ -551,9 +551,9 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   updateEvents(conn_fd, EPOLLOUT | EPOLLET);
 }
 
-void ServerManager::cleanupHandlerResources(Connection& c) {
-  if (c.active_handler != NULL) {
-    int monitor_fd = c.active_handler->getMonitorFd();
+void ServerManager::cleanupHandlerResources(Connection& conn) {
+  if (conn.active_handler != NULL) {
+    int monitor_fd = conn.active_handler->getMonitorFd();
     if (monitor_fd >= 0) {
       unregisterCgiPipe(monitor_fd);
     }

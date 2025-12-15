@@ -205,15 +205,15 @@ int Uri::getPort() const {
   return port_;
 }
 
-int Uri::hexToInt(char c) {
-  if (c >= '0' && c <= '9') {
-    return c - '0';
+int Uri::hexToInt(char hex_char) {
+  if (hex_char >= '0' && hex_char <= '9') {
+    return hex_char - '0';
   }
-  if (c >= 'A' && c <= 'F') {
-    return c - 'A' + 10;
+  if (hex_char >= 'A' && hex_char <= 'F') {
+    return hex_char - 'A' + 10;
   }
-  if (c >= 'a' && c <= 'f') {
-    return c - 'a' + 10;
+  if (hex_char >= 'a' && hex_char <= 'f') {
+    return hex_char - 'a' + 10;
   }
   return -1;
 }
@@ -271,15 +271,16 @@ std::string Uri::encode(const std::string& str) {
   result.reserve(str.size() * 3);  // Worst case: all characters need encoding
 
   for (std::size_t i = 0; i < str.size(); ++i) {
-    unsigned char c = static_cast<unsigned char>(str[i]);
+    unsigned char current_char = static_cast<unsigned char>(str[i]);
 
     // Unreserved characters (RFC 3986)
-    if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-      result += static_cast<char>(c);
+    if (std::isalnum(current_char) || current_char == '-' ||
+        current_char == '_' || current_char == '.' || current_char == '~') {
+      result += static_cast<char>(current_char);
     } else {
       result += '%';
-      result += intToHex((c >> 4) & 0x0F);
-      result += intToHex(c & 0x0F);
+      result += intToHex((current_char >> 4) & 0x0F);
+      result += intToHex(current_char & 0x0F);
     }
   }
 

@@ -23,7 +23,7 @@ int parseLogLevelFlag(const std::string& arg);
 // Safely parse a string to a long long integer using strtoll with error
 // checking. Returns true on success with value stored in `out`, false on
 // failure (empty string, invalid characters, or out of range).
-bool safeStrtoll(const std::string& s, long long& out);
+bool safeStrtoll(const std::string& str, long long& out);
 
 // Parse program arguments and fill `path` and `logLevel`.
 // This was moved out of main to keep main shorter and clearer.

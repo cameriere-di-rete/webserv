@@ -127,10 +127,10 @@ int Connection::handleWrite() {
 
   // If there's an active handler, ask it to resume (streaming, CGI, etc.)
   if (active_handler) {
-    HandlerResult hr = active_handler->resume(*this);
-    if (hr == HR_WOULD_BLOCK) {
+    HandlerResult result = active_handler->resume(*this);
+    if (result == HR_WOULD_BLOCK) {
       return 1;
-    } else if (hr == HR_ERROR) {
+    } else if (result == HR_ERROR) {
       clearHandler();
       return -1;
     } else {
@@ -170,9 +170,9 @@ void Connection::prepareErrorResponse(http::Status status) {
   write_buffer = response.serialize();
 }
 
-void Connection::setHandler(IHandler* h) {
+void Connection::setHandler(IHandler* handler) {
   clearHandler();
-  active_handler = h;
+  active_handler = handler;
 }
 
 void Connection::clearHandler() {
@@ -185,11 +185,11 @@ void Connection::clearHandler() {
 HandlerResult Connection::executeHandler(IHandler* handler) {
   // setHandler takes ownership of handler and clears any previous handler.
   setHandler(handler);
-  HandlerResult hr = active_handler->start(*this);
-  if (hr == HR_WOULD_BLOCK) {
+  HandlerResult result = active_handler->start(*this);
+  if (result == HR_WOULD_BLOCK) {
     // Handler will continue later; keep it installed.
     return HR_WOULD_BLOCK;
-  } else if (hr == HR_ERROR) {
+  } else if (result == HR_ERROR) {
     // Handler failed; clear and prepare a 500 error response.
     clearHandler();
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
@@ -241,9 +241,9 @@ void Connection::processResponse(const Location& location) {
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
-    RedirectHandler* rh = new RedirectHandler(location);
-    HandlerResult hr = executeHandler(rh);
-    if (hr == HR_WOULD_BLOCK) {
+    RedirectHandler* redirect_handler = new RedirectHandler(location);
+    HandlerResult result = executeHandler(redirect_handler);
+    if (result == HR_WOULD_BLOCK) {
       return;  // handler will continue later
     }
     // For HR_ERROR and HR_DONE, executeHandler already handled cleanup/error
@@ -267,10 +267,10 @@ void Connection::processResponse(const Location& location) {
     IHandler* handler = new CgiHandler(resolved_path);
     setHandler(handler);
 
-    HandlerResult hr = active_handler->start(*this);
-    if (hr == HR_WOULD_BLOCK) {
+    HandlerResult result = active_handler->start(*this);
+    if (result == HR_WOULD_BLOCK) {
       return;  // handler will continue later
-    } else if (hr == HR_ERROR) {
+    } else if (result == HR_ERROR) {
       clearHandler();
       prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
       return;
@@ -302,9 +302,10 @@ void Connection::processResponse(const Location& location) {
         display_path += '/';
       }
 
-      AutoindexHandler* ah = new AutoindexHandler(resolved_path, display_path);
-      HandlerResult hr = executeHandler(ah);
-      if (hr == HR_WOULD_BLOCK) {
+      AutoindexHandler* autoindex_handler =
+          new AutoindexHandler(resolved_path, display_path);
+      HandlerResult result = executeHandler(autoindex_handler);
+      if (result == HR_WOULD_BLOCK) {
         return;  // handler will continue later
       }
       // HR_DONE or HR_ERROR: executeHandler already handled everything
@@ -318,8 +319,8 @@ void Connection::processResponse(const Location& location) {
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
   IHandler* handler = new FileHandler(resolved_path);
-  HandlerResult hr = executeHandler(handler);
-  if (hr == HR_WOULD_BLOCK) {
+  HandlerResult result = executeHandler(handler);
+  if (result == HR_WOULD_BLOCK) {
     return;  // handler will continue later
   }
 }
@@ -422,9 +423,9 @@ bool Connection::resolvePathForLocation(const Location& location,
     path = root + rel;
   }
 
-  struct stat st;
+  struct stat status;
   bool path_is_dir = false;
-  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+  if (stat(path.c_str(), &status) == 0 && S_ISDIR(status.st_mode)) {
     path_is_dir = true;
     if (!path.empty() && path[path.size() - 1] != '/') {
       path += '/';
@@ -437,7 +438,7 @@ bool Connection::resolvePathForLocation(const Location& location,
     for (std::set<std::string>::const_iterator it = location.index.begin();
          it != location.index.end(); ++it) {
       std::string cand = path + *it;
-      if (stat(cand.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
+      if (stat(cand.c_str(), &status) == 0 && S_ISREG(status.st_mode)) {
         path = cand;
         found_index = true;
         break;
