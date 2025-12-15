@@ -12,12 +12,10 @@
 #include "Connection.hpp"
 
 #include <fcntl.h>
-#include <string>
+#include <gtest/gtest.h>
 #include <unistd.h>
 
 #include <string>
-
-#include <gtest/gtest.h>
 
 #include "HttpStatus.hpp"
 #include "Location.hpp"
