@@ -744,10 +744,10 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
   }
 
   // Validate: if cgi is enabled, cgi_extensions must be configured
-  if (loc.cgi && loc.cgi_extensions.empty()) {
+  if (!loc.cgi_root.empty() && loc.cgi_extensions.empty()) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "location '" << loc.path
-        << "' has 'cgi' enabled but 'cgi_extensions' is not configured";
+        << "' has 'cgi_root' set but 'cgi_extensions' is not configured";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);

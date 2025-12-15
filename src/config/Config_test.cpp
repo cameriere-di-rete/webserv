@@ -870,7 +870,7 @@ TEST(ConfigCgiExtensions, SingleExtension) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions .py;\n"
       "  }\n"
       "}\n";
@@ -881,7 +881,7 @@ TEST(ConfigCgiExtensions, SingleExtension) {
 
   std::vector<Server> servers = cfg.getServers();
   const Location& loc = servers[0].locations["/cgi-bin"];
-  EXPECT_TRUE(loc.cgi);
+  EXPECT_FALSE(loc.cgi_root.empty());
   EXPECT_EQ(loc.cgi_extensions.size(), 1u);
   EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
 }
@@ -892,7 +892,7 @@ TEST(ConfigCgiExtensions, MultipleExtensions) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions .py .pl .cgi;\n"
       "  }\n"
       "}\n";
@@ -903,7 +903,7 @@ TEST(ConfigCgiExtensions, MultipleExtensions) {
 
   std::vector<Server> servers = cfg.getServers();
   const Location& loc = servers[0].locations["/cgi-bin"];
-  EXPECT_TRUE(loc.cgi);
+  EXPECT_FALSE(loc.cgi_root.empty());
   EXPECT_EQ(loc.cgi_extensions.size(), 3u);
   EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
   EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
@@ -917,7 +917,7 @@ TEST(ConfigCgiExtensions, ExtensionsWithoutLeadingDot) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions py pl;\n"
       "  }\n"
       "}\n";
@@ -940,7 +940,7 @@ TEST(ConfigCgiExtensions, MixedExtensionsWithAndWithoutDot) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions .py pl .cgi sh;\n"
       "  }\n"
       "}\n";
@@ -964,7 +964,6 @@ TEST(ConfigCgiExtensions, EmptyExtensionsSetByDefault) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi off;\n"
       "  }\n"
       "}\n";
 
@@ -974,18 +973,17 @@ TEST(ConfigCgiExtensions, EmptyExtensionsSetByDefault) {
 
   std::vector<Server> servers = cfg.getServers();
   const Location& loc = servers[0].locations["/cgi-bin"];
-  EXPECT_FALSE(loc.cgi);
+  EXPECT_TRUE(loc.cgi_root.empty());
   EXPECT_TRUE(loc.cgi_extensions.empty());
 }
 
 TEST(ConfigCgiExtensions, CgiExtensionsWithCgiOff) {
-  // cgi_extensions can be set even if cgi is off (might be used later)
+  // cgi_extensions can be set even if cgi_root is not set
   std::string config =
       "server {\n"
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /scripts {\n"
-      "    cgi off;\n"
       "    cgi_extensions .py .pl;\n"
       "  }\n"
       "}\n";
@@ -996,7 +994,7 @@ TEST(ConfigCgiExtensions, CgiExtensionsWithCgiOff) {
 
   std::vector<Server> servers = cfg.getServers();
   const Location& loc = servers[0].locations["/scripts"];
-  EXPECT_FALSE(loc.cgi);
+  EXPECT_TRUE(loc.cgi_root.empty());
   EXPECT_EQ(loc.cgi_extensions.size(), 2u);
 }
 
@@ -1006,7 +1004,7 @@ TEST(ConfigCgiExtensions, DuplicateExtensionsAreDeduplicated) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions .py .py .pl .py;\n"
       "  }\n"
       "}\n";
@@ -1029,7 +1027,7 @@ TEST(ConfigCgiExtensions, AllCommonCgiExtensions) {
       "  listen 8080;\n"
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    cgi_extensions .py .pl .cgi .sh .php .rb;\n"
       "  }\n"
       "}\n";
@@ -1056,7 +1054,7 @@ TEST(ConfigCgiExtensions, ExtensionsInComplexConfig) {
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
       "    root ./www/cgi-bin;\n"
-      "    cgi on;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
       "    allow_methods GET POST;\n"
       "    cgi_extensions .pl .py .cgi;\n"
       "  }\n"
@@ -1073,12 +1071,12 @@ TEST(ConfigCgiExtensions, ExtensionsInComplexConfig) {
   EXPECT_EQ(servers[0].locations.size(), 2u);
 
   const Location& cgi_loc = servers[0].locations["/cgi-bin"];
-  EXPECT_TRUE(cgi_loc.cgi);
+  EXPECT_FALSE(cgi_loc.cgi_root.empty());
   EXPECT_EQ(cgi_loc.cgi_extensions.size(), 3u);
   EXPECT_EQ(cgi_loc.root, "./www/cgi-bin");
 
   const Location& static_loc = servers[0].locations["/static"];
-  EXPECT_FALSE(static_loc.cgi);
+  EXPECT_TRUE(static_loc.cgi_root.empty());
   EXPECT_TRUE(static_loc.cgi_extensions.empty());
 }
 
