@@ -87,6 +87,10 @@ void Connection::startWritePhase() {
 
 bool Connection::isReadTimedOut(int timeout_seconds) const {
   time_t now = time(NULL);
+  if (now < read_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
   return (now - read_start) >= timeout_seconds;
 }
 
@@ -95,6 +99,10 @@ bool Connection::isWriteTimedOut(int timeout_seconds) const {
     return false;  // Write phase hasn't started yet
   }
   time_t now = time(NULL);
+  if (now < write_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
   return (now - write_start) >= timeout_seconds;
 }
 

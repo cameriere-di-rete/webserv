@@ -444,3 +444,52 @@ TEST(ConnectionTimeout, TypicalRequestResponseFlow) {
 
   // Both timeouts should be checked based on their respective start times
 }
+
+// =============================================================================
+// Test: Clock skew protection (time going backwards)
+// =============================================================================
+
+TEST(ConnectionTimeout, IsReadTimedOutHandlesClockSkewGracefully) {
+  Connection conn;
+  // Simulate clock going backwards (e.g., NTP adjustment)
+  conn.read_start = time(NULL) + 100;  // Set to 100 seconds in the future
+
+  // Should not timeout (and not overflow) when clock is ahead
+  EXPECT_FALSE(conn.isReadTimedOut(30));
+  EXPECT_FALSE(conn.isReadTimedOut(60));
+}
+
+TEST(ConnectionTimeout, IsWriteTimedOutHandlesClockSkewGracefully) {
+  Connection conn;
+  conn.startWritePhase();
+
+  // Simulate clock going backwards
+  conn.write_start = time(NULL) + 100;  // Set to 100 seconds in the future
+
+  // Should not timeout when clock is ahead
+  EXPECT_FALSE(conn.isWriteTimedOut(30));
+  EXPECT_FALSE(conn.isWriteTimedOut(60));
+}
+
+TEST(ConnectionTimeout, ClockSkewDoesNotCauseImmediateTimeout) {
+  Connection conn;
+
+  // Set timestamps to future (simulating clock adjustment backwards)
+  conn.read_start = time(NULL) + 1000;
+  conn.write_start = time(NULL) + 1000;
+
+  // Should not report timeout despite large time difference
+  EXPECT_FALSE(conn.isReadTimedOut(1));
+  EXPECT_FALSE(conn.isWriteTimedOut(1));
+}
+
+TEST(ConnectionTimeout, ClockSkewProtectionIsConservative) {
+  Connection conn;
+
+  // When clock goes backwards, we choose to NOT timeout
+  // This is safer than potentially closing valid connections
+  conn.read_start = time(NULL) + 50;
+
+  EXPECT_FALSE(conn.isReadTimedOut(0));   // Even with 0 timeout
+  EXPECT_FALSE(conn.isReadTimedOut(100)); // Or any positive timeout
+}
