@@ -12,7 +12,6 @@
 #include "Connection.hpp"
 
 #include <fcntl.h>
-#include <gtest/gtest.h>
 #include <unistd.h>
 
 #include <string>
