@@ -29,7 +29,8 @@ Connection::Connection()
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages() {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -39,7 +40,8 @@ Connection::Connection(int fd)
       write_ready(false),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages() {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -51,7 +53,8 @@ Connection::Connection(const Connection& other)
       write_ready(other.write_ready),
       request(other.request),
       response(other.response),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages(other.error_pages) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -69,6 +72,7 @@ Connection& Connection::operator=(const Connection& other) {
     request = other.request;
     response = other.response;
     clearHandler();
+    error_pages = other.error_pages;
   }
   return *this;
 }
@@ -156,6 +160,51 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
 
+  // Check if there's a custom error page configured for this status.
+  // error_pages is temporarily cleared while serving custom error pages
+  // to prevent infinite recursion if the error page file itself triggers an
+  // error.
+  {
+    std::map<http::Status, std::string>::const_iterator it =
+        error_pages.find(status);
+    if (it != error_pages.end()) {
+      // Temporarily clear error_pages to prevent infinite recursion if the
+      // custom error page file itself triggers an error (e.g., 404).
+      std::map<http::Status, std::string> saved_error_pages = error_pages;
+      error_pages.clear();
+
+      // Try to serve the custom error page using FileHandler
+      FileHandler* fh = new FileHandler(it->second);
+      HandlerResult hr = fh->start(*this);
+      if (hr == HR_DONE) {
+        // FileHandler prepared the response successfully, but we need to
+        // override the status code to the error status (FileHandler sets 200)
+        response.status_line.status_code = status;
+        response.status_line.reason = http::reasonPhrase(status);
+        write_buffer = response.serialize();
+        delete fh;
+        error_pages = saved_error_pages;  // Restore for future requests
+        return;
+      } else if (hr == HR_WOULD_BLOCK) {
+        // Handler needs to stream the file; assign to active_handler
+        // Override the status code for the error page response
+        response.status_line.status_code = status;
+        response.status_line.reason = http::reasonPhrase(status);
+        setHandler(fh);
+        error_pages = saved_error_pages;  // Restore for future requests
+        return;
+      }
+      // HR_ERROR: Log a warning and fall through to default error page
+      LOG(ERROR) << "Failed to load custom error page: " << it->second;
+      delete fh;
+      error_pages = saved_error_pages;  // Restore for future requests
+      response = Response();            // Reset response for default error page
+      response.status_line.version = HTTP_VERSION;
+      response.status_line.status_code = status;
+      response.status_line.reason = http::reasonPhrase(status);
+    }
+  }
+
   std::string title = http::statusWithReason(status);
   std::ostringstream body;
   body << "<html>" << CRLF << "<head><title>" << title << "</title></head>"
@@ -221,6 +270,9 @@ void Connection::processRequest(const Server& server) {
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+
+  // Store error page config (paths already resolved in matchLocation)
+  error_pages = location.error_page;
 
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();
