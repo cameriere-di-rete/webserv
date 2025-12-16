@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <string>
 
 #include "IHandler.hpp"
@@ -8,7 +9,8 @@ class Connection;
 
 class CgiHandler : public IHandler {
  public:
-  explicit CgiHandler(const std::string& script_path);
+  CgiHandler(const std::string& script_path,
+             const std::set<std::string>& allowed_extensions);
   virtual ~CgiHandler();
 
   virtual HandlerResult start(Connection& conn);
@@ -26,6 +28,7 @@ class CgiHandler : public IHandler {
   bool isPathTraversalSafe(const std::string& path);
 
   std::string script_path_;
+  std::set<std::string> allowed_extensions_;
   int script_pid_;
   int pipe_read_fd_;
   int pipe_write_fd_;

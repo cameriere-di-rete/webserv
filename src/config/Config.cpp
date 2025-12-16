@@ -720,6 +720,20 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
       requireArgsEqual_(d, 1);
       loc.cgi_root = d.args[0];
       LOG(DEBUG) << "  Location CGI root: " << loc.cgi_root;
+    } else if (d.name == "cgi_extensions") {
+      requireArgsAtLeast_(d, 1);
+      std::set<std::string> exts;
+      for (size_t j = 0; j < d.args.size(); ++j) {
+        std::string ext = trim_copy(d.args[j]);
+        // Ensure extension starts with a dot
+        if (!ext.empty() && ext[0] != '.') {
+          ext = "." + ext;
+        }
+        exts.insert(ext);
+      }
+      loc.cgi_extensions = exts;
+      LOG(DEBUG) << "  Location CGI extensions: " << d.args.size()
+                 << " extension(s)";
     } else if (d.name == "max_request_body") {
       requireArgsEqual_(d, 1);
       loc.max_request_body = parsePositiveNumber_(d.args[0]);
@@ -734,6 +748,16 @@ void Config::translateLocationBlock_(const BlockNode& location_block,
     std::ostringstream oss;
     oss << configErrorPrefix() << "location '" << loc.path
         << "' cannot have both 'cgi_root' and 'redirect' directives";
+    std::string msg = oss.str();
+    LOG(ERROR) << msg;
+    throw std::runtime_error(msg);
+  }
+
+  // Validate: if cgi is enabled, cgi_extensions must be configured
+  if (!loc.cgi_root.empty() && loc.cgi_extensions.empty()) {
+    std::ostringstream oss;
+    oss << configErrorPrefix() << "location '" << loc.path
+        << "' has 'cgi_root' set but 'cgi_extensions' is not configured";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
