@@ -1,6 +1,7 @@
 #include "EchoHandler.hpp"
 
 #include "Connection.hpp"
+#include "HttpStatus.hpp"
 #include "Request.hpp"
 
 EchoHandler::EchoHandler() {}
