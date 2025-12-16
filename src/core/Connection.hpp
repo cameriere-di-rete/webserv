@@ -21,6 +21,7 @@ class Connection {
 
   int fd;
   int server_fd;
+  std::string remote_addr;
   std::string read_buffer;
   std::string write_buffer;
   std::size_t write_offset;

@@ -82,7 +82,10 @@ void ServerManager::initServers(std::vector<Server>& servers) {
 void ServerManager::acceptConnection(int listen_fd) {
   LOG(DEBUG) << "Accepting new connections on listen_fd: " << listen_fd;
   while (1) {
-    int conn_fd = accept(listen_fd, NULL, NULL);
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int conn_fd =
+        accept(listen_fd, (struct sockaddr*)&client_addr, &client_len);
     if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG(DEBUG) << "No more pending connections on fd: " << listen_fd;
@@ -97,12 +100,13 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    LOG(INFO) << "New connection accepted (fd: " << conn_fd
-              << ") from server fd: " << listen_fd;
+    LOG(DEBUG) << "New connection accepted (fd: " << conn_fd
+               << ") from server fd: " << listen_fd;
 
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */
     connection.server_fd = listen_fd;
+    connection.remote_addr = inet_ntoa(client_addr.sin_addr);
     connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet

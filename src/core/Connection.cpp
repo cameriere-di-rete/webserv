@@ -44,6 +44,7 @@ Connection::Connection(int fd)
 Connection::Connection(const Connection& other)
     : fd(other.fd),
       server_fd(other.server_fd),
+      remote_addr(other.remote_addr),
       read_buffer(other.read_buffer),
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
@@ -61,6 +62,7 @@ Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
     fd = other.fd;
     server_fd = other.server_fd;
+    remote_addr = other.remote_addr;
     read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
@@ -486,6 +488,6 @@ void Connection::logAccess() const {
     version = "-";
   }
 
-  LOG(INFO) << "\"" << method << " " << uri << " " << version << "\" " << status
-            << " " << bytes;
+  LOG(INFO) << remote_addr << " \"" << method << " " << uri << " " << version
+            << "\" " << status << " " << bytes;
 }
