@@ -56,7 +56,7 @@ bool openFile(const std::string& path, FileInfo& out) {
 
   int fd = open(path.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG_PERROR(ERROR, "file_utils: openFile failed for '" << path << "'");
+    LOG_PERROR(DEBUG, "file_utils: openFile failed for '" << path << "'");
     return false;
   }
 
