@@ -1,0 +1,11 @@
+name: 'Setup GTest'
+description: 'Install Google Test from apt package manager'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install GTest from apt
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtest-dev
