@@ -155,11 +155,14 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   std::string body_str = body.str();
 
   conn.response.setStatus(http::S_200_OK, conn.getHttpVersion());
-  conn.response.setBodyWithContentType(body_str, "text/html; charset=utf-8");
-
   if (method == "HEAD") {
-    // No body for HEAD; send headers only.
-    conn.response.getBody().data = "";
+    // For HEAD requests avoid allocating the full body; set headers only
+    conn.response.addHeader("Content-Type", "text/html; charset=utf-8");
+    std::ostringstream oss;
+    oss << body_str.size();
+    conn.response.addHeader("Content-Length", oss.str());
+  } else {
+    conn.response.setBodyWithContentType(body_str, "text/html; charset=utf-8");
   }
 
   conn.write_buffer = conn.response.serialize();
