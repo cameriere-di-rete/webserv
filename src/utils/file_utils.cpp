@@ -243,7 +243,8 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
       outResponse.addHeader("Content-Length", tmp.str());
     }
     std::ostringstream content_range;
-    content_range << "bytes " << out_start << "-" << out_end << "/" << file_size;
+    content_range << "bytes " << out_start << "-" << out_end << "/"
+                  << file_size;
     outResponse.addHeader("Content-Range", content_range.str());
   } else {
     outResponse.status_line.version = httpVersion;
