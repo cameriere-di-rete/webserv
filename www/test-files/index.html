@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>MIME Type Test Files</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			max-width: 800px;
+			margin: 50px auto;
+			padding: 20px;
+		}
+
+		h1 {
+			color: #333;
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 20px;
+		}
+
+		th,
+		td {
+			border: 1px solid #ddd;
+			padding: 12px;
+			text-align: left;
+		}
+
+		th {
+			background-color: #4CAF50;
+			color: white;
+		}
+
+		tr:nth-child(even) {
+			background-color: #f2f2f2;
+		}
+
+		a {
+			color: #0066cc;
+			text-decoration: none;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		code {
+			background: #f4f4f4;
+			padding: 2px 6px;
+			border-radius: 3px;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>MIME Type Test Files</h1>
+	<p>Click on each file to test the Content-Type header served by webserv.</p>
+
+	<table>
+		<tr>
+			<th>File</th>
+			<th>Expected MIME Type</th>
+		</tr>
+		<tr>
+			<td><a href="sample.html">sample.html</a></td>
+			<td><code>text/html</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.txt">sample.txt</a></td>
+			<td><code>text/plain</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.css">sample.css</a></td>
+			<td><code>text/css</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.js">sample.js</a></td>
+			<td><code>application/javascript</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.json">sample.json</a></td>
+			<td><code>application/json</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.xml">sample.xml</a></td>
+			<td><code>application/xml</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.csv">sample.csv</a></td>
+			<td><code>text/csv</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.svg">sample.svg</a></td>
+			<td><code>image/svg+xml</code></td>
+		</tr>
+		<tr>
+			<td><a href="sample.ico">sample.ico</a></td>
+			<td><code>image/x-icon</code></td>
+		</tr>
+	</table>
+
+	<h2>Test with curl</h2>
+	<p>You can also test MIME types using curl:</p>
+	<pre>curl -I http://localhost:8080/test-files/sample.json</pre>
+</body>
+
+</html>

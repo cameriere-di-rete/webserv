@@ -1,0 +1,6 @@
+This is a plain text file for MIME type testing.
+Expected Content-Type: text/plain
+
+Line 1: Hello World
+Line 2: Testing webserv
+Line 3: MIME types are important!
