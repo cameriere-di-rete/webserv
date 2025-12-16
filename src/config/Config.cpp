@@ -57,7 +57,7 @@ Config& Config::operator=(const Config& other) {
 }
 
 void Config::parseFile(const std::string& path) {
-  LOG(INFO) << "Starting to parse config file: " << path;
+  LOG(DEBUG) << "Starting to parse config file: " << path;
 
   // read file
   std::ifstream file(path.c_str());
@@ -76,7 +76,7 @@ void Config::parseFile(const std::string& path) {
   LOG(DEBUG) << "Comments removed, tokenizing...";
 
   tokenize(content);
-  LOG(INFO) << "Tokenization complete. Total tokens: " << tokens_.size();
+  LOG(DEBUG) << "Tokenization complete. Total tokens: " << tokens_.size();
 
   root_.type = "root";
   while (!eof()) {
@@ -88,12 +88,12 @@ void Config::parseFile(const std::string& path) {
       root_.directives.push_back(parseDirective());
     }
   }
-  LOG(INFO) << "Config file parsed successfully. Server blocks found: "
-            << root_.sub_blocks.size();
+  LOG(DEBUG) << "Config file parsed successfully. Server blocks found: "
+             << root_.sub_blocks.size();
 }
 
 std::vector<Server> Config::getServers(void) {
-  LOG(INFO) << "Validating configuration before building servers";
+  LOG(DEBUG) << "Validating configuration before building servers";
 
   // Ensure there is at least one server block
   if (root_.sub_blocks.empty()) {

@@ -79,8 +79,8 @@ Server& Server::operator=(const Server& other) {
 }
 
 void Server::init(void) {
-  LOG(INFO) << "Initializing server on " << inet_ntoa(*(in_addr*)&host) << ":"
-            << port << "...";
+  LOG(DEBUG) << "Initializing server on " << inet_ntoa(*(in_addr*)&host) << ":"
+             << port << "...";
 
   fd = socket(AF_INET, SOCK_STREAM, 0);
   if (fd < 0) {
@@ -127,8 +127,9 @@ void Server::init(void) {
   }
   LOG(DEBUG) << "Socket set to non-blocking mode";
 
-  LOG(INFO) << "Server successfully initialized on port " << port
-            << " (fd: " << fd << ")";
+  LOG(INFO) << "Server listening on " << inet_ntoa(*(in_addr*)&host) << ":"
+            << port;
+  LOG(DEBUG) << "Server socket fd: " << fd;
 }
 
 void Server::disconnect(void) {
