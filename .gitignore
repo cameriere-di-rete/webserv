@@ -23,3 +23,8 @@ Makefile.bak
 # GitHub Copilot
 _codeql_detected_source_root
 _codeql_build_dir/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

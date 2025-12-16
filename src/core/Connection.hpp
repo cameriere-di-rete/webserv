@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <ctime>
+#include <map>
 #include <string>
 
 #include "HttpStatus.hpp"
@@ -30,6 +31,7 @@ class Connection {
   Request request;
   Response response;
   IHandler* active_handler;
+  std::map<http::Status, std::string> error_pages;
   time_t read_start;   // Timestamp when connection started (for read timeout)
   time_t write_start;  // Timestamp when write phase started (0 if not started)
 
