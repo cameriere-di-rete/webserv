@@ -354,7 +354,7 @@ Pull requests must pass all checks:
 
 | Check | File | What it verifies |
 |-------|------|------------------|
-| **Build** | `.github/workflows/check-build.yml` | CMake build succeeds |
+| **Build** | `.github/workflows/build-and-test.yml` | CMake build succeeds |
 | **Lint** | `.github/workflows/check-lint.yml` | `clang-tidy` passes |
 | **Tests** | `.github/workflows/check-tests.yml` | All unit + e2e tests pass |
 | **Makefile** | `.github/workflows/check-makefile.yml` | Generated Makefile is up-to-date |
