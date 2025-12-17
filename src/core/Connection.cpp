@@ -284,28 +284,22 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // max_request_body should be set (inherited by Server.matchLocation).
+  // If it's still unset here, that's a configuration/inheritance error.
+  if (location.max_request_body == kMaxRequestBodyUnset) {
+    LOG(ERROR) << "Location max_request_body is unset for location: "
+               << location.path;
+    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return;
+  }
+
   // Check if request body exceeds the configured max_request_body limit
-  if (location.max_request_body != kMaxRequestBodyUnset &&
-      request.getBody().size() > location.max_request_body) {
+  if (request.getBody().size() > location.max_request_body) {
     LOG(DEBUG) << "Request body size " << request.getBody().size()
                << " exceeds max_request_body " << location.max_request_body;
     prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
     return;
   }
-
-  // Logic to handle reading the request body with respect to buffer sizes
-  if (request.getBody().size() > location.max_request_body) {
-    // Handle the case where the body exceeds the buffer size
-    LOG(DEBUG) << "Handling request body exceeding buffer size";
-    // Additional logic can be added here if needed
-  }
-
-  // Resource-based handler selection:
-  // 1. Redirect handler (if configured) - TODO: implement in future PR
-  // 2. CGI handler (if configured and matching extension) - TODO: implement in
-  // future PR
-  // 3. Directory handler (if path is directory) - TODO: implement in future PR
-  // 4. File handler (default for static files)
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
