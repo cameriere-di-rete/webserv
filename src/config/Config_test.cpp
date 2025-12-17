@@ -814,6 +814,7 @@ TEST(ConfigCgiRoot, CgiRootSet) {
       "  root /var/www;\n"
       "  location /cgi-bin {\n"
       "    cgi_root /var/www/cgi;\n"
+      "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n";
 
@@ -861,6 +862,224 @@ TEST(ConfigCgiRoot, CgiRootMissingValueThrows) {
   EXPECT_THROW(cfg.getServers(), std::runtime_error);
 }
 
+// ==================== CGI EXTENSIONS DIRECTIVE TESTS ====================
+
+TEST(ConfigCgiExtensions, SingleExtension) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions .py;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_FALSE(loc.cgi_root.empty());
+  EXPECT_EQ(loc.cgi_extensions.size(), 1u);
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, MultipleExtensions) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions .py .pl .cgi;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_FALSE(loc.cgi_root.empty());
+  EXPECT_EQ(loc.cgi_extensions.size(), 3u);
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".cgi") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, ExtensionsWithoutLeadingDot) {
+  // Extensions without leading dot should have it added automatically
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions py pl;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_EQ(loc.cgi_extensions.size(), 2u);
+  // Should be stored with leading dot
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, MixedExtensionsWithAndWithoutDot) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions .py pl .cgi sh;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_EQ(loc.cgi_extensions.size(), 4u);
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".cgi") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".sh") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, EmptyExtensionsSetByDefault) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_TRUE(loc.cgi_root.empty());
+  EXPECT_TRUE(loc.cgi_extensions.empty());
+}
+
+TEST(ConfigCgiExtensions, CgiExtensionsWithCgiOff) {
+  // cgi_extensions can be set even if cgi_root is not set
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /scripts {\n"
+      "    cgi_extensions .py .pl;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/scripts"];
+  EXPECT_TRUE(loc.cgi_root.empty());
+  EXPECT_EQ(loc.cgi_extensions.size(), 2u);
+}
+
+TEST(ConfigCgiExtensions, DuplicateExtensionsAreDeduplicated) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions .py .py .pl .py;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  // std::set should deduplicate
+  EXPECT_EQ(loc.cgi_extensions.size(), 2u);
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, AllCommonCgiExtensions) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    cgi_extensions .py .pl .cgi .sh .php .rb;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  const Location& loc = servers[0].locations["/cgi-bin"];
+  EXPECT_EQ(loc.cgi_extensions.size(), 6u);
+  EXPECT_TRUE(loc.cgi_extensions.find(".py") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".pl") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".cgi") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".sh") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".php") != loc.cgi_extensions.end());
+  EXPECT_TRUE(loc.cgi_extensions.find(".rb") != loc.cgi_extensions.end());
+}
+
+TEST(ConfigCgiExtensions, ExtensionsInComplexConfig) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /cgi-bin {\n"
+      "    root ./www/cgi-bin;\n"
+      "    cgi_root /var/www/cgi-bin;\n"
+      "    allow_methods GET POST;\n"
+      "    cgi_extensions .pl .py .cgi;\n"
+      "  }\n"
+      "  location /static {\n"
+      "    autoindex on;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  EXPECT_EQ(servers[0].locations.size(), 2u);
+
+  const Location& cgi_loc = servers[0].locations["/cgi-bin"];
+  EXPECT_FALSE(cgi_loc.cgi_root.empty());
+  EXPECT_EQ(cgi_loc.cgi_extensions.size(), 3u);
+  EXPECT_EQ(cgi_loc.root, "./www/cgi-bin");
+
+  const Location& static_loc = servers[0].locations["/static"];
+  EXPECT_TRUE(static_loc.cgi_root.empty());
+  EXPECT_TRUE(static_loc.cgi_extensions.empty());
+}
+
 // ==================== CGI AND REDIRECT VALIDATION TESTS ====================
 
 TEST(ConfigLocationValidation, LocationWithBothCgiRootAndRedirectThrows) {
@@ -892,7 +1111,7 @@ TEST(ConfigLocationValidation, LocationWithBothCgiRootAndRedirectThrows) {
       std::runtime_error);
 }
 
-TEST(ConfigLocationValidation, LocationWithOnlyCgiRootIsValid) {
+TEST(ConfigLocationValidation, LocationWithCgiRootRequiresCgiExtensions) {
   std::string config =
       "server {\n"
       "  listen 8080;\n"
@@ -906,7 +1125,18 @@ TEST(ConfigLocationValidation, LocationWithOnlyCgiRootIsValid) {
   Config cfg;
   cfg.parseFile(tmpFile.path());
 
-  EXPECT_NO_THROW(cfg.getServers());
+  EXPECT_THROW(
+      {
+        try {
+          cfg.getServers();
+        } catch (const std::runtime_error& e) {
+          std::string msg = e.what();
+          EXPECT_NE(msg.find("cgi_root"), std::string::npos);
+          EXPECT_NE(msg.find("cgi_extensions"), std::string::npos);
+          throw;
+        }
+      },
+      std::runtime_error);
 }
 
 TEST(ConfigLocationValidation, LocationWithOnlyRedirectIsValid) {
@@ -1173,6 +1403,7 @@ TEST(ConfigEdgeCases, ComplexConfiguration) {
       "  }\n"
       "  location /cgi-bin {\n"
       "    cgi_root /var/cgi-bin;\n"
+      "    cgi_extensions .py .sh;\n"
       "  }\n"
       "}\n"
       "server {\n"

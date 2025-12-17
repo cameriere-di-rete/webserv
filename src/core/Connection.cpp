@@ -349,7 +349,7 @@ void Connection::processResponse(const Location& location) {
       return;
     }
 
-    IHandler* handler = new CgiHandler(resolved_path);
+    IHandler* handler = new CgiHandler(resolved_path, location.cgi_extensions);
     setHandler(handler);
 
     HandlerResult hr = active_handler->start(*this);

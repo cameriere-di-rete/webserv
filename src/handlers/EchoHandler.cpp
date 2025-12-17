@@ -4,7 +4,6 @@
 
 #include "Connection.hpp"
 #include "Request.hpp"
-#include "constants.hpp"
 
 EchoHandler::EchoHandler() {}
 EchoHandler::~EchoHandler() {}
