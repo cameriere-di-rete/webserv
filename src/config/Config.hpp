@@ -19,7 +19,7 @@ class Config {
   std::vector<Server> getServers(void);
   void debug(void) const;
 
- private:
+ public:
   std::vector<std::string> tokens_;
   BlockNode root_;
   std::vector<Server> servers_;
@@ -39,6 +39,13 @@ class Config {
   bool isBlock() const;
   BlockNode parseBlock();
   DirectiveNode parseDirective();
+
+  // Handler map for directive processing
+  typedef void (Config::*DirectiveHandler)(const DirectiveNode&);
+  static std::map<std::string, DirectiveHandler> directive_handlers_;
+  // Declaration of the static directive handlers map
+  void handleErrorPage(const DirectiveNode& d);
+  void handleMaxRequestBody(const DirectiveNode& d);
 
   // Argument parsers
   int parsePortValue_(const std::string& portstr);

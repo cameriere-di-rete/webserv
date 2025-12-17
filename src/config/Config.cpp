@@ -123,28 +123,19 @@ std::vector<Server> Config::getServers(void) {
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
              << " global directive(s)";
+  // Mappa handler già inizializzata staticamente
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode& d = root_.directives[i];
-
-    if (d.name == "error_page") {
-      requireArgsAtLeast_(d, 2);
-      global_error_pages_ = parseErrorPages(d.args);
-      for (std::map<http::Status, std::string>::const_iterator it =
-               global_error_pages_.begin();
-           it != global_error_pages_.end(); ++it) {
-        LOG(DEBUG) << "Global error_page: " << it->first << " -> "
-                   << it->second;
-      }
-
-    } else if (d.name == "max_request_body") {
-      requireArgsEqual_(d, 1);
-      global_max_request_body_ = parsePositiveNumber_(d.args[0]);
-      LOG(DEBUG) << "Global max_request_body set to: "
-                 << global_max_request_body_;
+    std::map<std::string, DirectiveHandler>::const_iterator it =
+        directive_handlers_.find(d.name);
+    if (it != directive_handlers_.end()) {
+      (this->*(it->second))(d);
     } else {
       throwUnrecognizedDirective_(d, "as global directive");
     }
   }
+
+  // ==================== FINE FUNZIONI MEMBRO ====================
 
   LOG(DEBUG) << "Building server objects from configuration...";
   servers_.clear();
@@ -773,4 +764,34 @@ Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
   }
 
   return li;
+}
+
+// --- HANDLER DEFINITIONS E MAPPA STATICA ---
+
+std::map<std::string, Config::DirectiveHandler> Config::directive_handlers_;
+namespace {
+struct DirectiveHandlersInitializer {
+  DirectiveHandlersInitializer() {
+    Config::directive_handlers_["error_page"] = &Config::handleErrorPage;
+    Config::directive_handlers_["max_request_body"] =
+        &Config::handleMaxRequestBody;
+  }
+};
+static DirectiveHandlersInitializer _directiveHandlersInitializerInstance;
+}  // namespace
+
+void Config::handleErrorPage(const DirectiveNode& d) {
+  requireArgsAtLeast_(d, 2);
+  global_error_pages_ = parseErrorPages(d.args);
+  for (std::map<http::Status, std::string>::const_iterator it =
+           global_error_pages_.begin();
+       it != global_error_pages_.end(); ++it) {
+    LOG(DEBUG) << "Global error_page: " << it->first << " -> " << it->second;
+  }
+}
+
+void Config::handleMaxRequestBody(const DirectiveNode& d) {
+  requireArgsEqual_(d, 1);
+  global_max_request_body_ = parsePositiveNumber_(d.args[0]);
+  LOG(DEBUG) << "Global max_request_body set to: " << global_max_request_body_;
 }
