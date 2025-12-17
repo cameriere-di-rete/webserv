@@ -285,46 +285,6 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  // max_request_body should be set (inherited by Server.matchLocation).
-  // If it's still unset here, that's a configuration/inheritance error.
-  if (location.max_request_body == kMaxRequestBodyUnset) {
-    LOG(ERROR) << "Location max_request_body is unset for location: "
-               << location.path;
-    prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return;
-  }
-
-  // If the client provided a Content-Length header, check it first so we can
-  // fail fast before potentially reading/storing large bodies.
-  std::string content_length_str;
-  if (request.getHeader("Content-Length", content_length_str)) {
-    long long content_len_ll = 0;
-    if (!safeStrtoll(content_length_str, content_len_ll)) {
-      LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
-      prepareErrorResponse(http::S_400_BAD_REQUEST);
-      return;
-    }
-    if (content_len_ll < 0) {
-      LOG(INFO) << "Negative Content-Length header: " << content_length_str;
-      prepareErrorResponse(http::S_400_BAD_REQUEST);
-      return;
-    }
-    if (static_cast<std::size_t>(content_len_ll) > location.max_request_body) {
-      LOG(DEBUG) << "Content-Length " << content_len_ll
-                 << " exceeds max_request_body " << location.max_request_body;
-      prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
-      return;
-    }
-  }
-
-  // Check if request body exceeds the configured max_request_body limit
-  if (request.getBody().size() > location.max_request_body) {
-    LOG(DEBUG) << "Request body size " << request.getBody().size()
-               << " exceeds max_request_body " << location.max_request_body;
-    prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
-    return;
-  }
-
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
     RedirectHandler* rh = new RedirectHandler(location);
@@ -443,6 +403,42 @@ http::Status Connection::validateRequestForLocation(const Location& location) {
     }
     response.addHeader("Allow", allow_header);
     return http::S_405_METHOD_NOT_ALLOWED;
+  }
+
+  // 3. Check request body length
+  // max_request_body should be set (inherited by Server.matchLocation).
+  // If it's still unset here, that's a configuration/inheritance error.
+  if (location.max_request_body == kMaxRequestBodyUnset) {
+    LOG(ERROR) << "Location max_request_body is unset for location: "
+               << location.path;
+    return http::S_500_INTERNAL_SERVER_ERROR;
+  }
+
+  // If the client provided a Content-Length header, check it first so we can
+  // fail fast before potentially reading/storing large bodies.
+  std::string content_length_str;
+  if (request.getHeader("Content-Length", content_length_str)) {
+    long long content_len_ll = 0;
+    if (!safeStrtoll(content_length_str, content_len_ll)) {
+      LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (content_len_ll < 0) {
+      LOG(INFO) << "Negative Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (static_cast<std::size_t>(content_len_ll) > location.max_request_body) {
+      LOG(DEBUG) << "Content-Length " << content_len_ll
+                 << " exceeds max_request_body " << location.max_request_body;
+      return http::S_413_PAYLOAD_TOO_LARGE;
+    }
+  }
+
+  // Check if request body exceeds the configured max_request_body limit
+  if (request.getBody().size() > location.max_request_body) {
+    LOG(DEBUG) << "Request body size " << request.getBody().size()
+               << " exceeds max_request_body " << location.max_request_body;
+    return http::S_413_PAYLOAD_TOO_LARGE;
   }
 
   return http::S_0_UNKNOWN;  // OK
