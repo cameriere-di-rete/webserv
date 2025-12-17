@@ -490,6 +490,6 @@ TEST(ConnectionTimeout, ClockSkewProtectionIsConservative) {
   // This is safer than potentially closing valid connections
   conn.read_start = time(NULL) + 50;
 
-  EXPECT_FALSE(conn.isReadTimedOut(0));   // Even with 0 timeout
-  EXPECT_FALSE(conn.isReadTimedOut(100)); // Or any positive timeout
+  EXPECT_FALSE(conn.isReadTimedOut(0));    // Even with 0 timeout
+  EXPECT_FALSE(conn.isReadTimedOut(100));  // Or any positive timeout
 }
