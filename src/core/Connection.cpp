@@ -20,6 +20,7 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
+#include "utils.hpp"
 
 Connection::Connection()
     : fd(-1),
@@ -291,6 +292,29 @@ void Connection::processResponse(const Location& location) {
                << location.path;
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return;
+  }
+
+  // If the client provided a Content-Length header, check it first so we can
+  // fail fast before potentially reading/storing large bodies.
+  std::string content_length_str;
+  if (request.getHeader("Content-Length", content_length_str)) {
+    long long content_len_ll = 0;
+    if (!safeStrtoll(content_length_str, content_len_ll)) {
+      LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
+      prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return;
+    }
+    if (content_len_ll < 0) {
+      LOG(INFO) << "Negative Content-Length header: " << content_length_str;
+      prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return;
+    }
+    if (static_cast<std::size_t>(content_len_ll) > location.max_request_body) {
+      LOG(DEBUG) << "Content-Length " << content_len_ll
+                 << " exceeds max_request_body " << location.max_request_body;
+      prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+      return;
+    }
   }
 
   // Check if request body exceeds the configured max_request_body limit
