@@ -30,21 +30,23 @@ int main(int argc, char** argv) {
   Logger::setLevel(static_cast<Logger::LogLevel>(logLevel));
 
   ServerManager sm;
-  try {
-    sm.setupSignalHandlers();
-
-    Config cfg;
-    cfg.parseFile(std::string(path));
-    LOG(INFO) << "Configuration file parsed successfully";
-
-    cfg.debug();
-
-    std::vector<Server> servers = cfg.getServers();
-    sm.initServers(servers);
-    LOG(INFO) << "All servers initialized and ready to accept connections";
-
-    return sm.run();
-  } catch (...) {
+  if (!sm.setupSignalHandlers()) {
+    LOG(ERROR) << "Failed to set up signal handlers.";
     return EXIT_FAILURE;
   }
+
+  Config cfg;
+  cfg.parseFile(std::string(path));
+  LOG(INFO) << "Configuration file parsed successfully";
+
+  cfg.debug();
+
+  std::vector<Server> servers = cfg.getServers();
+  if (!sm.initServers(servers)) {
+    LOG(ERROR) << "Failed to initialize servers.";
+    return EXIT_FAILURE;
+  }
+  LOG(INFO) << "All servers initialized and ready to accept connections";
+
+  return sm.run();
 }

@@ -1,3 +1,6 @@
+// Test utility: checks for duplicate listen addresses in a vector of Server
+// Returns true if there are duplicates, false otherwise
+static bool hasDuplicateListenAddresses(const std::vector<Server>& servers);
 #pragma once
 
 #include <sys/types.h>
@@ -39,7 +42,8 @@ class ServerManager {
   ~ServerManager();
 
   // Initializes all servers from configuration
-  void initServers(std::vector<Server>& servers);
+  // Returns true on success, false on error (e.g. duplicate listen address)
+  bool initServers(std::vector<Server>& servers);
 
   // Accepts new client connection on given listening socket
   void acceptConnection(int listen_fd);
@@ -51,7 +55,8 @@ class ServerManager {
   // Returns true on success, false on error
   bool updateEvents(int fd, u_int32_t events);
 
-  void setupSignalHandlers();
+  // Returns true on success, false on error
+  bool setupSignalHandlers();
 
   bool processSignalsFromFd();
 
