@@ -319,7 +319,7 @@ TEST(MaxRequestBodyValidation, UnsetLimitAllowsAnyBodySize) {
   conn.request.request_line.version = "HTTP/1.1";
   conn.request.getBody().data = std::string(1000000, 'X');  // 1MB body
 
-  Location loc = createLocationWithMaxBody(MAX_REQUEST_BODY_UNSET);
+  Location loc = createLocationWithMaxBody(kMaxRequestBodyUnset);
 
   conn.processResponse(loc);
 

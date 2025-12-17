@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "core/Server.hpp"
+#include "Server.hpp"
 
 // Helper to create a temporary config file
 class TempConfigFile {
@@ -1533,10 +1533,10 @@ TEST(MaxRequestBodyInheritance, UnsetMeansNoLimit) {
   std::vector<Server> servers = cfg.getServers();
 
   // No max_request_body set anywhere, should be DEFAULT (4096)
-  EXPECT_EQ(servers[0].max_request_body, DEFAULT_MAX_REQUEST_BODY);
+  EXPECT_EQ(servers[0].max_request_body, kMaxRequestBodyDefault);
 
   Location loc = servers[0].matchLocation("/");
-  EXPECT_EQ(loc.max_request_body, DEFAULT_MAX_REQUEST_BODY);
+  EXPECT_EQ(loc.max_request_body, kMaxRequestBodyDefault);
 }
 
 TEST(MaxRequestBodyInheritance, MultipleLocationsWithDifferentLimits) {
