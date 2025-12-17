@@ -285,6 +285,14 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
+  // Validate request body (Content-Length/header and stored body) for this
+  // location before doing any heavy work.
+  http::Status bstat = validateRequestBodyForLocation(location);
+  if (bstat != http::S_0_UNKNOWN) {
+    prepareErrorResponse(bstat);
+    return;
+  }
+
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
     RedirectHandler* rh = new RedirectHandler(location);
@@ -404,44 +412,46 @@ http::Status Connection::validateRequestForLocation(const Location& location) {
     response.addHeader("Allow", allow_header);
     return http::S_405_METHOD_NOT_ALLOWED;
   }
+  return http::S_0_UNKNOWN;  // OK
+}
 
-  // 3. Check request body length
-  // max_request_body should be set (inherited by Server.matchLocation).
-  // If it's still unset here, that's a configuration/inheritance error.
+http::Status Connection::validateRequestBodyForLocation(
+    const Location& location) {
+  // Ensure max_request_body was properly inherited/applied
   if (location.max_request_body == kMaxRequestBodyUnset) {
     LOG(ERROR) << "Location max_request_body is unset for location: "
                << location.path;
     return http::S_500_INTERNAL_SERVER_ERROR;
   }
 
-  // If the client provided a Content-Length header, check it first so we can
-  // fail fast before potentially reading/storing large bodies.
+  // If the client provided a Content-Length header, validate it first so we
+  // can fail fast before reading/storing potentially large bodies.
   std::string content_length_str;
   if (request.getHeader("Content-Length", content_length_str)) {
-    long long content_len_ll = 0;
-    if (!safeStrtoll(content_length_str, content_len_ll)) {
+    long long content_len = 0;
+    if (!safeStrtoll(content_length_str, content_len)) {
       LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
       return http::S_400_BAD_REQUEST;
     }
-    if (content_len_ll < 0) {
+    if (content_len < 0) {
       LOG(INFO) << "Negative Content-Length header: " << content_length_str;
       return http::S_400_BAD_REQUEST;
     }
-    if (static_cast<std::size_t>(content_len_ll) > location.max_request_body) {
-      LOG(DEBUG) << "Content-Length " << content_len_ll
+    if (static_cast<std::size_t>(content_len) > location.max_request_body) {
+      LOG(DEBUG) << "Content-Length " << content_len
                  << " exceeds max_request_body " << location.max_request_body;
       return http::S_413_PAYLOAD_TOO_LARGE;
     }
   }
 
-  // Check if request body exceeds the configured max_request_body limit
+  // If body has already been read into the request, verify its size too.
   if (request.getBody().size() > location.max_request_body) {
     LOG(DEBUG) << "Request body size " << request.getBody().size()
                << " exceeds max_request_body " << location.max_request_body;
     return http::S_413_PAYLOAD_TOO_LARGE;
   }
 
-  return http::S_0_UNKNOWN;  // OK
+  return http::S_0_UNKNOWN;
 }
 
 bool Connection::resolvePathForLocation(const Location& location,
