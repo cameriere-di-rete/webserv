@@ -831,3 +831,128 @@ TEST(ConnectionTimeout, ClockSkewProtectionIsConservative) {
   EXPECT_FALSE(conn.isReadTimedOut(0));    // Even with 0 timeout
   EXPECT_FALSE(conn.isReadTimedOut(100));  // Or any positive timeout
 }
+
+// =============================================================================
+// Test: Write timeout scenarios for ServerManager integration
+// =============================================================================
+
+TEST(ConnectionTimeout, WriteTimeoutWithPartialResponseShouldBeDetected) {
+  Connection conn;
+  conn.startWritePhase();              // Start write phase
+  conn.write_start = time(NULL) - 60;  // 60 seconds ago
+  conn.write_buffer = "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n";
+  conn.write_buffer += std::string(500, 'A');  // Only 500 of 1000 bytes written
+
+  // Should detect write timeout even though write phase is active
+  EXPECT_TRUE(conn.isWriteTimedOut(30));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithLargeFileTransferShouldBeDetected) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 120;                // 2 minutes ago
+  conn.write_buffer = std::string(1024 * 1024, 'B');  // 1MB buffer
+
+  // Large file transfers that stall should timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithSlowClientShouldBeDetected) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 45;  // 45 seconds ago
+  conn.write_buffer = "HTTP/1.1 200 OK\r\nContent-Length: 50000\r\n\r\n";
+  conn.write_buffer +=
+      std::string(10000, 'C');  // Slow client only received 10K of 50K
+
+  // Slow clients that can't keep up should timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithCgiResponseShouldBeDetected) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 90;  // 90 seconds ago
+  conn.write_buffer = "HTTP/1.1 200 OK\r\nContent-Length: 2048\r\n\r\n";
+  conn.write_buffer += std::string(1024, 'D');  // CGI response stalled halfway
+
+  // CGI responses that stall should timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithChunkedEncodingShouldBeDetected) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 75;  // 75 seconds ago
+  conn.write_buffer = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n";
+  conn.write_buffer += "100\r\n";              // Chunk header
+  conn.write_buffer += std::string(100, 'E');  // Partial chunk data
+
+  // Chunked encoding that stalls should timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WritePhaseNotStartedShouldNotTimeout) {
+  Connection conn;
+  // write_start is 0, write phase never started
+  conn.write_buffer = "Some data";
+
+  // Should not timeout if write phase hasn't started
+  EXPECT_FALSE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, RecentWriteActivityShouldNotTimeout) {
+  Connection conn;
+  conn.startWritePhase();  // Just started
+  conn.write_buffer = "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n";
+  conn.write_buffer += std::string(50, 'F');
+
+  // Recent write activity should not timeout
+  EXPECT_FALSE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutBoundaryConditions) {
+  Connection conn;
+  conn.startWritePhase();
+
+  // Test exact boundary - should timeout at exactly WRITE_TIMEOUT_SECONDS
+  conn.write_start = time(NULL) - WRITE_TIMEOUT_SECONDS;
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+
+  // Test just before boundary - should not timeout
+  conn.write_start = time(NULL) - (WRITE_TIMEOUT_SECONDS - 1);
+  EXPECT_FALSE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+
+  // Test just after boundary - should timeout
+  conn.write_start = time(NULL) - (WRITE_TIMEOUT_SECONDS + 1);
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithDifferentTimeoutValues) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 45;  // 45 seconds ago
+
+  // Should timeout with 30s timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(30));
+
+  // Should timeout with 40s timeout
+  EXPECT_TRUE(conn.isWriteTimedOut(40));
+
+  // Should NOT timeout with 60s timeout
+  EXPECT_FALSE(conn.isWriteTimedOut(60));
+
+  // Should NOT timeout with 50s timeout
+  EXPECT_FALSE(conn.isWriteTimedOut(50));
+}
+
+TEST(ConnectionTimeout, WriteTimeoutWithEmptyWriteBufferShouldStillTimeout) {
+  Connection conn;
+  conn.startWritePhase();
+  conn.write_start = time(NULL) - 60;  // 60 seconds ago
+  conn.write_buffer = "";              // Empty buffer but write phase active
+
+  // Even with empty buffer, if write phase is active and timed out, should
+  // detect
+  EXPECT_TRUE(conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS));
+}
