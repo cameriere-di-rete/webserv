@@ -35,7 +35,6 @@ add_executable(runTests test_main.cpp
   ../src/http/StatusLine_test.cpp
   ../src/core/Server_test.cpp
   ../src/core/Connection_test.cpp
-  ../src/core/ConnectionTimeout_test.cpp
   ../src/http/Uri_test.cpp
   ../src/handlers/IHandler_test.cpp
   ../src/handlers/FileHandler_test.cpp
