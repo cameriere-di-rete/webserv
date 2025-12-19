@@ -189,9 +189,6 @@ HandlerResult CgiHandler::start(Connection& conn) {
     while (remaining > 0) {
       ssize_t written = write(pipe_write_fd_, buf + total_written, remaining);
       if (written == -1) {
-        if (errno == EINTR) {
-          continue;  // Retry on interrupt
-        }
         LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
         break;
       }
@@ -232,13 +229,7 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   if (bytes_read == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      // No more data available right now, need to wait for more
-      LOG(DEBUG) << "CgiHandler: would block, accumulated "
-                 << accumulated_output_.size() << " bytes so far";
-      return HR_WOULD_BLOCK;
-    }
-    // Real error
+    // Read failed; treat as an error
     LOG_PERROR(ERROR, "CgiHandler: read from CGI failed");
     cleanupProcess();
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
