@@ -46,7 +46,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-body.landing {
+body.landing,
+body.test-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -54,14 +55,25 @@ body.landing {
 
 .content {
   flex: 1 0 auto;
+}
+
+body.landing .content {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 2rem;
 }
 
-body.landing .content,
 body.test-page .content {
   padding: 2rem;
+}
+
+/* Ensure the top-level container inside test pages expands so footer
+   stays pinned to the bottom of the viewport (semantic layout). */
+body.test-page>.container {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .box {
@@ -166,7 +178,10 @@ h3 {
   font-family: var(--font-sans);
 }
 
-.footer {
+/* Use the semantic footer element to position at the bottom when
+   parent is a column flex container. */
+footer.footer {
+  margin-top: auto;
   flex-shrink: 0;
   padding: 1rem 0;
   text-align: center;
