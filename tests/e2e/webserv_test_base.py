@@ -27,11 +27,11 @@ class WebservTestCase(unittest.TestCase):
         # Get the path to the webserv executable and config
         project_root = os.path.join(os.path.dirname(__file__), "..", "..")
         webserv_path = os.path.join(project_root, "webserv")
-        
+
         # Try build directory if root doesn't have it
         if not os.path.exists(webserv_path):
             webserv_path = os.path.join(project_root, "build", "webserv")
-        
+
         config_path = os.path.join(project_root, "conf", cls.config_file)
 
         if not os.path.exists(webserv_path):
@@ -41,6 +41,21 @@ class WebservTestCase(unittest.TestCase):
             )
 
         # Start the server from the project root directory so relative paths work
+        # If a server is already running on the test port, reuse it instead
+        # of starting a new instance. This allows running tests against a
+        # developer-launched server (e.g. with different log level).
+        try:
+            health_conn = http.client.HTTPConnection(cls.server_host, cls.server_port, timeout=1)
+            health_conn.request("HEAD", "/")
+            _ = health_conn.getresponse()
+            health_conn.close()
+            # Server is reachable; do not start a new process. Leave
+            # `server_process` as None so tearDownClass won't try to kill it.
+            cls.server_process = None
+            return
+        except Exception:
+            pass
+
         cls.server_process = subprocess.Popen(
             [webserv_path, config_path],
             stdout=subprocess.PIPE,
