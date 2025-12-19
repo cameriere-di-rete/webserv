@@ -124,28 +124,19 @@ std::vector<Server> Config::getServers(void) {
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
              << " global directive(s)";
+  // Mappa handler già inizializzata staticamente
   for (size_t i = 0; i < root_.directives.size(); ++i) {
     const DirectiveNode& d = root_.directives[i];
-
-    if (d.name == "error_page") {
-      requireArgsAtLeast_(d, 2);
-      global_error_pages_ = parseErrorPages(d.args);
-      for (std::map<http::Status, std::string>::const_iterator it =
-               global_error_pages_.begin();
-           it != global_error_pages_.end(); ++it) {
-        LOG(DEBUG) << "Global error_page: " << it->first << " -> "
-                   << it->second;
-      }
-
-    } else if (d.name == "max_request_body") {
-      requireArgsEqual_(d, 1);
-      global_max_request_body_ = parsePositiveNumber_(d.args[0]);
-      LOG(DEBUG) << "Global max_request_body set to: "
-                 << global_max_request_body_;
+    std::map<std::string, DirectiveHandler>::const_iterator it =
+        directive_handlers_.find(d.name);
+    if (it != directive_handlers_.end()) {
+      (this->*(it->second))(d);
     } else {
       throwUnrecognizedDirective_(d, "as global directive");
     }
   }
+
+  // ==================== FINE FUNZIONI MEMBRO ====================
 
   LOG(DEBUG) << "Building server objects from configuration...";
   servers_.clear();
@@ -546,6 +537,10 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
   current_server_index_ = server_index;
   current_location_path_.clear();
 
+  // Track mandatory directives
+  bool has_listen = false;
+  bool has_root = false;
+
   // Process server directives (handle listen + others in one pass)
   LOG(DEBUG) << "Processing " << server_block.directives.size()
              << " server directive(s)";
@@ -557,12 +552,14 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
       Config::ListenInfo li = parseListen(d.args[0]);
       srv.port = li.port;
       srv.host = li.host;
+      has_listen = true;
       LOG(DEBUG) << "Server listen: " << inet_ntoa(*(in_addr*)&srv.host) << ":"
                  << srv.port;
 
     } else if (d.name == "root") {
       requireArgsEqual_(d, 1);
       srv.root = d.args[0];
+      has_root = true;
       LOG(DEBUG) << "Server root: " << srv.root;
 
     } else if (d.name == "index") {
@@ -613,16 +610,16 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     LOG(DEBUG) << "Applied global error pages to server";
   }
 
-  // Minimum requirements: ensure listen was specified and root is set
-  if (srv.port <= 0) {
+  // Minimum requirements: ensure listen and root were specified
+  if (!has_listen) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "server #" << server_index
-        << " missing 'listen' directive or invalid port";
+        << " missing 'listen' directive";
     std::string msg = oss.str();
     LOG(ERROR) << msg;
     throw std::runtime_error(msg);
   }
-  if (srv.root.empty()) {
+  if (!has_root) {
     std::ostringstream oss;
     oss << configErrorPrefix() << "server #" << server_index
         << " missing 'root' directive";
@@ -801,4 +798,34 @@ Config::ListenInfo Config::parseListen(const std::string& listen_arg) {
   }
 
   return li;
+}
+
+// --- HANDLER DEFINITIONS E MAPPA STATICA ---
+
+std::map<std::string, Config::DirectiveHandler> Config::directive_handlers_;
+namespace {
+struct DirectiveHandlersInitializer {
+  DirectiveHandlersInitializer() {
+    Config::directive_handlers_["error_page"] = &Config::handleErrorPage;
+    Config::directive_handlers_["max_request_body"] =
+        &Config::handleMaxRequestBody;
+  }
+};
+static DirectiveHandlersInitializer _directiveHandlersInitializerInstance;
+}  // namespace
+
+void Config::handleErrorPage(const DirectiveNode& d) {
+  requireArgsAtLeast_(d, 2);
+  global_error_pages_ = parseErrorPages(d.args);
+  for (std::map<http::Status, std::string>::const_iterator it =
+           global_error_pages_.begin();
+       it != global_error_pages_.end(); ++it) {
+    LOG(DEBUG) << "Global error_page: " << it->first << " -> " << it->second;
+  }
+}
+
+void Config::handleMaxRequestBody(const DirectiveNode& d) {
+  requireArgsEqual_(d, 1);
+  global_max_request_body_ = parsePositiveNumber_(d.args[0]);
+  LOG(DEBUG) << "Global max_request_body set to: " << global_max_request_body_;
 }
