@@ -53,6 +53,15 @@ body.test-page {
   flex-direction: column;
 }
 
+/* Ensure the landing wrapper expands so the landing content can be
+   centered both vertically and horizontally. */
+body.landing>.site-root {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .content {
   flex: 1 0 auto;
 }
