@@ -21,8 +21,8 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
-#include "utils.hpp"
 #include "file_utils.hpp"
+#include "utils.hpp"
 
 Connection::Connection()
     : fd(-1),
