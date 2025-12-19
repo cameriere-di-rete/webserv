@@ -12,3 +12,12 @@
 #define EXIT_NOT_FOUND 127  // Standard shell exit code for "command not found"
 #define FILE_UPLOAD_MODE \
   0600  // File permissions for uploaded files (owner read/write only)
+
+// Connection timeout in seconds for reading client requests
+// If request is not fully received within this time, respond with 408 Request
+// Timeout
+#define READ_TIMEOUT_SECONDS 10
+
+// Connection timeout in seconds for writing responses to client
+// If response cannot be fully sent within this time, close the connection
+#define WRITE_TIMEOUT_SECONDS 10

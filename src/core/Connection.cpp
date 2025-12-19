@@ -33,7 +33,9 @@ Connection::Connection()
       request(),
       response(),
       active_handler(NULL),
-      error_pages() {}
+      error_pages(),
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -44,7 +46,9 @@ Connection::Connection(int fd)
       request(),
       response(),
       active_handler(NULL),
-      error_pages() {}
+      error_pages(),
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
@@ -57,7 +61,9 @@ Connection::Connection(const Connection& other)
       request(other.request),
       response(other.response),
       active_handler(NULL),
-      error_pages(other.error_pages) {}
+      error_pages(other.error_pages),
+      read_start(other.read_start),
+      write_start(other.write_start) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -76,8 +82,35 @@ Connection& Connection::operator=(const Connection& other) {
     response = other.response;
     clearHandler();
     error_pages = other.error_pages;
+    read_start = other.read_start;
+    write_start = other.write_start;
   }
   return *this;
+}
+
+void Connection::startWritePhase() {
+  write_start = time(NULL);
+}
+
+bool Connection::isReadTimedOut(int timeout_seconds) const {
+  time_t now = time(NULL);
+  if (now < read_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
+  return (now - read_start) >= timeout_seconds;
+}
+
+bool Connection::isWriteTimedOut(int timeout_seconds) const {
+  if (write_start == 0) {
+    return false;  // Write phase hasn't started yet
+  }
+  time_t now = time(NULL);
+  if (now < write_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
+  return (now - write_start) >= timeout_seconds;
 }
 
 int Connection::handleRead() {

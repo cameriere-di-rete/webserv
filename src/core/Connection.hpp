@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <ctime>
 #include <map>
 #include <string>
 
@@ -31,8 +32,15 @@ class Connection {
   Response response;
   IHandler* active_handler;
   std::map<http::Status, std::string> error_pages;
+  time_t read_start;   // Timestamp when connection started (for read timeout)
+  time_t write_start;  // Timestamp when write phase started (0 if not started)
 
   int handleRead();
+  void startWritePhase();  // Mark the start of write phase
+  bool isReadTimedOut(
+      int timeout_seconds) const;  // Check if read phase timed out
+  bool isWriteTimedOut(
+      int timeout_seconds) const;  // Check if write phase timed out
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);

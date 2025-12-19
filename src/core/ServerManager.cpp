@@ -358,6 +358,11 @@ int ServerManager::run() {
       /* enable EPOLLOUT now that we have data to send */
       updateEvents(conn_fd, EPOLLOUT | EPOLLET);
     }
+
+    // Check for timed out connections AFTER processing all events.
+    // This ensures connections with pending EPOLLIN/EPOLLOUT events get a
+    // chance to update their activity timestamp before being checked.
+    checkConnectionTimeouts();
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
@@ -599,4 +604,60 @@ int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
   }
 
   return 1;  // Body ready
+}
+
+void ServerManager::checkConnectionTimeouts() {
+  std::vector<int> timed_out_fds;
+
+  // First pass: identify timed out connections
+  for (std::map<int, Connection>::iterator it = connections_.begin();
+       it != connections_.end(); ++it) {
+    Connection& conn = it->second;
+    int conn_fd = it->first;
+
+    // Check for read phase timeouts (connections waiting for client data)
+    if (conn.isReadTimedOut(READ_TIMEOUT_SECONDS)) {
+      LOG(INFO) << "Read timeout on fd " << conn_fd
+                << " (idle for >= " << READ_TIMEOUT_SECONDS << "s)";
+      timed_out_fds.push_back(conn_fd);
+      continue;
+    }
+
+    // Check for write phase timeouts (connections stuck sending responses)
+    if (conn.isWriteTimedOut(WRITE_TIMEOUT_SECONDS)) {
+      LOG(INFO) << "Write timeout on fd " << conn_fd
+                << " (sending for >= " << WRITE_TIMEOUT_SECONDS << "s)";
+      timed_out_fds.push_back(conn_fd);
+    }
+  }
+
+  // Second pass: close timed out connections
+  for (std::size_t i = 0; i < timed_out_fds.size(); ++i) {
+    int conn_fd = timed_out_fds[i];
+    std::map<int, Connection>::iterator it = connections_.find(conn_fd);
+    if (it == connections_.end()) {
+      continue;  // Already removed
+    }
+
+    Connection& conn = it->second;
+
+    // Only send 408 if:
+    // 1. No response has been prepared yet (write_buffer is empty)
+    // 2. No response is in progress (status_code is still unknown)
+    // This prevents overwriting a partially sent response with a 408 error
+    if (conn.write_buffer.empty() &&
+        conn.response.status_line.status_code == http::S_0_UNKNOWN) {
+      conn.prepareErrorResponse(http::S_408_REQUEST_TIMEOUT);
+      // Update epoll events to watch for EPOLLOUT so the response is sent
+      // in the next event loop iteration. This is more reliable than
+      // attempting to send immediately, as the socket might not be ready.
+      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      continue;  // Skip cleanup and closing, let event loop handle it
+    }
+
+    // Clean up and close
+    cleanupHandlerResources(conn);
+    close(conn_fd);
+    connections_.erase(conn_fd);
+  }
 }
