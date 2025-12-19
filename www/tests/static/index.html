@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Static Files - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>📁 Static Files</h1>
+    <p class="subtitle">Test static file serving and directory listing</p>
+
+    <h2>File Serving</h2>
+    <div class="test-grid">
+      <a href="/test.txt" class="test-card">
+        <h3><span class="method get">GET</span> Static Text File</h3>
+        <p>Fetch a plain text file from the server</p>
+      </a>
+      <a href="/index.html" class="test-card">
+        <h3><span class="method get">GET</span> HTML File</h3>
+        <p>Fetch the main HTML page</p>
+      </a>
+      <a href="/css/style.css" class="test-card">
+        <h3><span class="method get">GET</span> CSS File</h3>
+        <p>Fetch the stylesheet</p>
+      </a>
+    </div>
+
+    <h2>Error Responses</h2>
+    <div class="test-grid">
+      <a href="/nonexistent-file.html" class="test-card">
+        <h3><span class="method get">GET</span> 404 Not Found</h3>
+        <p>Request a file that doesn't exist</p>
+      </a>
+      <a href="/nonexistent-directory/" class="test-card">
+        <h3><span class="method get">GET</span> 404 Directory</h3>
+        <p>Request a directory that doesn't exist</p>
+      </a>
+    </div>
+  </div>
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+</body>
+
+</html>

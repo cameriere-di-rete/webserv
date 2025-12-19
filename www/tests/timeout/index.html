@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Timeout Tests - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>⏱️ Timeout Tests</h1>
+    <p class="subtitle">Test server timeouts and long-running responses</p>
+
+    <h2>Request with client-side timeout</h2>
+    <div class="interactive">
+      <label for="timeout-path">Path:</label>
+      <input type="text" id="timeout-path" value="/slow" />
+
+      <label for="timeout-ms">Client timeout (ms):</label>
+      <input type="text" id="timeout-ms" value="3000" />
+
+      <button onclick="testTimeout()">Send Request with Timeout</button>
+      <div id="timeout-response" class="response-box"></div>
+    </div>
+
+    <h2>Notes</h2>
+    <div class="interactive">
+      <p style="color: #94a3b8; font-size: 0.875rem">
+        Use a server endpoint that delays its response to observe client-side abort behavior.
+      </p>
+    </div>
+  </div>
+
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+
+  <script type="module">
+    import { renderStatus, renderPre, renderError } from '/tests/common.js';
+
+    async function testTimeout() {
+      const path = document.getElementById('timeout-path').value;
+      const ms = parseInt(document.getElementById('timeout-ms').value, 10) || 3000;
+      const responseDiv = document.getElementById('timeout-response');
+      responseDiv.innerHTML = '';
+
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), ms);
+
+      try {
+        const res = await fetch(path, { signal: controller.signal });
+        clearTimeout(id);
+        const text = await res.text();
+        const ok = res.status >= 200 && res.status < 400;
+        renderStatus(responseDiv, res.status, res.statusText, ok ? 'status-ok' : 'status-error');
+        responseDiv.appendChild(document.createElement('br'));
+        renderPre(responseDiv, null, text || '(empty)');
+        responseDiv.classList.add('show');
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          renderError(responseDiv, 'Request aborted (timeout)');
+        } else {
+          renderError(responseDiv, e.message);
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

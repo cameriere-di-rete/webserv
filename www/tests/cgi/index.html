@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CGI Scripts - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>⚙️ CGI Scripts</h1>
+    <p class="subtitle">Execute Python and Shell CGI scripts</p>
+
+    <h2>Available CGI Scripts</h2>
+    <div class="test-grid">
+      <a href="/cgi-bin/test.py" class="test-card">
+        <h3><span class="method get">GET</span> test.py</h3>
+        <p>Execute Python CGI script</p>
+      </a>
+      <a href="/cgi-bin/test.sh" class="test-card">
+        <h3><span class="method get">GET</span> test.sh</h3>
+        <p>Execute Shell CGI script</p>
+      </a>
+      <a href="/cgi-bin/simple.sh" class="test-card">
+        <h3><span class="method get">GET</span> simple.sh</h3>
+        <p>Simple shell script</p>
+      </a>
+    </div>
+
+    <h2>CGI with POST Data</h2>
+    <div class="interactive">
+      <label for="cgi-path">CGI Script Path:</label>
+      <input type="text" id="cgi-path" value="/cgi-bin/test.py" />
+
+      <label for="cgi-body">POST Data (form-urlencoded):</label>
+      <textarea id="cgi-body" rows="3"
+        placeholder="name=value&key=data">name=webserv&action=test&message=Hello%20CGI</textarea>
+
+      <button onclick="sendCgiPost()">Send POST to CGI</button>
+      <div id="cgi-response" class="response-box"></div>
+    </div>
+
+    <h2>CGI with Query String</h2>
+    <div class="interactive">
+      <label for="cgi-query-path">CGI Script Path:</label>
+      <input type="text" id="cgi-query-path" value="/cgi-bin/test.py" />
+
+      <label for="query-string">Query String:</label>
+      <input type="text" id="query-string" value="name=webserv&action=query" />
+
+      <button onclick="sendCgiQuery()">Send GET with Query</button>
+      <div id="query-response" class="response-box"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderStatus, renderPre, renderError } from '/tests/common.js';
+
+    async function sendCgiPost() {
+      const path = document.getElementById("cgi-path").value;
+      const body = document.getElementById("cgi-body").value;
+      const responseDiv = document.getElementById("cgi-response");
+      responseDiv.innerHTML = "";
+      try {
+        const response = await fetch(path, {
+          method: "POST",
+          body: body,
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+        const text = await response.text();
+        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement('br'));
+        renderPre(responseDiv, null, text);
+        responseDiv.classList.add("show");
+      } catch (e) {
+        renderError(responseDiv, e.message);
+      }
+    }
+
+    async function sendCgiQuery() {
+      const path = document.getElementById("cgi-query-path").value;
+      const query = document.getElementById("query-string").value;
+      const responseDiv = document.getElementById("query-response");
+      const fullUrl = query ? `${path}?${query}` : path;
+      responseDiv.innerHTML = "";
+      try {
+        const response = await fetch(fullUrl);
+        const text = await response.text();
+        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement('br'));
+        renderPre(responseDiv, 'URL:', fullUrl);
+        renderPre(responseDiv, null, text);
+        responseDiv.classList.add("show");
+      } catch (e) {
+        renderError(responseDiv, e.message);
+      }
+    }
+  </script>
+
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+</body>
+
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>File Upload - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>📤 File Upload</h1>
+    <p class="subtitle">Upload and delete files using PUT and DELETE</p>
+
+    <h2>Upload a File (PUT)</h2>
+    <div class="interactive">
+      <label for="upload-path">Upload Path:</label>
+      <input type="text" id="upload-path" value="/uploads/test-upload.txt" />
+
+      <label for="upload-content">File Content:</label>
+      <textarea id="upload-content" rows="4" placeholder="Enter file content to upload...">Hello from webserv!
+This file was uploaded using PUT.</textarea>
+
+      <button onclick="uploadFile()">Upload File</button>
+      <div id="upload-response" class="response-box"></div>
+    </div>
+
+    <h2>Delete a File (DELETE)</h2>
+    <div class="interactive">
+      <label for="delete-path">File Path:</label>
+      <input type="text" id="delete-path" value="/uploads/test-upload.txt" />
+
+      <button onclick="deleteFile()">Delete File</button>
+      <div id="delete-response" class="response-box"></div>
+    </div>
+
+    <h2>View Uploaded Files</h2>
+    <div class="test-grid">
+      <a href="/uploads/" class="test-card">
+        <h3><span class="method get">GET</span> /uploads/</h3>
+        <p>Browse uploaded files directory</p>
+      </a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderStatus, renderPre, renderError } from '/tests/common.js';
+
+    async function uploadFile() {
+      const path = document.getElementById("upload-path").value;
+      const content = document.getElementById("upload-content").value;
+      const responseDiv = document.getElementById("upload-response");
+      responseDiv.innerHTML = "";
+      try {
+        const response = await fetch(path, {
+          method: "PUT",
+          body: content,
+          headers: { "Content-Type": "text/plain" },
+        });
+        const text = await response.text();
+        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement("br"));
+        renderPre(responseDiv, null, text || "(empty response)");
+        responseDiv.classList.add("show");
+      } catch (e) {
+        renderError(responseDiv, e.message);
+      }
+    }
+
+    async function deleteFile() {
+      const path = document.getElementById("delete-path").value;
+      const responseDiv = document.getElementById("delete-response");
+      responseDiv.innerHTML = "";
+      try {
+        const response = await fetch(path, { method: "DELETE" });
+        const text = await response.text();
+        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement("br"));
+        renderPre(responseDiv, null, text || "(empty response)");
+        responseDiv.classList.add("show");
+      } catch (e) {
+        renderError(responseDiv, e.message);
+      }
+    }
+  </script>
+
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+</body>
+
+</html>

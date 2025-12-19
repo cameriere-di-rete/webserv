@@ -52,6 +52,7 @@ Connection::Connection(int fd)
 Connection::Connection(const Connection& other)
     : fd(other.fd),
       server_fd(other.server_fd),
+      remote_addr(other.remote_addr),
       read_buffer(other.read_buffer),
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
@@ -72,6 +73,7 @@ Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
     fd = other.fd;
     server_fd = other.server_fd;
+    remote_addr = other.remote_addr;
     read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
@@ -521,15 +523,23 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   struct stat st;
   bool path_is_dir = false;
-  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+  bool path_exists = (stat(path.c_str(), &st) == 0);
+
+  if (path_exists && S_ISDIR(st.st_mode)) {
     path_is_dir = true;
     if (!path.empty() && path[path.size() - 1] != '/') {
       path += '/';
     }
   }
 
+  // If path ends with '/' but doesn't exist or isn't a directory, return 404
+  if (!path.empty() && path[path.size() - 1] == '/' && !path_is_dir) {
+    prepareErrorResponse(http::S_404_NOT_FOUND);
+    return false;
+  }
+
   // Try to resolve directory to index file
-  if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+  if (path_is_dir) {
     bool found_index = false;
     for (std::set<std::string>::const_iterator it = location.index.begin();
          it != location.index.end(); ++it) {
@@ -550,4 +560,31 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   out_path = path;
   return true;
+}
+
+void Connection::logAccess() const {
+  // nginx-style combined log format:
+  // remote_addr - - [time] "request" status bytes_sent
+  // Example: 127.0.0.1 - - [12/Dec/2025:15:45:00 +0000] "GET /index.html
+  // HTTP/1.1" 200 1234
+
+  std::string method = request.request_line.method;
+  std::string uri = request.request_line.uri;
+  std::string version = request.request_line.version;
+  int status = static_cast<int>(response.status_line.status_code);
+  std::size_t bytes = write_buffer.size();
+
+  // If request wasn't parsed, use placeholders
+  if (method.empty()) {
+    method = "-";
+  }
+  if (uri.empty()) {
+    uri = "-";
+  }
+  if (version.empty()) {
+    version = "-";
+  }
+
+  LOG(INFO) << remote_addr << " \"" << method << " " << uri << " " << version
+            << "\" " << status << " " << bytes;
 }

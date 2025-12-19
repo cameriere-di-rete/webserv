@@ -1,0 +1,335 @@
+/* webserv - Shared styles */
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0b0f12;
+  --fg: #e6eef6;
+  --muted: #94a3b8;
+  --accent: #7dd3fc;
+  --card-bg: #1e293b;
+  --card-hover: #334155;
+  --panel-bg: #0f172a;
+  --btn-bg: #0ea5e9;
+  --btn-hover: #38bdf8;
+  --heading-strong: #f0f9ff;
+  --label-color: var(--muted);
+  --method-get-bg: #166534;
+  --method-get-fg: #bbf7d0;
+  --method-post-bg: #1e40af;
+  --method-post-fg: #bfdbfe;
+  --method-put-bg: #a16207;
+  --method-put-fg: #fef08a;
+  --method-delete-bg: #991b1b;
+  --method-delete-fg: #fecaca;
+  --ok: #4ade80;
+  --err: #f87171;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 8px;
+  --gap: 1rem;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.landing,
+body.test-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure the landing wrapper expands so the landing content can be
+   centered both vertically and horizontally. */
+body.landing>.site-root {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  flex: 1 0 auto;
+}
+
+body.landing .content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+body.test-page .content {
+  padding: 2rem;
+}
+
+/* Ensure the top-level container inside test pages expands so footer
+   stays pinned to the bottom of the viewport (semantic layout). */
+body.test-page>.container {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.box {
+  text-align: center;
+}
+
+.title {
+  font-size: 3rem;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.by {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.nav-link {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--card-bg);
+  border-radius: 8px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.nav-link:hover {
+  background: var(--card-hover);
+  transform: translateY(-2px);
+}
+
+/* Test pages styles */
+body.test-page {
+  padding: 2rem;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 2.5rem;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: 0.02em;
+  font-family: var(--font-mono);
+}
+
+.subtitle {
+  color: var(--muted);
+  margin-bottom: 2rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  color: var(--accent);
+  margin: 2rem 0 1rem 0;
+  border-bottom: 1px solid var(--card-bg);
+  padding-bottom: 0.5rem;
+  font-family: var(--font-mono);
+}
+
+h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: var(--heading-strong);
+  font-family: var(--font-mono);
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+}
+
+.test-card {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.test-card:hover {
+  background: var(--card-hover);
+  transform: translateY(-2px);
+}
+
+.test-card h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.test-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-family: var(--font-sans);
+}
+
+/* Use the semantic footer element to position at the bottom when
+   parent is a column flex container. */
+footer.footer {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding: 1rem 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  background: transparent;
+}
+
+.method {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.get {
+  background: var(--method-get-bg);
+  color: var(--method-get-fg);
+}
+
+.post {
+  background: var(--method-post-bg);
+  color: var(--method-post-fg);
+}
+
+.put {
+  background: var(--method-put-bg);
+  color: var(--method-put-fg);
+}
+
+.delete {
+  background: var(--method-delete-bg);
+  color: var(--method-delete-fg);
+}
+
+.interactive {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--label-color);
+  font-size: 0.875rem;
+}
+
+input[type="text"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--card-hover);
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button {
+  padding: 0.75rem 1.5rem;
+  background: var(--btn-bg);
+  border: none;
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: var(--btn-hover);
+}
+
+.response-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--panel-bg);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  font-size: 0.875rem;
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+}
+
+.response-box.show {
+  display: block;
+}
+
+.status-ok {
+  color: var(--ok);
+}
+
+.status-error {
+  color: var(--err);
+}
+
+ul {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Back link */
+.back-link {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.back-link:hover {
+  color: var(--accent);
+  background: var(--card-bg);
+}
