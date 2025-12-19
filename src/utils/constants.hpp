@@ -16,8 +16,8 @@
 // Connection timeout in seconds for reading client requests
 // If request is not fully received within this time, respond with 408 Request
 // Timeout
-#define READ_TIMEOUT_SECONDS 30
+#define READ_TIMEOUT_SECONDS 10
 
 // Connection timeout in seconds for writing responses to client
 // If response cannot be fully sent within this time, close the connection
-#define WRITE_TIMEOUT_SECONDS 30
+#define WRITE_TIMEOUT_SECONDS 10
