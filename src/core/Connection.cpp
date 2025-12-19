@@ -119,9 +119,6 @@ int Connection::handleRead() {
     ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
     if (r < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return 1;
-      }
       LOG_PERROR(ERROR, "read");
       return -1;
     }
@@ -153,10 +150,7 @@ int Connection::handleWrite() {
     LOG(DEBUG) << "Sent " << w << " bytes to fd=" << fd;
 
     if (w < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return 1;
-      }
-      // Error occurred
+      // Error occurred during send
       LOG_PERROR(ERROR, "write");
       return -1;
     }
