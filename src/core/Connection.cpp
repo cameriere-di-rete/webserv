@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -20,6 +21,8 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
+#include "file_utils.hpp"
+#include "utils.hpp"
 
 Connection::Connection()
     : fd(-1),
@@ -192,50 +195,27 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.version = getHttpVersion();
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
-
-  // Check if there's a custom error page configured for this status.
-  // error_pages is temporarily cleared while serving custom error pages
-  // to prevent infinite recursion if the error page file itself triggers an
-  // error.
-  {
-    std::map<http::Status, std::string>::const_iterator it =
-        error_pages.find(status);
-    if (it != error_pages.end()) {
-      // Temporarily clear error_pages to prevent infinite recursion if the
-      // custom error page file itself triggers an error (e.g., 404).
-      std::map<http::Status, std::string> saved_error_pages = error_pages;
-      error_pages.clear();
-
-      // Try to serve the custom error page using FileHandler
-      FileHandler* fh = new FileHandler(it->second);
-      HandlerResult hr = fh->start(*this);
-      if (hr == HR_DONE) {
-        // FileHandler prepared the response successfully, but we need to
-        // override the status code to the error status (FileHandler sets 200)
-        response.status_line.status_code = status;
-        response.status_line.reason = http::reasonPhrase(status);
-        write_buffer = response.serialize();
-        delete fh;
-        error_pages = saved_error_pages;  // Restore for future requests
-        return;
-      } else if (hr == HR_WOULD_BLOCK) {
-        // Handler needs to stream the file; assign to active_handler
-        // Override the status code for the error page response
-        response.status_line.status_code = status;
-        response.status_line.reason = http::reasonPhrase(status);
-        setHandler(fh);
-        error_pages = saved_error_pages;  // Restore for future requests
-        return;
-      }
-      // HR_ERROR: Log a warning and fall through to default error page
-      LOG(ERROR) << "Failed to load custom error page: " << it->second;
-      delete fh;
-      error_pages = saved_error_pages;  // Restore for future requests
-      response = Response();            // Reset response for default error page
-      response.status_line.version = HTTP_VERSION;
-      response.status_line.status_code = status;
-      response.status_line.reason = http::reasonPhrase(status);
+  // Try to serve a configured error page file from `error_pages` (already
+  // resolved to a filesystem path by Server::matchLocation). If present and
+  // readable, load it into the response body. Otherwise fall back to the
+  // default generated HTML page.
+  std::map<http::Status, std::string>::const_iterator it =
+      error_pages.find(status);
+  if (it != error_pages.end()) {
+    const std::string& fs_path = it->second;
+    std::ifstream ifs(fs_path.c_str(), std::ios::in | std::ios::binary);
+    if (ifs) {
+      std::string contents((std::istreambuf_iterator<char>(ifs)),
+                           std::istreambuf_iterator<char>());
+      response.getBody().data = contents;
+      response.addHeader("Content-Type", file_utils::guessMime(fs_path));
+      std::ostringstream oss;
+      oss << response.getBody().size();
+      response.addHeader("Content-Length", oss.str());
+      write_buffer = response.serialize();
+      return;
     }
+    LOG(ERROR) << "Failed to open custom error page: " << fs_path;
   }
 
   std::string title = http::statusWithReason(status);
@@ -317,12 +297,13 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  // Resource-based handler selection:
-  // 1. Redirect handler (if configured) - TODO: implement in future PR
-  // 2. CGI handler (if configured and matching extension) - TODO: implement in
-  // future PR
-  // 3. Directory handler (if path is directory) - TODO: implement in future PR
-  // 4. File handler (default for static files)
+  // Validate request body (Content-Length/header and stored body) for this
+  // location before doing any heavy work.
+  http::Status bstat = validateRequestBodyForLocation(location);
+  if (bstat != http::S_0_UNKNOWN) {
+    prepareErrorResponse(bstat);
+    return;
+  }
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
@@ -443,8 +424,46 @@ http::Status Connection::validateRequestForLocation(const Location& location) {
     response.addHeader("Allow", allow_header);
     return http::S_405_METHOD_NOT_ALLOWED;
   }
-
   return http::S_0_UNKNOWN;  // OK
+}
+
+http::Status Connection::validateRequestBodyForLocation(
+    const Location& location) {
+  // Ensure max_request_body was properly inherited/applied
+  if (location.max_request_body == kMaxRequestBodyUnset) {
+    LOG(ERROR) << "Location max_request_body is unset for location: "
+               << location.path;
+    return http::S_500_INTERNAL_SERVER_ERROR;
+  }
+
+  // If the client provided a Content-Length header, validate it first so we
+  // can fail fast before reading/storing potentially large bodies.
+  std::string content_length_str;
+  if (request.getHeader("Content-Length", content_length_str)) {
+    long long content_len = 0;
+    if (!safeStrtoll(content_length_str, content_len)) {
+      LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (content_len < 0) {
+      LOG(INFO) << "Negative Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (static_cast<std::size_t>(content_len) > location.max_request_body) {
+      LOG(DEBUG) << "Content-Length " << content_len
+                 << " exceeds max_request_body " << location.max_request_body;
+      return http::S_413_PAYLOAD_TOO_LARGE;
+    }
+  }
+
+  // If body has already been read into the request, verify its size too.
+  if (request.getBody().size() > location.max_request_body) {
+    LOG(DEBUG) << "Request body size " << request.getBody().size()
+               << " exceeds max_request_body " << location.max_request_body;
+    return http::S_413_PAYLOAD_TOO_LARGE;
+  }
+
+  return http::S_0_UNKNOWN;
 }
 
 bool Connection::resolvePathForLocation(const Location& location,

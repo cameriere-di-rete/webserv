@@ -1,8 +1,6 @@
 #include "RedirectHandler.hpp"
 
 #include "Connection.hpp"
-#include "HttpStatus.hpp"
-#include "Response.hpp"
 
 RedirectHandler::RedirectHandler(const Location& location)
     : location_(location) {}

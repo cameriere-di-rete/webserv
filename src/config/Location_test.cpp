@@ -16,7 +16,7 @@ TEST(LocationTests, DefaultConstructorInitializesFields) {
   EXPECT_EQ(loc.autoindex, UNSET);
   EXPECT_EQ(loc.root, "");
   EXPECT_TRUE(loc.error_page.empty());
-  EXPECT_EQ(loc.max_request_body, 0u);
+  EXPECT_EQ(loc.max_request_body, kMaxRequestBodyUnset);
 }
 
 TEST(LocationTests, ParameterizedConstructorSetsPath) {

@@ -2,6 +2,9 @@
 
 #include "Logger.hpp"
 
+const std::size_t kMaxRequestBodyUnset = static_cast<std::size_t>(-1);
+const std::size_t kMaxRequestBodyDefault = 4096;
+
 Location::Location()
     : path(),
       allow_methods(),
@@ -13,7 +16,7 @@ Location::Location()
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(kMaxRequestBodyUnset) {
   LOG(DEBUG) << "Location() default constructor called";
 }
 
@@ -28,7 +31,7 @@ Location::Location(const std::string& p)
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(kMaxRequestBodyUnset) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
 }
 
