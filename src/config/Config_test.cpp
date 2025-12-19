@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "Server.hpp"
+
 // Helper to create a temporary config file
 class TempConfigFile {
  public:
@@ -1422,4 +1424,154 @@ TEST(ConfigEdgeCases, ComplexConfiguration) {
   EXPECT_EQ(servers[0].locations.size(), 4u);
   EXPECT_EQ(servers[1].port, 8081);
   EXPECT_EQ(servers[1].max_request_body, 1024u);  // inherited from global
+}
+
+// ==================== MAX_REQUEST_BODY INHERITANCE TESTS ====================
+
+TEST(MaxRequestBodyInheritance, LocationInheritsFromServer) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  max_request_body 4096;\n"
+      "  location /api {\n"
+      "    root /var/api;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  EXPECT_EQ(servers[0].max_request_body, 4096u);
+
+  // Location should inherit max_request_body from server
+  Location loc = servers[0].matchLocation("/api/test");
+  EXPECT_EQ(loc.max_request_body, 4096u);
+}
+
+TEST(MaxRequestBodyInheritance, LocationOverridesServer) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  max_request_body 4096;\n"
+      "  location /uploads {\n"
+      "    root /var/uploads;\n"
+      "    max_request_body 10485760;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+  EXPECT_EQ(servers[0].max_request_body, 4096u);
+
+  // Location with explicit max_request_body should use its own value
+  Location loc = servers[0].matchLocation("/uploads/file.txt");
+  EXPECT_EQ(loc.max_request_body, 10485760u);
+}
+
+TEST(MaxRequestBodyInheritance, DefaultLocationInheritsFromServer) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  max_request_body 2048;\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+
+  // No matching location, should use server's max_request_body
+  Location loc = servers[0].matchLocation("/nonexistent/path");
+  EXPECT_EQ(loc.max_request_body, 2048u);
+}
+
+TEST(MaxRequestBodyInheritance, GlobalToServerToLocation) {
+  std::string config =
+      "max_request_body 1024;\n"
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  location /api {\n"
+      "    root /var/api;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+
+  // Server inherits from global
+  EXPECT_EQ(servers[0].max_request_body, 1024u);
+
+  // Location inherits from server (which inherited from global)
+  Location loc = servers[0].matchLocation("/api/endpoint");
+  EXPECT_EQ(loc.max_request_body, 1024u);
+}
+
+TEST(MaxRequestBodyInheritance, UnsetMeansNoLimit) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+
+  // No max_request_body set anywhere, should be DEFAULT (4096)
+  EXPECT_EQ(servers[0].max_request_body, kMaxRequestBodyDefault);
+
+  Location loc = servers[0].matchLocation("/");
+  EXPECT_EQ(loc.max_request_body, kMaxRequestBodyDefault);
+}
+
+TEST(MaxRequestBodyInheritance, MultipleLocationsWithDifferentLimits) {
+  std::string config =
+      "server {\n"
+      "  listen 8080;\n"
+      "  root /var/www;\n"
+      "  max_request_body 4096;\n"
+      "  location /small {\n"
+      "    root /var/small;\n"
+      "    max_request_body 1024;\n"
+      "  }\n"
+      "  location /large {\n"
+      "    root /var/large;\n"
+      "    max_request_body 104857600;\n"
+      "  }\n"
+      "  location /default {\n"
+      "    root /var/default;\n"
+      "  }\n"
+      "}\n";
+
+  TempConfigFile tmpFile(config);
+  Config cfg;
+  cfg.parseFile(tmpFile.path());
+
+  std::vector<Server> servers = cfg.getServers();
+
+  // Each location should have its correct limit
+  Location smallLoc = servers[0].matchLocation("/small/file");
+  EXPECT_EQ(smallLoc.max_request_body, 1024u);
+
+  Location largeLoc = servers[0].matchLocation("/large/file");
+  EXPECT_EQ(largeLoc.max_request_body, 104857600u);
+
+  // Location without explicit max_request_body inherits from server
+  Location defaultLoc = servers[0].matchLocation("/default/file");
+  EXPECT_EQ(defaultLoc.max_request_body, 4096u);
 }

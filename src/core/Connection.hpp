@@ -42,6 +42,9 @@ class Connection {
   // Validate request version and method for a given location.
   // Returns http::S_0_UNKNOWN on success, or an http::Status code to send.
   http::Status validateRequestForLocation(const class Location& location);
+  // Validate request body size and related headers for a given location.
+  // Returns http::S_0_UNKNOWN on success, or an http::Status code to send.
+  http::Status validateRequestBodyForLocation(const class Location& location);
   // Resolve the request URI to a filesystem path according to `location`.
   // On success returns true and fills `out_path` and `out_is_directory`.
   // On failure it prepares an error response and returns false.
