@@ -154,28 +154,17 @@ HandlerResult AutoindexHandler::start(Connection& conn) {
   // for a GET.
   std::string body_str = body.str();
 
-  conn.response.status_line.version = conn.getHttpVersion();
-  conn.response.status_line.status_code = http::S_200_OK;
-  conn.response.status_line.reason = http::reasonPhrase(http::S_200_OK);
-  conn.response.addHeader("Content-Type", "text/html; charset=utf-8");
-  std::ostringstream oss;
-  oss << body_str.size();
-  conn.response.addHeader("Content-Length", oss.str());
-
+  conn.response.setStatus(http::S_200_OK, conn.getHttpVersion());
   if (method == "HEAD") {
-    // No body for HEAD; send headers only.
-    conn.response.getBody().data = "";
-    std::ostringstream header_stream;
-    header_stream << conn.response.startLine() << CRLF;
-    header_stream << conn.response.serializeHeaders();
-    header_stream << CRLF;
-    conn.write_buffer = header_stream.str();
-    conn.write_offset = 0;
-    return HR_DONE;
+    // For HEAD requests avoid allocating the full body; set headers only
+    conn.response.addHeader("Content-Type", "text/html; charset=utf-8");
+    std::ostringstream oss;
+    oss << body_str.size();
+    conn.response.addHeader("Content-Length", oss.str());
+  } else {
+    conn.response.setBodyWithContentType(body_str, "text/html; charset=utf-8");
   }
 
-  // GET (or other methods that return body) - include the body.
-  conn.response.getBody().data = body_str;
   conn.write_buffer = conn.response.serialize();
   conn.write_offset = 0;
 

@@ -11,7 +11,6 @@
 #include <sstream>
 
 #include "AutoindexHandler.hpp"
-#include "Body.hpp"
 #include "CgiHandler.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
@@ -192,9 +191,7 @@ std::string Connection::getHttpVersion() const {
 }
 
 void Connection::prepareErrorResponse(http::Status status) {
-  response.status_line.version = getHttpVersion();
-  response.status_line.status_code = status;
-  response.status_line.reason = http::reasonPhrase(status);
+  response.setStatus(status, getHttpVersion());
   // Try to serve a configured error page file from `error_pages` (already
   // resolved to a filesystem path by Server::matchLocation). If present and
   // readable, load it into the response body. Otherwise fall back to the
@@ -224,11 +221,7 @@ void Connection::prepareErrorResponse(http::Status status) {
        << CRLF << "<body>" << CRLF << "<center><h1>" << title
        << "</h1></center>" << CRLF << "</body>" << CRLF << "</html>" << CRLF;
 
-  response.getBody().data = body.str();
-  response.addHeader("Content-Type", "text/html; charset=utf-8");
-  std::ostringstream oss;
-  oss << response.getBody().size();
-  response.addHeader("Content-Length", oss.str());
+  response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
   write_buffer = response.serialize();
 }
 
