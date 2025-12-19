@@ -1,15 +1,11 @@
-bool ServerManager::hasDuplicateListenAddresses(const std::vector<Server>& servers) {
-  std::set<std::pair<in_addr_t, int> > listen_addresses;
-  for (std::vector<Server>::const_iterator it = servers.begin(); it != servers.end(); ++it) {
-    std::pair<in_addr_t, int> addr(it->host, it->port);
-    if (listen_addresses.find(addr) != listen_addresses.end()) {
-      return true;
-    }
-    listen_addresses.insert(addr);
-  }
-  return false;
-}
-#include "ServerManager.hpp"
+#include <netinet/in.h>
+
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "Server.hpp"
+
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -36,6 +32,7 @@ bool ServerManager::hasDuplicateListenAddresses(const std::vector<Server>& serve
 #include "HttpStatus.hpp"
 #include "IHandler.hpp"
 #include "Logger.hpp"
+#include "ServerManager.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 
@@ -117,16 +114,10 @@ void ServerManager::acceptConnection(int listen_fd) {
     connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
-    try {
-      if (!updateEvents(conn_fd, EPOLLIN | EPOLLET)) {
-        LOG(ERROR) << "Failed to register connection fd " << conn_fd
-                   << " with epoll, closing connection";
-        connections_.erase(conn_fd);
-        close(conn_fd);
-        continue;
-      }
-    } catch (const std::exception& e) {
-      LOG(ERROR) << "Exception in updateEvents: " << e.what();
+    if (!updateEvents(conn_fd, EPOLLIN | EPOLLET)) {
+      LOG(ERROR) << "Failed to register connection fd " << conn_fd
+                 << " with epoll, closing connection";
+      cleanupHandlerResources(connection);
       connections_.erase(conn_fd);
       close(conn_fd);
       continue;
@@ -324,16 +315,9 @@ int ServerManager::run() {
         LOG(INFO) << "Malformed request on fd " << conn_fd
                   << ", sending 400 Bad Request";
         conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-        try {
-          if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
-            LOG(ERROR) << "Failed to update events for fd " << conn_fd
-                       << ", closing connection";
-            cleanupHandlerResources(conn);
-            connections_.erase(conn_fd);
-            close(conn_fd);
-          }
-        } catch (const std::exception& e) {
-          LOG(ERROR) << "Exception in updateEvents: " << e.what();
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
           cleanupHandlerResources(conn);
           connections_.erase(conn_fd);
           close(conn_fd);
@@ -345,16 +329,9 @@ int ServerManager::run() {
       int body_result = extractRequestBody(conn, conn_fd);
       if (body_result < 0) {
         // Error occurred, response already prepared
-        try {
-          if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
-            LOG(ERROR) << "Failed to update events for fd " << conn_fd
-                       << ", closing connection";
-            cleanupHandlerResources(conn);
-            connections_.erase(conn_fd);
-            close(conn_fd);
-          }
-        } catch (const std::exception& e) {
-          LOG(ERROR) << "Exception in updateEvents: " << e.what();
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
           cleanupHandlerResources(conn);
           connections_.erase(conn_fd);
           close(conn_fd);
@@ -375,16 +352,9 @@ int ServerManager::run() {
         LOG(ERROR) << "Server not found for connection fd " << conn_fd
                    << " (server_fd: " << conn.server_fd << ")";
         conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-        try {
-          if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
-            LOG(ERROR) << "Failed to update events for fd " << conn_fd
-                       << ", closing connection";
-            cleanupHandlerResources(conn);
-            connections_.erase(conn_fd);
-            close(conn_fd);
-          }
-        } catch (const std::exception& e) {
-          LOG(ERROR) << "Exception in updateEvents: " << e.what();
+        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+          LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                     << ", closing connection";
           cleanupHandlerResources(conn);
           connections_.erase(conn_fd);
           close(conn_fd);
@@ -426,16 +396,9 @@ int ServerManager::run() {
       }
 
       /* enable EPOLLOUT now that we have data to send */
-      try {
-        if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
-          LOG(ERROR) << "Failed to update events for fd " << conn_fd
-                     << ", closing connection";
-          cleanupHandlerResources(conn);
-          connections_.erase(conn_fd);
-          close(conn_fd);
-        }
-      } catch (const std::exception& e) {
-        LOG(ERROR) << "Exception in updateEvents: " << e.what();
+      if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+        LOG(ERROR) << "Failed to update events for fd " << conn_fd
+                   << ", closing connection";
         cleanupHandlerResources(conn);
         connections_.erase(conn_fd);
         close(conn_fd);
@@ -625,16 +588,9 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Enable write events to send response
-  try {
-    if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
-      LOG(ERROR) << "Failed to update events for fd " << conn_fd
-                 << ", closing connection";
-      cleanupHandlerResources(conn);
-      connections_.erase(conn_fd);
-      close(conn_fd);
-    }
-  } catch (const std::exception& e) {
-    LOG(ERROR) << "Exception in updateEvents: " << e.what();
+  if (!updateEvents(conn_fd, EPOLLOUT | EPOLLET)) {
+    LOG(ERROR) << "Failed to update events for fd " << conn_fd
+               << ", closing connection";
     cleanupHandlerResources(conn);
     connections_.erase(conn_fd);
     close(conn_fd);

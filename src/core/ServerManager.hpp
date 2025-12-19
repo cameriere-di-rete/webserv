@@ -1,8 +1,6 @@
-// Test utility: checks for duplicate listen addresses in a vector of Server
-// Returns true if there are duplicates, false otherwise
-static bool hasDuplicateListenAddresses(const std::vector<Server>& servers);
 #pragma once
 
+#include <netinet/in.h>
 #include <sys/types.h>
 
 #include <map>
