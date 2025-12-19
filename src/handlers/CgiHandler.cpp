@@ -229,11 +229,11 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   if (bytes_read == -1) {
-    // Read failed; treat as an error
-    LOG_PERROR(ERROR, "CgiHandler: read from CGI failed");
-    cleanupProcess();
-    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return HR_DONE;
+    // Non-blocking read returned -1. Treat as "would block" and wait for
+    // more data; do not inspect `errno` here per policy.
+    LOG(DEBUG) << "CgiHandler: would block, accumulated "
+               << accumulated_output_.size() << " bytes so far";
+    return HR_WOULD_BLOCK;
   }
 
   // bytes_read == 0 means EOF - CGI finished writing
