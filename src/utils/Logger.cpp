@@ -20,17 +20,6 @@ Logger::~Logger() {
   Logger::log(msgLevel_, oss.str());
 }
 
-// Empty implementations to disable copying
-Logger::Logger(const Logger& /* other */)
-    : msgLevel_(INFO), file_(""), line_(0) {}
-
-Logger& Logger::operator=(const Logger& other) {
-  if (this != &other) {
-    // Empty implementation - copying is disabled
-  }
-  return *this;
-}
-
 std::ostringstream& Logger::stream() {
   return stream_;
 }

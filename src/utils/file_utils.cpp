@@ -54,37 +54,37 @@ bool openFile(const std::string& path, FileInfo& out) {
   out.size = 0;
   out.content_type.clear();
 
-  int fd = open(path.c_str(), O_RDONLY);
-  if (fd < 0) {
+  int file_fd = open(path.c_str(), O_RDONLY);
+  if (file_fd < 0) {
     LOG(ERROR) << "file_utils: openFile failed for '" << path
                << "': " << std::strerror(errno);
     return false;
   }
 
-  struct stat st;
-  if (fstat(fd, &st) < 0) {
-    close(fd);
+  struct stat status;
+  if (fstat(file_fd, &status) < 0) {
+    close(file_fd);
     LOG(ERROR) << "file_utils: fstat failed for '" << path
                << "': " << std::strerror(errno);
     return false;
   }
 
-  out.fd = fd;
-  out.size = st.st_size;
+  out.fd = file_fd;
+  out.size = status.st_size;
   out.content_type = guessMime(path);
   LOG(DEBUG) << "file_utils: opened '" << path << "' fd=" << out.fd
              << " size=" << out.size << " type=" << out.content_type;
   return true;
 }
 
-void closeFile(FileInfo& fi) {
-  if (fi.fd >= 0) {
-    LOG(DEBUG) << "file_utils: closing fd=" << fi.fd;
-    close(fi.fd);
-    fi.fd = -1;
+void closeFile(FileInfo& file_info) {
+  if (file_info.fd >= 0) {
+    LOG(DEBUG) << "file_utils: closing fd=" << file_info.fd;
+    close(file_info.fd);
+    file_info.fd = -1;
   }
-  fi.size = 0;
-  fi.content_type.clear();
+  file_info.size = 0;
+  file_info.content_type.clear();
 }
 
 int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
@@ -101,8 +101,8 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
       to_send = WRITE_BUF_SIZE;
     }
 
-    ssize_t s = sendfile(sock_fd, file_fd, &offset, to_send);
-    if (s < 0) {
+    ssize_t sent = sendfile(sock_fd, file_fd, &offset, to_send);
+    if (sent < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG(DEBUG) << "file_utils: sendfile would block (EAGAIN)";
         return 1;
@@ -111,12 +111,12 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
       return -1;
     }
 
-    if (s == 0) {
+    if (sent == 0) {
       LOG(DEBUG) << "file_utils: sendfile returned 0 (EOF?)";
       break;  // no more data
     }
 
-    LOG(DEBUG) << "file_utils: sendfile wrote " << s
+    LOG(DEBUG) << "file_utils: sendfile wrote " << sent
                << " bytes, new offset=" << offset;
   }
 
@@ -206,8 +206,8 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
   bool is_partial = false;
 
   if (rangeHeader) {
-    off_t s = 0, e = 0;
-    if (!parseRange(*rangeHeader, file_size, s, e)) {
+    off_t start = 0, end = 0;
+    if (!parseRange(*rangeHeader, file_size, start, end)) {
       LOG(DEBUG) << "file_utils: prepareFileResponse - invalid range '"
                  << *rangeHeader << "' for file=" << path
                  << " size=" << file_size;
@@ -221,10 +221,10 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
       closeFile(outFile);
       return -2;
     }
-    LOG(DEBUG) << "file_utils: prepareFileResponse - parsed range start=" << s
-               << " end=" << e;
-    out_start = s;
-    out_end = e;
+    LOG(DEBUG) << "file_utils: prepareFileResponse - parsed range start="
+               << start << " end=" << end;
+    out_start = start;
+    out_end = end;
     is_partial = true;
   } else {
     out_start = 0;
@@ -242,9 +242,10 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
       tmp << len;
       outResponse.addHeader("Content-Length", tmp.str());
     }
-    std::ostringstream cr;
-    cr << "bytes " << out_start << "-" << out_end << "/" << file_size;
-    outResponse.addHeader("Content-Range", cr.str());
+    std::ostringstream content_range;
+    content_range << "bytes " << out_start << "-" << out_end << "/"
+                  << file_size;
+    outResponse.addHeader("Content-Range", content_range.str());
   } else {
     outResponse.status_line.version = httpVersion;
     outResponse.status_line.status_code = http::S_200_OK;

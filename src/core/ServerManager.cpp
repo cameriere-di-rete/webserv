@@ -115,7 +115,7 @@ void ServerManager::acceptConnection(int listen_fd) {
   }
 }
 
-void ServerManager::updateEvents(int file_descriptor, uint32_t events) const {
+void ServerManager::updateEvents(int file_descriptor, uint32_t events) {
   if (efd_ < 0) {
     LOG(ERROR) << "epoll fd not initialized";
     return;
@@ -199,7 +199,8 @@ int ServerManager::run() {
 
     LOG(DEBUG) << "epoll_wait returned " << num_events << " event(s)";
 
-    for (size_t i = 0; i < static_cast<size_t>(num_events); ++i) {
+    size_t event_count = static_cast<size_t>(num_events);
+    for (size_t i = 0; i < event_count; ++i) {
       int event_fd = events[i].data.fd;
       LOG(DEBUG) << "Processing event for fd: " << event_fd;
 
@@ -550,9 +551,9 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   updateEvents(conn_fd, EPOLLOUT | EPOLLET);
 }
 
-void ServerManager::cleanupHandlerResources(Connection& c) {
-  if (c.active_handler != NULL) {
-    int monitor_fd = c.active_handler->getMonitorFd();
+void ServerManager::cleanupHandlerResources(Connection& conn) {
+  if (conn.active_handler != NULL) {
+    int monitor_fd = conn.active_handler->getMonitorFd();
     if (monitor_fd >= 0) {
       unregisterCgiPipe(monitor_fd);
     }

@@ -129,10 +129,10 @@ class Uri {
 
   /**
    * Convert a hex character to its integer value.
-   * @param c The hex character ('0'-'9', 'A'-'F', 'a'-'f')
+   * @param hex_char The hex character ('0'-'9', 'A'-'F', 'a'-'f')
    * @return The integer value (0-15), or -1 if invalid
    */
-  static int hexToInt(char c);
+  static int hexToInt(char hex_char);
 
   /**
    * Convert an integer to a hex character.

@@ -45,7 +45,7 @@ class Connection {
   // On failure it prepares an error response and returns false.
   bool resolvePathForLocation(const class Location& location,
                               std::string& out_path, bool& out_is_directory);
-  void setHandler(IHandler* h);
+  void setHandler(IHandler* handler);
   void clearHandler();
   // Helper to run a handler's start() and perform common error handling.
   // Returns the HandlerResult from the handler.

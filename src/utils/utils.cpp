@@ -102,15 +102,15 @@ void processArgs(int argc, char** argv, std::string& path, int& logLevel) {
   }
 }
 
-bool safeStrtoll(const std::string& s, long long& out) {
-  if (s.empty()) {
+bool safeStrtoll(const std::string& str, long long& out) {
+  if (str.empty()) {
     return false;
   }
   errno = 0;
   char* endptr = NULL;
-  long long num = std::strtoll(s.c_str(), &endptr, 10);
+  long long num = std::strtoll(str.c_str(), &endptr, 10);
   // Check for conversion errors: range error, no conversion, or trailing chars
-  if (errno == ERANGE || endptr == s.c_str() ||
+  if (errno == ERANGE || endptr == str.c_str() ||
       (endptr != NULL && *endptr != '\0')) {
     return false;
   }

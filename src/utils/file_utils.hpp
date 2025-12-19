@@ -15,7 +15,7 @@ struct FileInfo {
 
 namespace file_utils {
 bool openFile(const std::string& path, FileInfo& out);
-void closeFile(FileInfo& fi);
+void closeFile(FileInfo& file_info);
 std::string guessMime(const std::string& path);
 // stream file contents (uses sendfile). Returns:
 //  0 = finished sending up to max_offset, 1 = would block (EAGAIN), -1 = error

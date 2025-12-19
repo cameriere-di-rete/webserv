@@ -29,7 +29,7 @@ class ServerManager {
   // Handle CGI pipe events (called when pipe is readable)
   void handleCgiPipeEvent(int pipe_fd);
   // Clean up handler resources (CGI pipes) for a connection before closing
-  void cleanupHandlerResources(Connection& c);
+  void cleanupHandlerResources(Connection& conn);
   // Extract and validate request body from read buffer
   // Returns: 1 = body ready, 0 = need more data, -1 = error (response prepared)
   int extractRequestBody(Connection& conn, int conn_fd);
@@ -48,7 +48,7 @@ class ServerManager {
   int run();
 
   // Updates epoll events for a file descriptor
-  void updateEvents(int file_descriptor, u_int32_t events) const;
+  void updateEvents(int file_descriptor, u_int32_t events);
 
   void setupSignalHandlers();
 
