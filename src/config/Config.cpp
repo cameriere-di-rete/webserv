@@ -15,6 +15,7 @@
 
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
+#include "Location.hpp"
 #include "Logger.hpp"
 #include "utils.hpp"
 
@@ -25,7 +26,7 @@ Config::Config()
       root_(),
       servers_(),
       global_error_pages_(),
-      global_max_request_body_(0),
+      global_max_request_body_(kMaxRequestBodyUnset),
       idx_(0),
       current_server_index_(kGlobalContext),
       current_location_path_() {}
@@ -118,7 +119,7 @@ std::vector<Server> Config::getServers(void) {
   }
 
   // Parse and validate global directives
-  global_max_request_body_ = 0;
+  global_max_request_body_ = kMaxRequestBodyUnset;
   global_error_pages_.clear();
 
   LOG(DEBUG) << "Processing " << root_.directives.size()
@@ -630,10 +631,19 @@ void Config::translateServerBlock_(const BlockNode& server_block, Server& srv,
     throw std::runtime_error(msg);
   }
 
-  if (srv.max_request_body == 0 && global_max_request_body_ > 0) {
-    srv.max_request_body = global_max_request_body_;
-    LOG(DEBUG) << "Applied global max_request_body to server: "
-               << srv.max_request_body;
+  // max_request_body inheritance: global -> server -> default
+  // If server didn't set it and global did, use global
+  // If neither set it, use DEFAULT
+  if (srv.max_request_body == kMaxRequestBodyUnset) {
+    if (global_max_request_body_ != kMaxRequestBodyUnset) {
+      srv.max_request_body = global_max_request_body_;
+      LOG(DEBUG) << "Applied global max_request_body to server: "
+                 << srv.max_request_body;
+    } else {
+      srv.max_request_body = kMaxRequestBodyDefault;
+      LOG(DEBUG) << "Applied default max_request_body to server: "
+                 << srv.max_request_body;
+    }
   }
 
   LOG(DEBUG) << "Processing " << server_block.sub_blocks.size()
