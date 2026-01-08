@@ -12,6 +12,7 @@
 #include "AutoindexHandler.hpp"
 #include "Body.hpp"
 #include "CgiHandler.hpp"
+#include "ErrorFileHandler.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
@@ -170,40 +171,21 @@ void Connection::prepareErrorResponse(http::Status status) {
     std::map<http::Status, std::string>::const_iterator it =
         error_pages.find(status);
     if (it != error_pages.end()) {
-      // Temporarily clear error_pages to prevent infinite recursion if the
-      // custom error page file itself triggers an error (e.g., 404).
-      std::map<http::Status, std::string> saved_error_pages = error_pages;
-      error_pages.clear();
-
-      // Try to serve the custom error page using FileHandler
-      FileHandler* fh = new FileHandler(it->second);
-      HandlerResult hr = fh->start(*this);
-      if (hr == HR_DONE) {
-        // FileHandler prepared the response successfully, but we need to
-        // override the status code to the error status (FileHandler sets 200)
-        response.status_line.status_code = status;
-        response.status_line.reason = http::reasonPhrase(status);
-        write_buffer = response.serialize();
-        delete fh;
-        error_pages = saved_error_pages;  // Restore for future requests
-        return;
-      } else if (hr == HR_WOULD_BLOCK) {
-        // Handler needs to stream the file; assign to active_handler
-        // Override the status code for the error page response
-        response.status_line.status_code = status;
-        response.status_line.reason = http::reasonPhrase(status);
-        setHandler(fh);
-        error_pages = saved_error_pages;  // Restore for future requests
-        return;
-      }
-      // HR_ERROR: Log a warning and fall through to default error page
-      LOG(ERROR) << "Failed to load custom error page: " << it->second;
-      delete fh;
-      error_pages = saved_error_pages;  // Restore for future requests
-      response = Response();            // Reset response for default error page
-      response.status_line.version = HTTP_VERSION;
+      // Serve the custom error page using ErrorFileHandler (streams via
+      // sendfile() and integrates with the Connection's event loop).
+      ErrorFileHandler* efh = new ErrorFileHandler(it->second);
+      // Ensure response status reflects the error
+      response.status_line.version = getHttpVersion();
       response.status_line.status_code = status;
       response.status_line.reason = http::reasonPhrase(status);
+      // Let handler prepare headers and stream body
+      HandlerResult hr = efh->start(*this);
+      if (hr == HR_WOULD_BLOCK) {
+        setHandler(efh);
+        return;
+      }
+      // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
+      delete efh;
     }
   }
 
@@ -224,10 +206,14 @@ void Connection::prepareErrorResponse(http::Status status) {
 void Connection::setHandler(IHandler* h) {
   clearHandler();
   active_handler = h;
+  LOG(DEBUG) << "Connection: setHandler installed handler=" << h
+             << " fd=" << fd;
 }
 
 void Connection::clearHandler() {
   if (active_handler) {
+    LOG(DEBUG) << "Connection: clearHandler deleting handler=" << active_handler
+               << " fd=" << fd;
     delete active_handler;
     active_handler = NULL;
   }
@@ -236,18 +222,26 @@ void Connection::clearHandler() {
 HandlerResult Connection::executeHandler(IHandler* handler) {
   // setHandler takes ownership of handler and clears any previous handler.
   setHandler(handler);
-  HandlerResult hr = active_handler->start(*this);
+  IHandler* orig = active_handler;
+  HandlerResult hr = orig->start(*this);
   if (hr == HR_WOULD_BLOCK) {
     // Handler will continue later; keep it installed.
     return HR_WOULD_BLOCK;
   } else if (hr == HR_ERROR) {
-    // Handler failed; clear and prepare a 500 error response.
-    clearHandler();
+    // Handler failed; if it's still the active handler, clear it and
+    // prepare a 500 error response. If it was replaced during start(),
+    // do not touch the currently installed handler (it owns cleanup).
+    if (active_handler == orig) {
+      clearHandler();
+    }
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_ERROR;
   } else {
     // HR_DONE: handler completed synchronously and response is prepared.
-    clearHandler();
+    // Only clear the handler if it's still the original one we invoked.
+    if (active_handler == orig) {
+      clearHandler();
+    }
     return HR_DONE;
   }
 }

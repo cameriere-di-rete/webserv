@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <gtest/gtest.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include <string>
@@ -205,19 +206,69 @@ TEST(ConnectionErrorPageTests, CustomErrorPageSuccess) {
   std::string custom_content = "<html><body>Custom 404 Page</body></html>";
   std::string custom_path = createTempFile(custom_content);
   ASSERT_FALSE(custom_path.empty());
-
   Connection conn;
   // Set up a GET request (FileHandler needs this)
   conn.request.request_line.method = "GET";
   conn.error_pages[http::S_404_NOT_FOUND] = custom_path;
 
+  // Use a socketpair so the handler can send headers/body to a real fd
+  int sv[2];
+  ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+  // Use sv[1] as the connection fd
+  conn.fd = sv[1];
+
   conn.prepareErrorResponse(http::S_404_NOT_FOUND);
 
-  // Status code should still be 404 (overridden from FileHandler's 200)
-  EXPECT_EQ(conn.response.status_line.status_code, http::S_404_NOT_FOUND);
-  EXPECT_EQ(conn.response.status_line.reason, "Not Found");
+  // If a handler was installed for streaming, drive it to completion.
+  if (conn.active_handler) {
+    // First flush any headers prepared by start()
+    while (conn.write_offset < conn.write_buffer.size()) {
+      int hr = conn.handleWrite();
+      if (hr < 0) {
+        break;
+      }
+    }
 
-  // error_pages should be restored after serving
+    // Resume the handler until done
+    while (conn.active_handler) {
+      HandlerResult r = conn.active_handler->resume(conn);
+      // After resume, flush any headers (if present)
+      while (conn.write_offset < conn.write_buffer.size()) {
+        int hr = conn.handleWrite();
+        if (hr < 0) {
+          break;
+        }
+      }
+      if (r == HR_DONE) {
+        break;
+      }
+      if (r == HR_ERROR) {
+        break;
+      }
+    }
+  } else {
+    // No active handler: headers/body should already be prepared
+  }
+
+  // Read the full response from the peer socket
+  std::string received;
+  char buf[1024];
+  ssize_t n = 0;
+  // Close our write end to ensure EOF for the reader
+  shutdown(sv[1], SHUT_WR);
+  while ((n = read(sv[0], buf, sizeof(buf))) > 0) {
+    received.append(buf, n);
+  }
+  close(sv[0]);
+  close(sv[1]);
+
+  // Check status line and headers present
+  EXPECT_NE(received.find("HTTP/1.1 404 Not Found"), std::string::npos);
+  EXPECT_NE(received.find("Content-Length"), std::string::npos);
+  // Body should contain our custom content
+  EXPECT_NE(received.find(custom_content), std::string::npos);
+
+  // error_pages should still reference the custom path
   EXPECT_FALSE(conn.error_pages.empty());
   EXPECT_EQ(conn.error_pages[http::S_404_NOT_FOUND], custom_path);
 
