@@ -2,24 +2,407 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>webserv — custom error page</title>
-  <link rel="stylesheet" href="/css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - Page Not Found</title>
+    <style>
+        /* 1. Basic Reset & Fonts */
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        /* 2. Main Container */
+        .container {
+            display: grid;
+            place-items: center;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            grid-template-areas: "content";
+
+            /* --- STATO DI BASE (BIANCO) --- */
+            background-color: #dedede;
+
+            /* Transizione fluida per il cambio sfondo */
+            transition: background 0.5s ease-in-out;
+
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* --- CLASSE SPECIALE ATTIVATA QUANDO SEI VICINO AL PICCIONE --- */
+        .container.bread-mode {
+            /* Immagine di sfondo */
+            background-image: url('bread.jpg');
+
+            /* Effetto sbiadito (Sovrapposizione bianco semi-trasparente) */
+            background-color: rgba(255, 255, 255, 0.85);
+            background-blend-mode: overlay;
+        }
+
+        /* 3. The Big Background Number */
+        .error-number {
+            grid-area: content;
+            font-size: 85vh;
+            font-weight: 900;
+            color: #222222;
+            z-index: 1;
+            user-select: none;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            mix-blend-mode: multiply;
+        }
+
+        /* 4. The GIANT Bird Image */
+        .bird-image {
+            position: absolute;
+            bottom: -10%;
+            right: -10%;
+            width: 40vw;
+            max-width: 1000px;
+            height: auto;
+            z-index: 9999;
+            ;
+            pointer-events: none;
+            transition: bottom 0.3s ease-out, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            transform: scale(1);
+        }
+
+        .bird-image.is-jumping {
+            animation: happyHop 0.5s infinite alternate ease-in-out;
+        }
+
+        .bird-image.is-scaling {
+            transform: scale(1.7);
+        }
+
+        @keyframes happyHop {
+            0% {
+                bottom: -10%;
+            }
+
+            100% {
+                bottom: -2%;
+            }
+        }
+
+        /* 5. The Message Text */
+        .text-content {
+            grid-area: content;
+            text-align: center;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+
+        .home-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            opacity: 0.9;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .home-btn:hover {
+            background-color: #555;
+        }
+
+        /* --- STILE PER IL TRAIL DEL MOUSE (Briciole) --- */
+        .crumb {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10001;
+            animation: fallAndFade 1s linear forwards;
+        }
+
+        @keyframes fallAndFade {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(150px) scale(0.5) rotate(180deg);
+            }
+        }
+
+        /* Mobile Adjustment */
+        @media (max-width: 768px) {
+            .bird-image {
+                width: 120%;
+                right: -20%;
+                bottom: 0;
+            }
+
+            @keyframes happyHop {
+                0% {
+                    bottom: 0;
+                }
+
+                100% {
+                    bottom: 5%;
+                }
+            }
+
+            .error-number {
+                font-size: 50vw;
+            }
+
+            .text-content {
+                width: 80%;
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 
-<body class="test-page">
-  <div class="site-root">
-    <main class="content container">
-      <div>
-        <h1>Something went wrong</h1>
-        <p class="subtitle">An error occurred while handling your request.</p>
-        <p>If you reached this page because of a broken link, try returning to the <a href="/">home page</a>.
-        </p>
-      </div>
-    </main>
-    <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
-  </div>
+<body>
+
+    <div class="container" id="mainContainer">
+        <div class="error-number" id="errorCode">404</div>
+
+        <img src="bird.png" alt="Confused Pigeon" class="bird-image" id="theBird">
+
+        <div class="text-content">
+            <h2 id="errorTitle">Oops!</h2>
+            <p id="errorMsg">This pigeon ate the page you were looking for upsiiiieeeeesss.</p>
+            <a href="/" class="home-btn">Go Home</a>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURAZIONE MESSAGGI ---
+        const messages = {
+            '400': { title: "Bad Request", text: "The pigeon tilted its head in confusion. Your request makes no sense in Pigeonish." },
+            '401': { title: "Unauthorized", text: "Who goes there? The pigeon security guard needs to see your VIP Badge. No crumbs, no entry." },
+            '402': { title: "Payment Required", text: "This is a premium perch. Please insert high-quality sourdough bread to proceed." },
+            '403': { title: "Forbidden", text: "STOP! The Pigeon Council has denied your access. Fly away before they get angry." },
+            '404': { title: "Page Not Found", text: "We sent a homing pigeon to find this page, but he got distracted by a shiny object and never came back." },
+            '405': { title: "Method Not Allowed", text: "You can't fly that way! It's against the flock's flight regulations." },
+            '406': { title: "Not Acceptable", text: "The pigeon refuses your request. It's extremely picky about its data seeds today." },
+            '408': { title: "Request Timeout", text: "Zzz... The pigeon fell asleep waiting for you. You were too slow feeding the data." },
+            '409': { title: "Conflict", text: "Squawk! Two pigeons are fighting over the same crumb. Please wait until the winner is decided." },
+            '410': { title: "Gone", text: "The page has migrated south for the winter and is never coming back. It's gone forever." },
+            '413': { title: "Payload Too Large", text: "Whoa! That crumb is too big for the pigeon's beak. Try breaking it into smaller pieces." },
+            '414': { title: "URI Too Long", text: "That link is longer than a pigeon's flight path. Please shorten it." },
+            '415': { title: "Unsupported Media Type", text: "Yuck! The pigeon spat it out. It doesn't eat that file type." },
+            '418': { title: "I'm a Teapot", text: "Coo? I am a pigeon, not a teapot! I cannot brew coffee, but I can make a mess on your car." },
+            '429': { title: "Too Many Requests", text: "SLOW DOWN! You are feeding the server too fast. The pigeon is getting fat and can't fly!" },
+            '431': { title: "Header Fields Too Large", text: "The pigeon's head is too small to hold all this header information. Simplify it." },
+            '451': { title: "Legal Reasons", text: "Censored. The pigeon lawyer advised us not to show this page. Legal stuff, you know." },
+            '500': { title: "Internal Server Error", text: "Oops. A pigeon flew into the server fan. Feathers everywhere. We are cleaning up the mess." },
+            '501': { title: "Not Implemented", text: "The pigeon doesn't know how to do that yet. We need to train him better." },
+            '502': { title: "Bad Gateway", text: "The messenger pigeon got lost in the clouds. He's not the brightest bird in the flock." },
+            '503': { title: "Service Unavailable", text: "The pigeons are on a union strike. They demand better brioche. Come back later." },
+            '504': { title: "Gateway Timeout", text: " The upstream pigeon is flying too slow. He probably stopped for a snack on a statue." },
+            '505': { title: "HTTP Version Not Supported", text: "Old school pigeon. He doesn't understand this modern HTTP gibberish." },
+            '507': { title: "Insufficient Storage", text: "The nest is full! There is no more room for twigs or data." },
+            '509': { title: "Bandwidth Limit Exceeded", text: "We ran out of birdseed to power the connection. The bandwidth bucket is empty." },
+            'default': { title: "Unknown Error", text: "Something is wrong. The pigeon is looking at you with a very judgmental stare." }
+        };
+
+        // --- 2. LOGICA CODICE ERRORE ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code') || '404';
+        document.getElementById('errorCode').innerText = code;
+        const messageData = messages[code] || messages['default'];
+        document.getElementById('errorTitle').innerText = messageData.title;
+        document.getElementById('errorMsg').innerText = messageData.text;
+
+
+        // --- 3. LOGICA CIBO, SALTO E SFONDO DINAMICO ---
+
+        const emojis = ['🍞', '🥐', '🥖', '🥨', '🥯', '🥞', '🧇', '🍰', '🥧', '🍩', '🍪', '🍮'];
+
+        const birdElement = document.getElementById('theBird');
+        const containerElement = document.getElementById('mainContainer'); // Recuperiamo il container
+        let birdRect, birdCenterX, birdCenterY;
+        const jumpThreshold = 400;
+
+        let mouseX = 0;
+        let mouseY = 0;
+        let feedInterval = null;
+        let moveThrottle = null;
+
+        function updateBirdPosition() {
+            if (!birdElement) return;
+            birdRect = birdElement.getBoundingClientRect();
+            birdCenterX = birdRect.left + birdRect.width / 2;
+            birdCenterY = birdRect.top + birdRect.height / 2;
+        }
+
+        window.onload = function () {
+            updateBirdPosition();
+            window.addEventListener('resize', updateBirdPosition);
+        };
+
+        let scaleInterval = null;
+        let scaleValue = 1;
+        const maxScale = 1.7;
+        const scaleStep = 0.02;
+        const scaleDelay = 16; // ~60fps
+
+        let originalMsg = null;
+        let originalTitle = null;
+        let boxElement = document.querySelector('.text-content');
+        let originalBoxBg = null;
+        let originalMsgColor = null;
+        function growBird() {
+            if (scaleInterval) return;
+            scaleInterval = setInterval(() => {
+                if (scaleValue < maxScale) {
+                    scaleValue += scaleStep;
+                    if (scaleValue > maxScale) scaleValue = maxScale;
+                    birdElement.style.transform = `scale(${scaleValue})`;
+                }
+                if (scaleValue >= maxScale) {
+                    // Cambia il testo nel box e titolo e colore
+                    if (!originalMsg) {
+                        originalMsg = document.getElementById('errorMsg').innerText;
+                    }
+                    if (!originalTitle) {
+                        originalTitle = document.getElementById('errorTitle').innerText;
+                    }
+                    if (!originalBoxBg) {
+                        originalBoxBg = boxElement.style.background;
+                    }
+                    if (!originalMsgColor) {
+                        originalMsgColor = document.getElementById('errorMsg').style.color;
+                    }
+                    const code = document.getElementById('errorCode').innerText;
+                    document.getElementById('errorMsg').innerText = `facci passare webserv o ti mandiamo ${code} piccioni a casa`;
+                    document.getElementById('errorTitle').innerText = 'AO WAIT';
+                    boxElement.style.background = 'rgba(200,0,0,0.85)';
+                    document.getElementById('errorMsg').style.color = '#fff';
+                }
+            }, scaleDelay);
+        }
+
+        function shrinkBird() {
+            if (scaleInterval) clearInterval(scaleInterval);
+            // Immediately reset box and text color
+            if (originalMsg) {
+                document.getElementById('errorMsg').innerText = originalMsg;
+                originalMsg = null;
+            }
+            if (originalTitle) {
+                document.getElementById('errorTitle').innerText = originalTitle;
+                originalTitle = null;
+            }
+            if (originalBoxBg !== null) {
+                boxElement.style.background = '';
+                originalBoxBg = null;
+            } else {
+                boxElement.style.background = '';
+            }
+            if (originalMsgColor !== null) {
+                document.getElementById('errorMsg').style.color = originalMsgColor;
+                originalMsgColor = null;
+            } else {
+                document.getElementById('errorMsg').style.color = '';
+            }
+            // Continue shrinking animation
+            scaleInterval = setInterval(() => {
+                if (scaleValue > 1) {
+                    scaleValue -= scaleStep;
+                    if (scaleValue < 1) scaleValue = 1;
+                    birdElement.style.transform = `scale(${scaleValue})`;
+                } else {
+                    clearInterval(scaleInterval);
+                    scaleInterval = null;
+                }
+            }, scaleDelay);
+        }
+
+        document.addEventListener('mousemove', function (e) {
+            mouseX = e.pageX;
+            mouseY = e.pageY;
+
+            // Creazione briciole al movimento
+            if (!moveThrottle) {
+                moveThrottle = setTimeout(() => {
+                    createCrumb(mouseX, mouseY);
+                    moveThrottle = null;
+                }, 40);
+            }
+
+            if (!birdElement) return;
+
+            // Calcolo distanza
+            const distanceX = e.clientX - birdCenterX;
+            const distanceY = e.clientY - birdCenterY;
+            const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+            if (distance < jumpThreshold) {
+                // --- MOUSE VICINO AL PICCIONE ---
+                birdElement.classList.add('is-jumping');
+                containerElement.classList.add('bread-mode');
+                if (!feedInterval) {
+                    feedInterval = setInterval(() => {
+                        createCrumb(mouseX, mouseY);
+                    }, 100);
+                }
+                growBird();
+            } else {
+                birdElement.classList.remove('is-jumping');
+                containerElement.classList.remove('bread-mode');
+                if (feedInterval) {
+                    clearInterval(feedInterval);
+                    feedInterval = null;
+                }
+                shrinkBird();
+            }
+        });
+
+        function createCrumb(x, y) {
+            const el = document.createElement('span');
+            el.className = 'crumb';
+            el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+
+            const dispersion = 40;
+            const offsetX = (Math.random() - 0.5) * dispersion;
+            const offsetY = (Math.random() - 0.5) * dispersion;
+
+            el.style.left = (x + offsetX) + 'px';
+            el.style.top = (y + offsetY) + 'px';
+            el.style.fontSize = (20 + Math.random() * 15) + 'px';
+
+            document.body.appendChild(el);
+
+            setTimeout(() => { el.remove(); }, 1000);
+        }
+    </script>
 </body>
 
 </html>
