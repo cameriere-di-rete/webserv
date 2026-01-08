@@ -12,6 +12,7 @@
 
 #include "AutoindexHandler.hpp"
 #include "CgiHandler.hpp"
+#include "ErrorFileHandler.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
@@ -52,6 +53,7 @@ Connection::Connection(int fd)
 Connection::Connection(const Connection& other)
     : fd(other.fd),
       server_fd(other.server_fd),
+      remote_addr(other.remote_addr),
       read_buffer(other.read_buffer),
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
@@ -72,6 +74,7 @@ Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
     fd = other.fd;
     server_fd = other.server_fd;
+    remote_addr = other.remote_addr;
     read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
@@ -185,28 +188,32 @@ std::string Connection::getHttpVersion() const {
 }
 
 void Connection::prepareErrorResponse(http::Status status) {
-  response.setStatus(status, getHttpVersion());
-  // Try to serve a configured error page file from `error_pages` (already
-  // resolved to a filesystem path by Server::matchLocation). If present and
-  // readable, load it into the response body. Otherwise fall back to the
-  // default generated HTML page.
-  std::map<http::Status, std::string>::const_iterator it =
-      error_pages.find(status);
-  if (it != error_pages.end()) {
-    const std::string& fs_path = it->second;
-    std::ifstream ifs(fs_path.c_str(), std::ios::in | std::ios::binary);
-    if (ifs) {
-      std::string contents((std::istreambuf_iterator<char>(ifs)),
-                           std::istreambuf_iterator<char>());
-      response.getBody().data = contents;
-      response.addHeader("Content-Type", file_utils::guessMime(fs_path));
-      std::ostringstream oss;
-      oss << response.getBody().size();
-      response.addHeader("Content-Length", oss.str());
-      write_buffer = response.serialize();
-      return;
+  response.status_line.version = getHttpVersion();
+  response.status_line.status_code = status;
+  response.status_line.reason = http::reasonPhrase(status);
+
+  // Check if there's a custom error page configured for this status.
+  {
+    std::map<http::Status, std::string>::const_iterator it =
+        error_pages.find(status);
+    if (it != error_pages.end()) {
+      // Serve the custom error page using ErrorFileHandler (streams via
+      // sendfile() and integrates with the Connection's event loop).
+      ErrorFileHandler* efh = new ErrorFileHandler(it->second);
+      // Ensure response status reflects the error
+      response.status_line.version = getHttpVersion();
+      response.status_line.status_code = status;
+      response.status_line.reason = http::reasonPhrase(status);
+      // Let handler prepare headers and stream body
+      HandlerResult hr = efh->start(*this);
+      if (hr == HR_WOULD_BLOCK) {
+        setHandler(efh);
+        return;
+      }
+      // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
+      delete efh;
     }
-    LOG(ERROR) << "Failed to open custom error page: " << fs_path;
+    LOG(ERROR) << "Failed to open custom error page: " << it->second;
   }
 
   std::string title = http::statusWithReason(status);
@@ -222,10 +229,14 @@ void Connection::prepareErrorResponse(http::Status status) {
 void Connection::setHandler(IHandler* h) {
   clearHandler();
   active_handler = h;
+  LOG(DEBUG) << "Connection: setHandler installed handler=" << h
+             << " fd=" << fd;
 }
 
 void Connection::clearHandler() {
   if (active_handler) {
+    LOG(DEBUG) << "Connection: clearHandler deleting handler=" << active_handler
+               << " fd=" << fd;
     delete active_handler;
     active_handler = NULL;
   }
@@ -234,18 +245,26 @@ void Connection::clearHandler() {
 HandlerResult Connection::executeHandler(IHandler* handler) {
   // setHandler takes ownership of handler and clears any previous handler.
   setHandler(handler);
-  HandlerResult hr = active_handler->start(*this);
+  IHandler* orig = active_handler;
+  HandlerResult hr = orig->start(*this);
   if (hr == HR_WOULD_BLOCK) {
     // Handler will continue later; keep it installed.
     return HR_WOULD_BLOCK;
   } else if (hr == HR_ERROR) {
-    // Handler failed; clear and prepare a 500 error response.
-    clearHandler();
+    // Handler failed; if it's still the active handler, clear it and
+    // prepare a 500 error response. If it was replaced during start(),
+    // do not touch the currently installed handler (it owns cleanup).
+    if (active_handler == orig) {
+      clearHandler();
+    }
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_ERROR;
   } else {
     // HR_DONE: handler completed synchronously and response is prepared.
-    clearHandler();
+    // Only clear the handler if it's still the original one we invoked.
+    if (active_handler == orig) {
+      clearHandler();
+    }
     return HR_DONE;
   }
 }
@@ -515,15 +534,23 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   struct stat st;
   bool path_is_dir = false;
-  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+  bool path_exists = (stat(path.c_str(), &st) == 0);
+
+  if (path_exists && S_ISDIR(st.st_mode)) {
     path_is_dir = true;
     if (!path.empty() && path[path.size() - 1] != '/') {
       path += '/';
     }
   }
 
+  // If path ends with '/' but doesn't exist or isn't a directory, return 404
+  if (!path.empty() && path[path.size() - 1] == '/' && !path_is_dir) {
+    prepareErrorResponse(http::S_404_NOT_FOUND);
+    return false;
+  }
+
   // Try to resolve directory to index file
-  if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+  if (path_is_dir) {
     bool found_index = false;
     for (std::set<std::string>::const_iterator it = location.index.begin();
          it != location.index.end(); ++it) {
@@ -544,4 +571,31 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   out_path = path;
   return true;
+}
+
+void Connection::logAccess() const {
+  // nginx-style combined log format:
+  // remote_addr - - [time] "request" status bytes_sent
+  // Example: 127.0.0.1 - - [12/Dec/2025:15:45:00 +0000] "GET /index.html
+  // HTTP/1.1" 200 1234
+
+  std::string method = request.request_line.method;
+  std::string uri = request.request_line.uri;
+  std::string version = request.request_line.version;
+  int status = static_cast<int>(response.status_line.status_code);
+  std::size_t bytes = write_buffer.size();
+
+  // If request wasn't parsed, use placeholders
+  if (method.empty()) {
+    method = "-";
+  }
+  if (uri.empty()) {
+    uri = "-";
+  }
+  if (version.empty()) {
+    version = "-";
+  }
+
+  LOG(INFO) << remote_addr << " \"" << method << " " << uri << " " << version
+            << "\" " << status << " " << bytes;
 }

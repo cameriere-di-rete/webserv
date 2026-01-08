@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Request Limits - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>📏 Request Limits</h1>
+    <p class="subtitle">Test request body size limits</p>
+
+    <h2>Current Configuration</h2>
+    <div class="interactive">
+      <p style="color: #94a3b8; font-size: 0.875rem">
+        The server is configured with <code>max_request_body</code> directive.
+        Default is 4096 bytes. Requests exceeding this limit will receive a
+        <strong>413 Payload Too Large</strong> response.
+      </p>
+    </div>
+
+    <h2>Test Body Size Limit</h2>
+    <div class="interactive">
+      <label for="size-bytes">Body Size (bytes):</label>
+      <input type="text" id="size-bytes" value="5000" />
+
+      <label for="target-path">Target Path:</label>
+      <input type="text" id="target-path" value="/test.txt" />
+
+      <button onclick="testBodySize()">Send Request</button>
+      <div id="size-response" class="response-box"></div>
+    </div>
+
+    <h2>Quick Size Tests</h2>
+    <div class="test-grid">
+      <div class="test-card" onclick="quickSizeTest(1000)" style="cursor:pointer">
+        <h3><span class="method post">POST</span> 1 KB</h3>
+        <p>Should succeed (under limit)</p>
+      </div>
+      <div class="test-card" onclick="quickSizeTest(4000)" style="cursor:pointer">
+        <h3><span class="method post">POST</span> 4 KB</h3>
+        <p>Should succeed (near limit)</p>
+      </div>
+      <div class="test-card" onclick="quickSizeTest(5000)" style="cursor:pointer">
+        <h3><span class="method post">POST</span> 5 KB</h3>
+        <p>Should fail (over limit)</p>
+      </div>
+      <div class="test-card" onclick="quickSizeTest(10000)" style="cursor:pointer">
+        <h3><span class="method post">POST</span> 10 KB</h3>
+        <p>Should fail (way over limit)</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { renderStatus, renderPre, renderError } from '/tests/common.js';
+
+    async function testBodySize() {
+      const sizeBytes = parseInt(document.getElementById("size-bytes").value) || 1000;
+      const targetPath = document.getElementById("target-path").value;
+      await doSizeTest(sizeBytes, targetPath);
+    }
+
+    async function quickSizeTest(sizeBytes) {
+      document.getElementById("size-bytes").value = sizeBytes;
+      await doSizeTest(sizeBytes, "/test.txt");
+    }
+
+    async function doSizeTest(sizeBytes, targetPath) {
+      const responseDiv = document.getElementById("size-response");
+      responseDiv.innerHTML = "";
+      const body = "x".repeat(sizeBytes);
+      try {
+        const startTime = performance.now();
+        const response = await fetch(targetPath, {
+          method: "POST",
+          body: body,
+          headers: { "Content-Type": "text/plain" },
+        });
+        const endTime = performance.now();
+        const text = await response.text();
+
+        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement("br"));
+        const timeDiv = document.createElement("div");
+        timeDiv.textContent = `Time: ${(endTime - startTime).toFixed(2)}ms`;
+        responseDiv.appendChild(timeDiv);
+
+        const sizeDiv = document.createElement("div");
+        sizeDiv.textContent = `Request Body Size: ${sizeBytes} bytes (${(sizeBytes / 1024).toFixed(2)} KB)`;
+        responseDiv.appendChild(sizeDiv);
+
+        renderPre(responseDiv, "Response:", text.length > 500 ? text.substring(0, 500) + "..." : text || "(empty)");
+        responseDiv.classList.add("show");
+      } catch (e) {
+        renderError(responseDiv, e.message);
+      }
+    }
+  </script>
+
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+</body>
+
+</html>

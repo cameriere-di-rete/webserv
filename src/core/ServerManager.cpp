@@ -42,12 +42,12 @@ ServerManager& ServerManager::operator=(const ServerManager& other) {
 }
 
 ServerManager::~ServerManager() {
-  LOG(DEBUG) << "Shutting down ServerManager...";
+  LOG(DEBUG) << "Shutting down webserv...";
   shutdown();
 }
 
 void ServerManager::initServers(std::vector<Server>& servers) {
-  LOG(INFO) << "Initializing " << servers.size() << " server(s)...";
+  LOG(DEBUG) << "Initializing " << servers.size() << " server(s)...";
 
   /* Check for duplicate listen addresses before initializing */
   std::set<std::pair<in_addr_t, int> > listen_addresses;
@@ -76,13 +76,16 @@ void ServerManager::initServers(std::vector<Server>& servers) {
   }
   /* clear servers after moving them to ServerManager */
   servers.clear();
-  LOG(INFO) << "All servers initialized successfully";
+  LOG(DEBUG) << "All servers initialized successfully";
 }
 
 void ServerManager::acceptConnection(int listen_fd) {
   LOG(DEBUG) << "Accepting new connections on listen_fd: " << listen_fd;
   while (1) {
-    int conn_fd = accept(listen_fd, NULL, NULL);
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int conn_fd =
+        accept(listen_fd, (struct sockaddr*)&client_addr, &client_len);
     if (conn_fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG(DEBUG) << "No more pending connections on fd: " << listen_fd;
@@ -97,12 +100,13 @@ void ServerManager::acceptConnection(int listen_fd) {
       continue;
     }
 
-    LOG(INFO) << "New connection accepted (fd: " << conn_fd
-              << ") from server fd: " << listen_fd;
+    LOG(DEBUG) << "New connection accepted (fd: " << conn_fd
+               << ") from server fd: " << listen_fd;
 
     Connection connection(conn_fd);
     /* record which listening/server fd accepted this connection */
     connection.server_fd = listen_fd;
+    connection.remote_addr = inet_ntoa(client_addr.sin_addr);
     connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
@@ -135,7 +139,7 @@ void ServerManager::updateEvents(int fd, uint32_t events) {
 }
 
 int ServerManager::run() {
-  LOG(INFO) << "Starting ServerManager event loop...";
+  LOG(DEBUG) << "Starting ServerManager event loop...";
 
   /* create epoll instance */
   efd_ = epoll_create1(0);
@@ -176,14 +180,14 @@ int ServerManager::run() {
 
   /* event loop */
   struct epoll_event events[MAX_EVENTS];
-  LOG(INFO) << "Entering main event loop (waiting for connections)...";
+  LOG(DEBUG) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
     int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
     if (n < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
-          LOG(INFO)
+          LOG(DEBUG)
               << "ServerManager: stop requested by signal, exiting event loop";
           break;
         }
@@ -202,7 +206,7 @@ int ServerManager::run() {
       if (fd == sfd_) {
         // process pending signals from signalfd
         if (processSignalsFromFd()) {
-          LOG(INFO) << "ServerManager: stop requested by signal (signalfd)";
+          LOG(DEBUG) << "ServerManager: stop requested by signal (signalfd)";
         }
         if (stop_requested_) {
           return EXIT_SUCCESS;
@@ -259,6 +263,8 @@ int ServerManager::run() {
         int status = c.handleWrite();
 
         if (status <= 0) {
+          // Log the completed request in nginx-style format
+          c.logAccess();
           LOG(DEBUG)
               << "handleWrite complete or failed, closing connection fd: "
               << fd;
@@ -401,7 +407,7 @@ void ServerManager::setupSignalHandlers() {
     throw std::runtime_error("Failed to ignore SIGPIPE with sigaction");
   }
 
-  LOG(INFO) << "signals: signalfd installed and signals blocked";
+  LOG(DEBUG) << "signals: signalfd installed and signals blocked";
 }
 
 bool ServerManager::processSignalsFromFd() {
@@ -427,12 +433,12 @@ bool ServerManager::processSignalsFromFd() {
       stop_requested_ = true;
       return true;
     }
-    LOG(INFO) << "signals: got unexpected signo=" << fdsi.ssi_signo;
+    LOG(DEBUG) << "signals: got unexpected signo=" << fdsi.ssi_signo;
   }
 }
 
 void ServerManager::shutdown() {
-  LOG(INFO) << "Shutting down ServerManager...";
+  LOG(INFO) << "Shutting down webserv...";
 
   if (efd_ >= 0) {
     LOG(DEBUG) << "Closing epoll fd: " << efd_;
@@ -466,7 +472,7 @@ void ServerManager::shutdown() {
   }
   servers_.clear();
 
-  LOG(INFO) << "ServerManager shutdown complete";
+  LOG(INFO) << "webserv shutdown complete";
 }
 
 bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
