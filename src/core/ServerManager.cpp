@@ -409,9 +409,6 @@ bool ServerManager::processSignalsFromFd() {
   while (true) {
     ssize_t s = read(sfd_, &fdsi, sizeof(fdsi));
     if (s < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return stop_requested_;
-      }
       LOG_PERROR(ERROR, "read(signalfd)");
       return stop_requested_;
     }
