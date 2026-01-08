@@ -1,5 +1,6 @@
 #pragma once
 
+#include <netinet/in.h>
 #include <sys/types.h>
 
 #include <map>
@@ -41,7 +42,8 @@ class ServerManager {
   ~ServerManager();
 
   // Initializes all servers from configuration
-  void initServers(std::vector<Server>& servers);
+  // Returns true on success, false on error (e.g. duplicate listen address)
+  bool initServers(std::vector<Server>& servers);
 
   // Accepts new client connection on given listening socket
   void acceptConnection(int listen_fd);
@@ -50,9 +52,11 @@ class ServerManager {
   int run();
 
   // Updates epoll events for a file descriptor
-  void updateEvents(int fd, u_int32_t events);
+  // Returns true on success, false on error
+  bool updateEvents(int fd, u_int32_t events);
 
-  void setupSignalHandlers();
+  // Returns true on success, false on error
+  bool setupSignalHandlers();
 
   bool processSignalsFromFd();
 
