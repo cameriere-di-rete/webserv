@@ -1,11 +1,4 @@
-#include <netinet/in.h>
-
-#include <set>
-#include <utility>
-#include <vector>
-
-#include "Server.hpp"
-
+#include "ServerManager.hpp"
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -32,7 +25,7 @@
 #include "HttpStatus.hpp"
 #include "IHandler.hpp"
 #include "Logger.hpp"
-#include "ServerManager.hpp"
+#include "Server.hpp"
 #include "constants.hpp"
 #include "utils.hpp"
 
