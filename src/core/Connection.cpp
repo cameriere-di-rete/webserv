@@ -213,7 +213,7 @@ void Connection::prepareErrorResponse(http::Status status) {
       // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
       delete efh;
     }
-    LOG(ERROR) << "Failed to open custom error page: " << fs_path;
+    LOG(ERROR) << "Failed to open custom error page: " << it->second;
   }
 
   std::string title = http::statusWithReason(status);
