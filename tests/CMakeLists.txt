@@ -23,9 +23,9 @@ endif()
 include_directories(${CMAKE_SOURCE_DIR})
 
 # Build tests by linking against the library target `webserv_lib` so we don't recompile sources
-add_executable(runTests test_main.cpp 
-  ../src/utils/utils_test.cpp 
-  ../src/utils/file_utils_test.cpp 
+add_executable(runTests test_main.cpp
+  ../src/utils/utils_test.cpp
+  ../src/utils/file_utils_test.cpp
   ../src/config/Config_test.cpp
   ../src/config/Location_test.cpp
   ../src/http/HttpMethod_test.cpp

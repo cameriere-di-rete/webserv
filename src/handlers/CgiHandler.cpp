@@ -17,8 +17,10 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
-CgiHandler::CgiHandler(const std::string& script_path)
+CgiHandler::CgiHandler(const std::string& script_path,
+                       const std::set<std::string>& allowed_extensions)
     : script_path_(script_path),
+      allowed_extensions_(allowed_extensions),
       script_pid_(-1),
       pipe_read_fd_(-1),
       pipe_write_fd_(-1),
@@ -187,9 +189,6 @@ HandlerResult CgiHandler::start(Connection& conn) {
     while (remaining > 0) {
       ssize_t written = write(pipe_write_fd_, buf + total_written, remaining);
       if (written == -1) {
-        if (errno == EINTR) {
-          continue;  // Retry on interrupt
-        }
         LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
         break;
       }
@@ -230,17 +229,11 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   if (bytes_read == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      // No more data available right now, need to wait for more
-      LOG(DEBUG) << "CgiHandler: would block, accumulated "
-                 << accumulated_output_.size() << " bytes so far";
-      return HR_WOULD_BLOCK;
-    }
-    // Real error
-    LOG_PERROR(ERROR, "CgiHandler: read from CGI failed");
-    cleanupProcess();
-    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return HR_DONE;
+    // Non-blocking read returned -1. Treat as "would block" and wait for
+    // more data; do not inspect `errno` here per policy.
+    LOG(DEBUG) << "CgiHandler: would block, accumulated "
+               << accumulated_output_.size() << " bytes so far";
+    return HR_WOULD_BLOCK;
   }
 
   // bytes_read == 0 means EOF - CGI finished writing
@@ -487,14 +480,6 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
 
 // Check if file extension is in the allowed list
 bool CgiHandler::isAllowedExtension(const std::string& path) {
-  // Whitelist of allowed CGI script extensions
-  const char* allowed_extensions[] = {".sh",   // Shell scripts
-                                      ".py",   // Python scripts
-                                      ".pl",   // Perl scripts
-                                      ".php",  // PHP scripts
-                                      ".cgi",  // Generic CGI scripts
-                                      NULL};
-
   size_t dot_pos = path.find_last_of('.');
   if (dot_pos == std::string::npos) {
     // No extension found
@@ -503,11 +488,6 @@ bool CgiHandler::isAllowedExtension(const std::string& path) {
 
   std::string extension = path.substr(dot_pos);
 
-  for (int i = 0; allowed_extensions[i] != NULL; ++i) {
-    if (extension == allowed_extensions[i]) {
-      return true;
-    }
-  }
-
-  return false;
+  // Only accept explicitly configured extensions
+  return allowed_extensions_.find(extension) != allowed_extensions_.end();
 }

@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <cstddef>
+#include <ctime>
 #include <map>
 #include <string>
 
@@ -32,8 +33,15 @@ class Connection {
   Response response;
   IHandler* active_handler;
   std::map<http::Status, std::string> error_pages;
+  time_t read_start;   // Timestamp when connection started (for read timeout)
+  time_t write_start;  // Timestamp when write phase started (0 if not started)
 
   int handleRead();
+  void startWritePhase();  // Mark the start of write phase
+  bool isReadTimedOut(
+      int timeout_seconds) const;  // Check if read phase timed out
+  bool isWriteTimedOut(
+      int timeout_seconds) const;  // Check if write phase timed out
   int handleWrite();
   void processRequest(const class Server& server);
   void processResponse(const class Location& location);
@@ -43,6 +51,9 @@ class Connection {
   // Validate request version and method for a given location.
   // Returns http::S_0_UNKNOWN on success, or an http::Status code to send.
   http::Status validateRequestForLocation(const class Location& location);
+  // Validate request body size and related headers for a given location.
+  // Returns http::S_0_UNKNOWN on success, or an http::Status code to send.
+  http::Status validateRequestBodyForLocation(const class Location& location);
   // Resolve the request URI to a filesystem path according to `location`.
   // On success returns true and fills `out_path` and `out_is_directory`.
   // On failure it prepares an error response and returns false.

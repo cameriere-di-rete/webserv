@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <set>
 #include <string>
@@ -9,6 +10,9 @@
 
 // Tri-state for boolean directives that need to distinguish "not set"
 enum Tristate { UNSET = -1, OFF = 0, ON = 1 };
+
+extern const std::size_t kMaxRequestBodyUnset;
+extern const std::size_t kMaxRequestBodyDefault;
 
 class Location {
  public:
@@ -25,7 +29,8 @@ class Location {
   std::set<http::Method> allow_methods;
   http::Status redirect_code;
   std::string redirect_location;
-  std::string cgi_root;  // Dedicated root directory for CGI scripts
+  std::string cgi_root;
+  std::set<std::string> cgi_extensions;
   std::set<std::string> index;
   Tristate autoindex;
   std::string root;
