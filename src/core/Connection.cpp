@@ -6,7 +6,6 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -21,7 +20,6 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
-#include "file_utils.hpp"
 #include "utils.hpp"
 
 Connection::Connection()
@@ -193,7 +191,6 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.reason = http::reasonPhrase(status);
 
   // Check if there's a custom error page configured for this status.
-  {
     std::map<http::Status, std::string>::const_iterator it =
         error_pages.find(status);
     if (it != error_pages.end()) {
@@ -212,7 +209,6 @@ void Connection::prepareErrorResponse(http::Status status) {
       }
       // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
       delete efh;
-    }
     LOG(ERROR) << "Failed to open custom error page: " << it->second;
   }
 
@@ -222,8 +218,26 @@ void Connection::prepareErrorResponse(http::Status status) {
        << CRLF << "<body>" << CRLF << "<center><h1>" << title
        << "</h1></center>" << CRLF << "</body>" << CRLF << "</html>" << CRLF;
 
+  // For HEAD requests, send only headers (with correct Content-Length).
+  const std::string& method = request.request_line.method;
+  if (method == "HEAD") {
+    response.status_line.version = getHttpVersion();
+    response.status_line.status_code = status;
+    response.status_line.reason = http::reasonPhrase(status);
+    response.addHeader("Content-Type", "text/html; charset=utf-8");
+    std::ostringstream len;
+    len << body.str().size();
+    response.addHeader("Content-Length", len.str());
+
+    std::ostringstream header_stream;
+    header_stream << response.startLine() << CRLF;
+    header_stream << response.serializeHeaders();
+    header_stream << CRLF;
+    write_buffer = header_stream.str();
+  } else {
   response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
   write_buffer = response.serialize();
+  }
 }
 
 void Connection::setHandler(IHandler* h) {
