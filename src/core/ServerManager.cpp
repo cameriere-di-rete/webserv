@@ -27,7 +27,6 @@
 #include "IHandler.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
-#include "utils.hpp"
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
@@ -93,11 +92,6 @@ void ServerManager::acceptConnection(int listen_fd) {
       }
       LOG_PERROR(ERROR, "accept");
       break;
-    }
-    if (set_nonblocking(conn_fd) < 0) {
-      LOG_PERROR(ERROR, "set_nonblocking conn_fd");
-      close(conn_fd);
-      continue;
     }
 
     LOG(DEBUG) << "New connection accepted (fd: " << conn_fd
