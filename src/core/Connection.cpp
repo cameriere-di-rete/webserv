@@ -191,24 +191,24 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.reason = http::reasonPhrase(status);
 
   // Check if there's a custom error page configured for this status.
-    std::map<http::Status, std::string>::const_iterator it =
-        error_pages.find(status);
-    if (it != error_pages.end()) {
-      // Serve the custom error page using ErrorFileHandler (streams via
-      // sendfile() and integrates with the Connection's event loop).
-      ErrorFileHandler* efh = new ErrorFileHandler(it->second);
-      // Ensure response status reflects the error
-      response.status_line.version = getHttpVersion();
-      response.status_line.status_code = status;
-      response.status_line.reason = http::reasonPhrase(status);
-      // Let handler prepare headers and stream body
-      HandlerResult hr = efh->start(*this);
-      if (hr == HR_WOULD_BLOCK) {
-        setHandler(efh);
-        return;
-      }
-      // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
-      delete efh;
+  std::map<http::Status, std::string>::const_iterator it =
+      error_pages.find(status);
+  if (it != error_pages.end()) {
+    // Serve the custom error page using ErrorFileHandler (streams via
+    // sendfile() and integrates with the Connection's event loop).
+    ErrorFileHandler* efh = new ErrorFileHandler(it->second);
+    // Ensure response status reflects the error
+    response.status_line.version = getHttpVersion();
+    response.status_line.status_code = status;
+    response.status_line.reason = http::reasonPhrase(status);
+    // Let handler prepare headers and stream body
+    HandlerResult hr = efh->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      setHandler(efh);
+      return;
+    }
+    // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
+    delete efh;
     LOG(ERROR) << "Failed to open custom error page: " << it->second;
   }
 
@@ -235,8 +235,8 @@ void Connection::prepareErrorResponse(http::Status status) {
     header_stream << CRLF;
     write_buffer = header_stream.str();
   } else {
-  response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
-  write_buffer = response.serialize();
+    response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
+    write_buffer = response.serialize();
   }
 }
 
@@ -376,6 +376,13 @@ void Connection::processResponse(const Location& location) {
 
   // Directory handling
   if (is_directory) {
+    if (!location.index.empty()) {
+      // `index` directive is configured but no index file was found for the
+      // requested directory -> respond with 404 Not Found (not 403).
+      prepareErrorResponse(http::S_404_NOT_FOUND);
+      return;
+    }
+
     if (location.autoindex) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
