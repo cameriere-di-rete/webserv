@@ -33,6 +33,9 @@ class ServerManager {
   // Extract and validate request body from read buffer
   // Returns: 1 = body ready, 0 = need more data, -1 = error (response prepared)
   int extractRequestBody(Connection& conn, int conn_fd);
+  // Prepare responses for connections that have completed reading
+  // but do not yet have a write buffer
+  void prepareResponses();
   // Check all connections for timeout and close stale ones
   void checkConnectionTimeouts();
 
@@ -51,6 +54,9 @@ class ServerManager {
 
   // Updates epoll events for a file descriptor
   void updateEvents(int fd, u_int32_t events);
+
+  // Handle a single epoll event for fd with given event mask
+  void handleEvent(int fd, u_int32_t ev_mask);
 
   void setupSignalHandlers();
 
