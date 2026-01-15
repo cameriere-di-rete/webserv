@@ -413,9 +413,20 @@ void CgiHandler::setupEnvironment(Connection& conn) {
     len_ss << conn.request.getBody().data.length();
     setenv("CONTENT_LENGTH", len_ss.str().c_str(), 1);
   }
-
-  // HTTP headers as environment variables
-  // Note: Request class needs to provide header iteration interface
+  // Export Cookie headers to HTTP_COOKIE environment variable(s) for CGI.
+  // If multiple Cookie headers are present, join them with "; " per RFC.
+  std::vector<std::string> cookie_headers = conn.request.getHeaders("Cookie");
+  if (!cookie_headers.empty()) {
+    std::string joined;
+    for (std::vector<std::string>::const_iterator it = cookie_headers.begin();
+         it != cookie_headers.end(); ++it) {
+      if (!joined.empty()) {
+        joined += "; ";
+      }
+      joined += *it;
+    }
+    setenv("HTTP_COOKIE", joined.c_str(), 1);
+  }
 }
 
 // Security validation: check if script path is safe to execute

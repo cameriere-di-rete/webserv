@@ -49,3 +49,13 @@ void Response::setBodyWithContentType(const std::string& data,
   oss << body.size();
   addHeader("Content-Length", oss.str());
 }
+
+void Response::addCookie(const std::string& name, const std::string& value,
+                         const std::string& attrs) {
+  std::string cookie = name + "=" + value;
+  if (!attrs.empty()) {
+    cookie += "; ";
+    cookie += attrs;
+  }
+  addHeader("Set-Cookie", cookie);
+}

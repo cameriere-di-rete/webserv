@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<title>Interactive Cookie Test</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 2rem;
+		}
+
+		pre {
+			background: #f6f6f6;
+			padding: 1rem;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>Interactive Cookie Test</h1>
+	<p>Use the buttons below to set, read, and delete a cookie named <code>sess</code>.</p>
+	<button id="set">Set cookie</button>
+	<button id="read">Read cookie</button>
+	<button id="del">Delete cookie</button>
+	<h3>Result</h3>
+	<pre id="out">(no output)</pre>
+
+	<script>
+		function show(msg) { document.getElementById('out').textContent = msg; }
+
+		// Use HTTP endpoints to set/read/delete the cookie on the server side.
+		// We include credentials so cookies are sent/received for same-origin.
+		document.getElementById('set').addEventListener('click', function () {
+			show('Setting cookie via HTTP...');
+			fetch('/cgi-bin/setcookie.sh', { credentials: 'same-origin' })
+				.then(function () { return fetch('/cgi-bin/echo_cookie.sh', { credentials: 'same-origin' }); })
+				.then(function (res) { return res.text(); })
+				.then(function (text) { show('Server saw: ' + text); })
+				.catch(function (err) { show('Error: ' + err); });
+		});
+
+		document.getElementById('read').addEventListener('click', function () {
+			show('Reading cookie from server...');
+			fetch('/cgi-bin/echo_cookie.sh', { credentials: 'same-origin' })
+				.then(function (res) { return res.text(); })
+				.then(function (text) { show('Server saw: ' + text); })
+				.catch(function (err) { show('Error: ' + err); });
+		});
+
+		document.getElementById('del').addEventListener('click', function () {
+			show('Deleting cookie via HTTP...');
+			// Attempt to delete via the setcookie CGI with a query flag; server
+			// may treat this and expire the cookie. After the request, query the
+			// server to show whether the cookie is gone.
+			fetch('/cgi-bin/setcookie.sh?del=1', { credentials: 'same-origin' })
+				.then(function () { return fetch('/cgi-bin/echo_cookie.sh', { credentials: 'same-origin' }); })
+				.then(function (res) { return res.text(); })
+				.then(function (text) { show('Server saw: ' + text); })
+				.catch(function (err) { show('Error: ' + err); });
+		});
+	</script>
+</body>
+
+</html>
