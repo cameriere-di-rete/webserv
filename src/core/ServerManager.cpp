@@ -196,7 +196,6 @@ int ServerManager::run() {
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
       uint32_t ev_mask = events[i].events;
-      LOG(DEBUG) << "Processing event for fd: " << fd;
 
       handleEvent(fd, ev_mask);
 
