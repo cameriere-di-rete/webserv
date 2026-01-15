@@ -221,10 +221,7 @@ void Connection::prepareErrorResponse(http::Status status) {
   // For HEAD requests, send only headers (with correct Content-Length).
   const std::string& method = request.request_line.method;
   if (method == "HEAD") {
-    response.status_line.version = getHttpVersion();
-    response.status_line.status_code = status;
-    response.status_line.reason = http::reasonPhrase(status);
-    response.addHeader("Content-Type", "text/html; charset=utf-8");
+        response.addHeader("Content-Type", "text/html; charset=utf-8");
     std::ostringstream len;
     len << body.str().size();
     response.addHeader("Content-Length", len.str());
