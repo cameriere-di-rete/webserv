@@ -228,7 +228,7 @@ void Connection::prepareErrorResponse(http::Status status) {
 
     std::ostringstream header_stream;
     header_stream << response.startLine() << CRLF;
-    header_stream << response.serializeHeaders();
+    header_stream << response.serializeHeadersWithConnection();
     header_stream << CRLF;
     write_buffer = header_stream.str();
   } else {

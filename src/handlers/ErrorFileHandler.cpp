@@ -42,7 +42,7 @@ HandlerResult ErrorFileHandler::start(Connection& conn) {
   }
   std::ostringstream header_stream;
   header_stream << conn.response.startLine() << CRLF;
-  header_stream << conn.response.serializeHeaders();
+  header_stream << conn.response.serializeHeadersWithConnection();
   header_stream << CRLF;
   conn.write_buffer = header_stream.str();
   conn.write_offset = 0;

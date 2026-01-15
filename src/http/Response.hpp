@@ -13,7 +13,11 @@ class Response : public Message {
   StatusLine status_line;
 
   virtual std::string startLine() const;
+  virtual std::string serialize() const;
   bool parseStartAndHeaders(const std::vector<std::string>& lines);
+
+  // Serialize including implicit Connection header when absent
+  std::string serializeHeadersWithConnection() const;
 
   // Helper methods to reduce boilerplate when constructing responses
   void setStatus(http::Status status, const std::string& version);
