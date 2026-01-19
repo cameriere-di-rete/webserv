@@ -20,7 +20,7 @@
       <br>
       <br>
       <br>
-      <label for="error-select">Codice errore:</label>
+      <label for="error-select">Error code:</label>
       <select id="error-select" class="nav-link" style="width:auto;display:inline-block;">
         <option value="200">200 OK</option>
         <option value="201">201 Created</option>
@@ -63,16 +63,16 @@
         <option value="510">510 Not Extended</option>
         <option value="511">511 Network Authentication Required</option>
       </select>
-      <button id="trigger-error" class="nav-link" style="margin-left:1rem;">Trigger errore</button>
+      <button id="trigger-error" class="nav-link" style="margin-left:1rem;">Trigger error</button>
     </div>
     <script>
       document.getElementById('trigger-error').onclick = function () {
         const code = document.getElementById('error-select').value;
-        window.location.href = '/tesosds?code=' + code;
+        window.location.href = '/test-error?code=' + code;
       };
     </script>
   </div>
-  <img src="/image/bird.png" alt="Piccione" class="bird-image" id="bird-img">
+  <img src="/image/bird.png" alt="Pigeon" class="bird-image" id="bird-img">
   <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
 </body>
 
