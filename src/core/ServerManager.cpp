@@ -309,20 +309,6 @@ int ServerManager::run() {
         continue;
       }
 
-      // Extract and validate request body
-      int body_result = extractRequestBody(conn, conn_fd);
-      if (body_result < 0) {
-        // Error occurred, response already prepared
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-        continue;
-      } else if (body_result == 0) {
-        // Body not fully received yet, wait for more data
-        continue;
-      }
-
-      LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
-                 << " " << conn.request.request_line.uri;
-
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
       if (srv_it == servers_.end()) {
@@ -559,54 +545,6 @@ void ServerManager::cleanupHandlerResources(Connection& c) {
       unregisterCgiPipe(monitor_fd);
     }
   }
-}
-
-int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
-  // Extract body from read_buffer (after "\r\n\r\n")
-  std::size_t body_start = conn.headers_end_pos + 4;
-
-  // Check for Content-Length header
-  std::string content_length_str;
-  std::size_t expected_body_length = 0;
-  bool has_content_length = false;
-
-  if (conn.request.getHeader("Content-Length", content_length_str)) {
-    // C++98 compatible: use atol instead of std::stoul
-    long content_len = std::atol(content_length_str.c_str());
-    if (content_len < 0) {
-      // Malformed Content-Length header
-      LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
-                << ", sending 400 Bad Request";
-      conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-      return -1;
-    }
-    expected_body_length = static_cast<std::size_t>(content_len);
-    has_content_length = true;
-  }
-
-  std::size_t available_body_length =
-      (body_start < conn.read_buffer.size())
-          ? (conn.read_buffer.size() - body_start)
-          : 0;
-
-  if (has_content_length) {
-    if (available_body_length < expected_body_length) {
-      // Body not fully received yet, wait for more data
-      return 0;
-    }
-    // Use exactly the expected length (handles both exact match and excess)
-    std::string body_data =
-        conn.read_buffer.substr(body_start, expected_body_length);
-    conn.request.getBody().data = body_data;
-  } else {
-    // No Content-Length header, use all available data
-    if (available_body_length > 0) {
-      std::string body_data = conn.read_buffer.substr(body_start);
-      conn.request.getBody().data = body_data;
-    }
-  }
-
-  return 1;  // Body ready
 }
 
 void ServerManager::checkConnectionTimeouts() {

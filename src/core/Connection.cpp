@@ -366,8 +366,7 @@ void Connection::processResponse(const Location& location) {
 
   // For POST/PUT/DELETE on directories, use FileHandler which can create files
   std::string method = request.request_line.method;
-  if (is_directory &&
-      (method == "POST" || method == "PUT")) {
+  if (is_directory && method == "POST") {
     // FileHandler can handle POST to directory (creates new file)
     IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
     HandlerResult hr = executeHandler(handler);
