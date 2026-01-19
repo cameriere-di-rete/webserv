@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -17,6 +18,9 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
+// CGI script timeout in seconds
+static const unsigned int CGI_TIMEOUT_SECONDS = 10;
+
 CgiHandler::CgiHandler(const std::string& script_path,
                        const std::set<std::string>& allowed_extensions)
     : script_path_(script_path),
@@ -26,7 +30,8 @@ CgiHandler::CgiHandler(const std::string& script_path,
       pipe_write_fd_(-1),
       process_started_(false),
       headers_parsed_(false),
-      accumulated_output_() {}
+      accumulated_output_(),
+      start_time_(0) {}
 
 CgiHandler::~CgiHandler() {
   cleanupProcess();
@@ -153,6 +158,9 @@ HandlerResult CgiHandler::start(Connection& conn) {
       script_name = abs_script_path;
     }
 
+    // Set timeout - script will be killed by SIGALRM after CGI_TIMEOUT_SECONDS
+    alarm(CGI_TIMEOUT_SECONDS);
+
     // Execute script using ./filename (we're in its directory)
     // On Unix, scripts must be executed with ./ prefix when in current
     // directory
@@ -171,6 +179,7 @@ HandlerResult CgiHandler::start(Connection& conn) {
   pipe_write_fd_ = pipe_to_cgi[1];
   pipe_read_fd_ = pipe_from_cgi[0];
   process_started_ = true;
+  start_time_ = time(NULL);  // Record start time for timeout
 
   // Set pipe to non-blocking mode for asynchronous I/O
   if (set_nonblocking(pipe_read_fd_) < 0) {
@@ -217,7 +226,29 @@ HandlerResult CgiHandler::resume(Connection& conn) {
   return readCgiOutput(conn);
 }
 
+bool CgiHandler::checkTimeout(Connection& conn) {
+  if (start_time_ == 0 || script_pid_ <= 0) {
+    return false;
+  }
+  time_t now = time(NULL);
+  if (now - start_time_ >= CGI_TIMEOUT_SECONDS) {
+    LOG(ERROR) << "CgiHandler: CGI script timed out after "
+               << CGI_TIMEOUT_SECONDS << " seconds, killing pid "
+               << script_pid_;
+    kill(script_pid_, SIGKILL);
+    cleanupProcess();
+    conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
+    return true;
+  }
+  return false;
+}
+
 HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
+  // Check for timeout before reading
+  if (checkTimeout(conn)) {
+    return HR_DONE;
+  }
+
   char buffer[WRITE_BUF_SIZE];
   ssize_t bytes_read;
 

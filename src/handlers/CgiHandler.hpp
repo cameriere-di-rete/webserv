@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ctime>
 #include <set>
 #include <string>
 
@@ -26,6 +27,7 @@ class CgiHandler : public IHandler {
   bool validateScriptPath(const std::string& path, std::string& error_msg);
   bool isAllowedExtension(const std::string& path);
   bool isPathTraversalSafe(const std::string& path);
+  bool checkTimeout(Connection& conn);
 
   std::string script_path_;
   std::set<std::string> allowed_extensions_;
@@ -36,4 +38,5 @@ class CgiHandler : public IHandler {
   bool headers_parsed_;
   std::string remaining_data_;
   std::string accumulated_output_;
+  time_t start_time_;
 };
