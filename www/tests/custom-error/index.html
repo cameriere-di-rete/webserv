@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Error page test</title>
+
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 
@@ -12,9 +13,66 @@
   <div class="container">
     <a href="/tests/" class="back-link">← Back to Test Suite</a>
     <h1>Error page test</h1>
-    <p class="subtitle">Click the link below to trigger a 404 and view the custom error page.</p>
-    <a href="/this-file-does-not-exist" class="test-card nav-link">Trigger 404</a>
+    <br>
+    <br>
+    <p class="subtitle">Scegli un codice di errore e visualizza la pagina custom corrispondente.</p>
+    <div style="margin-bottom:2rem;">
+      <br>
+      <br>
+      <br>
+      <label for="error-select">Codice errore:</label>
+      <select id="error-select" class="nav-link" style="width:auto;display:inline-block;">
+        <option value="200">200 OK</option>
+        <option value="201">201 Created</option>
+        <option value="204">204 No Content</option>
+        <option value="206">206 Partial Content</option>
+        <option value="301">301 Moved Permanently</option>
+        <option value="302">302 Found</option>
+        <option value="303">303 See Other</option>
+        <option value="307">307 Temporary Redirect</option>
+        <option value="308">308 Permanent Redirect</option>
+        <option value="400">400 Bad Request</option>
+        <option value="401">401 Unauthorized</option>
+        <option value="402">402 Payment Required</option>
+        <option value="403">403 Forbidden</option>
+        <option value="404">404 Not Found</option>
+        <option value="405">405 Method Not Allowed</option>
+        <option value="406">406 Not Acceptable</option>
+        <option value="408">408 Request Timeout</option>
+        <option value="409">409 Conflict</option>
+        <option value="410">410 Gone</option>
+        <option value="413">413 Payload Too Large</option>
+        <option value="414">414 URI Too Long</option>
+        <option value="415">415 Unsupported Media Type</option>
+        <option value="416">416 Range Not Satisfiable</option>
+        <option value="417">417 Expectation Failed</option>
+        <option value="418">418 I'm a teapot</option>
+        <option value="426">426 Upgrade Required</option>
+        <option value="428">428 Precondition Required</option>
+        <option value="429">429 Too Many Requests</option>
+        <option value="431">431 Header Fields Too Large</option>
+        <option value="451">451 Legal Reasons</option>
+        <option value="500">500 Internal Server Error</option>
+        <option value="501">501 Not Implemented</option>
+        <option value="502">502 Bad Gateway</option>
+        <option value="503">503 Service Unavailable</option>
+        <option value="504">504 Gateway Timeout</option>
+        <option value="505">505 HTTP Version Not Supported</option>
+        <option value="507">507 Insufficient Storage</option>
+        <option value="509">509 Bandwidth Limit Exceeded</option>
+        <option value="510">510 Not Extended</option>
+        <option value="511">511 Network Authentication Required</option>
+      </select>
+      <button id="trigger-error" class="nav-link" style="margin-left:1rem;">Trigger errore</button>
+    </div>
+    <script>
+      document.getElementById('trigger-error').onclick = function () {
+        const code = document.getElementById('error-select').value;
+        window.location.href = '/tesosds?code=' + code;
+      };
+    </script>
   </div>
+  <img src="/image/bird.png" alt="Piccione" class="bird-image" id="bird-img">
   <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
 </body>
 

@@ -10,23 +10,25 @@
 
 <body class="test-page">
   <div class="container">
-    <a href="/" class="back-link">← Back to home</a>
-    <h1>webserv Test Suite</h1>
-    <p class="subtitle">Select a test category below</p>
+    <a href="/" class="back-link">← Home</a>
+    <h1>Try it out</h1>
+    <p class="subtitle">Have fun and enjoy the stay</p>
 
     <h2>Feature Tests</h2>
     <div class="test-grid">
       <a href="/tests/limits/" class="test-card">
-        <h3>📏 Request Limits</h3>
+        <h3>🤏 Request Limits</h3>
         <p>Test request body size limits</p>
       </a>
       <a href="/tests/upload/" class="test-card">
         <h3>📤 File Upload</h3>
         <p>Upload and delete files using PUT and DELETE</p>
       </a>
-      <a href="/tests/custom-error/" class="test-card">
-        <h3>❗ Custom Error Page</h3>
-        <p>Trigger a 404 to view the custom error page</p>
+      <a href="/tests/custom-error/" class="test-card" style="position: relative;">
+        <h3>⚠️ Custom Error Page</h3>
+        <p>Trigger errors to view the custom error page</p>
+        <img src="/image/walking_bro.gif" alt="Walking Bro"
+          style="position: absolute; left: 150%; top: 50%; transform: translateY(-50%) scaleX(-1); width: 90px; height: auto; pointer-events: none;" />
       </a>
     </div>
 
@@ -37,7 +39,7 @@
         <p>Test static file serving, directory listing, and 404 errors</p>
       </a>
       <a href="/autoindex/" class="test-card">
-        <h3>📂 Autoindex</h3>
+        <h3>🗃️ Autoindex</h3>
         <p>Directory listing at the server root</p>
       </a>
       <a href="/tests/redirect/" class="test-card">
@@ -51,6 +53,64 @@
     </div>
   </div>
   <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+
+  <script>
+    function dropBread(side) {
+      const img = document.createElement('img');
+      img.src = '/image/bread.png';
+      img.alt = 'Bread';
+      img.style.position = 'fixed';
+      img.style.top = '-800px';
+      img.style.width = '400px';
+      img.style.height = 'auto';
+      img.style.zIndex = 2;
+      img.style.opacity = '0.65';
+      img.style.pointerEvents = 'none';
+      img.style.transition = 'transform 0.2s';
+      if (side === 'left') {
+        img.style.left = '10px';
+      } else {
+        img.style.right = '10px';
+      }
+      document.body.appendChild(img);
+      const speed = Math.random() * 2 + 1.5;
+      let pos = -400;
+      function fall() {
+        pos += speed;
+        img.style.top = pos + 'px';
+        if (pos < window.innerHeight + 200) {
+          requestAnimationFrame(fall);
+        } else {
+          img.remove();
+        }
+      }
+      requestAnimationFrame(fall);
+    }
+
+    let breadLeftInterval = null;
+    let breadRightInterval = null;
+
+    function startBreadIntervals() {
+      if (!breadLeftInterval) breadLeftInterval = setInterval(() => { dropBread('left'); }, 900);
+      if (!breadRightInterval) breadRightInterval = setInterval(() => { dropBread('right'); }, 900);
+    }
+    function stopBreadIntervals() {
+      if (breadLeftInterval) { clearInterval(breadLeftInterval); breadLeftInterval = null; }
+      if (breadRightInterval) { clearInterval(breadRightInterval); breadRightInterval = null; }
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        startBreadIntervals();
+      } else {
+        stopBreadIntervals();
+      }
+    });
+
+    if (document.visibilityState === 'visible') {
+      startBreadIntervals();
+    }
+  </script>
 </body>
 
 </html>

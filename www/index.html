@@ -12,12 +12,58 @@
   <div class="site-root">
     <main class="content">
       <div class="box">
-        <h1 class="title">webserv</h1>
-        <div class="by">by fmartusc, edforte, lrocca</div>
-        <a href="/tests/" class="nav-link">🧪 Test Suite</a>
+        <h1 class="title">birdserv</h1>
+                <div class="by">  by fmartusc, edforte, lrocca</div>
+        <a href="/tests/" class="nav-link"> 🍞 test me 🍞</a>
       </div>
     </main>
   </div>
+  <img src="/image/bird.png" alt="Piccione" class="bird-image" id="bird-img">
+
+  <script>
+
+    function createBreadEmoji() {
+      const icons = ['🍞', '🥐', '🥖', '🥨', '🥯', '🥞', '🧇', '🍰', '🥧', '🍩', '🍪', '🍮'];
+      const emoji = document.createElement('div');
+      emoji.textContent = icons[Math.floor(Math.random() * icons.length)];
+      emoji.style.position = 'fixed';
+      emoji.style.left = Math.random() * 100 + 'vw';
+      emoji.style.top = '-3em';
+      emoji.style.fontSize = (Math.random() * 1.5 + 1.5) + 'em';
+      emoji.style.pointerEvents = 'none';
+      emoji.style.zIndex = 1;
+      emoji.style.transition = 'transform 0.2s';
+      document.body.appendChild(emoji);
+
+      const duration = Math.random() * 1.5 + 2.5;
+      const translateY = window.innerHeight + 100;
+      emoji.animate([
+        { transform: `translateY(0)` },
+        { transform: `translateY(${translateY}px)` }
+      ], {
+        duration: duration * 1000,
+        easing: 'linear',
+        fill: 'forwards'
+      });
+
+      setTimeout(() => {
+        emoji.remove();
+      }, duration * 1000);
+    }
+
+    let breadInterval = null;
+    const bird = document.getElementById('bird-img');
+    bird.addEventListener('mouseenter', () => {
+      if (breadInterval) return;
+      breadInterval = setInterval(() => {
+        for (let i = 0; i < 3; i++) createBreadEmoji();
+      }, 180);
+    });
+    bird.addEventListener('mouseleave', () => {
+      clearInterval(breadInterval);
+      breadInterval = null;
+    });
+  </script>
 </body>
 
 </html>

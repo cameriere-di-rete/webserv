@@ -105,6 +105,10 @@
             backdrop-filter: blur(5px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             max-width: 500px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
         }
 
         h2 {
@@ -182,6 +186,9 @@
             .text-content {
                 width: 80%;
                 padding: 20px;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
             }
         }
     </style>
@@ -192,7 +199,7 @@
     <div class="container" id="mainContainer">
         <div class="error-number" id="errorCode">404</div>
 
-        <img src="image/bird.png" alt="Confused Pigeon" class="bird-image" id="theBird">
+        <img src="/image/bird.png" alt="Confused Pigeon" class="bird-image" id="theBird">
 
         <div class="text-content">
             <h2 id="errorTitle">Oops!</h2>
@@ -204,6 +211,15 @@
     <script>
         // --- 1. CONFIGURAZIONE MESSAGGI ---
         const messages = {
+            '200': { title: "OK", text: "The pigeon delivered your message successfully!" },
+            '201': { title: "Created", text: "A new nest has been built. The pigeon is proud." },
+            '204': { title: "No Content", text: "The pigeon found nothing, but that's okay." },
+            '206': { title: "Partial Content", text: "The pigeon brought you part of the crumbs." },
+            '301': { title: "Moved Permanently", text: "The pigeon has migrated. Please follow him to the new location." },
+            '302': { title: "Found", text: "The pigeon found what you were looking for, but it's somewhere else." },
+            '303': { title: "See Other", text: "The pigeon suggests you look elsewhere for your crumbs." },
+            '307': { title: "Temporary Redirect", text: "The pigeon is taking a detour. He'll be back soon." },
+            '308': { title: "Permanent Redirect", text: "The pigeon has changed his route forever. Update your map!" },
             '400': { title: "Bad Request", text: "The pigeon tilted its head in confusion. Your request makes no sense in Pigeonish." },
             '401': { title: "Unauthorized", text: "Who goes there? The pigeon security guard needs to see your VIP Badge. No crumbs, no entry." },
             '402': { title: "Payment Required", text: "This is a premium perch. Please insert high-quality sourdough bread to proceed." },
@@ -217,7 +233,11 @@
             '413': { title: "Payload Too Large", text: "Whoa! That crumb is too big for the pigeon's beak. Try breaking it into smaller pieces." },
             '414': { title: "URI Too Long", text: "That link is longer than a pigeon's flight path. Please shorten it." },
             '415': { title: "Unsupported Media Type", text: "Yuck! The pigeon spat it out. It doesn't eat that file type." },
+            '416': { title: "Range Not Satisfiable", text: "The pigeon can't reach that far for crumbs. Try a smaller range!" },
+            '417': { title: "Expectation Failed", text: "The pigeon was expecting a treat, but you disappointed him." },
             '418': { title: "I'm a Teapot", text: "Coo? I am a pigeon, not a teapot! I cannot brew coffee, but I can make a mess on your car." },
+            '426': { title: "Upgrade Required", text: "This pigeon only accepts premium breadcrumbs. Please upgrade your snack." },
+            '428': { title: "Precondition Required", text: "The pigeon needs you to agree to the terms and crumbs before proceeding." },
             '429': { title: "Too Many Requests", text: "SLOW DOWN! You are feeding the server too fast. The pigeon is getting fat and can't fly!" },
             '431': { title: "Header Fields Too Large", text: "The pigeon's head is too small to hold all this header information. Simplify it." },
             '451': { title: "Legal Reasons", text: "Censored. The pigeon lawyer advised us not to show this page. Legal stuff, you know." },
@@ -229,6 +249,8 @@
             '505': { title: "HTTP Version Not Supported", text: "Old school pigeon. He doesn't understand this modern HTTP gibberish." },
             '507': { title: "Insufficient Storage", text: "The nest is full! There is no more room for twigs or data." },
             '509': { title: "Bandwidth Limit Exceeded", text: "We ran out of birdseed to power the connection. The bandwidth bucket is empty." },
+            '510': { title: "Not Extended", text: "The pigeon needs more information to deliver your message. Please extend your request." },
+            '511': { title: "Network Authentication Required", text: "The pigeon needs to see your network credentials (or at least a crumb)." },
             'default': { title: "Unknown Error", text: "Something is wrong. The pigeon is looking at you with a very judgmental stare." }
         };
 
