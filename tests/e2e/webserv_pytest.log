@@ -1,0 +1,34 @@
+[2026-01-19 13:47:36] [INFO]	Configuration loaded from /workspaces/WebServer/tests/e2e/conf/test.conf
+[2026-01-19 13:47:36] [INFO]	Server listening on 0.0.0.0:8080
+[2026-01-19 13:47:36] [INFO]	Server listening on 0.0.0.0:8081
+[2026-01-19 13:47:37] [INFO]	Client disconnected (fd: 7)
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /cgi-bin/basic.sh HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /cgi-bin/simple.sh HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	Not implemented method: FOO
+[2026-01-19 13:47:37] [ERROR]	Failed to open custom error page: 
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "FOO / HTTP/1.1" 501 223
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /nonexistent HTTP/1.1" 404 86
+[2026-01-19 13:47:37] [ERROR]	Failed to open custom error page: 
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "POST / HTTP/1.1" 413 229
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /cgi-bin/hang.cgi HTTP/1.1" 200 80
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "HEAD / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /perm_denied.txt HTTP/1.1" 404 86
+[2026-01-19 13:47:37] [ERROR]	FileHandler: Failed to open file for PUT: Permission denied
+[2026-01-19 13:47:37] [ERROR]	Failed to open custom error page: 
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "PUT /uploads/perm_upload.txt HTTP/1.1" 500 241
+[2026-01-19 13:47:37] [ERROR]	Failed to open custom error page: 
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /index.html HTTP/1.1" 416 268
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "DELETE /uploads/nonexistent.txt HTTP/1.1" 404 86
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /index.html HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /nonexistent.html HTTP/1.1" 404 86
+[2026-01-19 13:47:37] [INFO]	Not implemented method: FOO
+[2026-01-19 13:47:37] [ERROR]	Failed to open custom error page: 
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "FOO / HTTP/1.1" 501 223
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "HEAD / HTTP/1.1" 200 79
+[2026-01-19 13:47:37] [INFO]	127.0.0.1 "GET /nonexistent HTTP/1.1" 404 86
+[2026-01-19 13:47:37] [INFO]	Shutting down webserv...
+[2026-01-19 13:47:37] [INFO]	webserv shutdown complete
