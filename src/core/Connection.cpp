@@ -289,6 +289,10 @@ void Connection::processRequest(const Server& server) {
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+  LOG(DEBUG) << "Location path: " << location.path
+             << " allow_methods size: " << location.allow_methods.size();
+  LOG(DEBUG) << "Location max_request_body: " << location.max_request_body;
+  LOG(DEBUG) << "Request body size: " << request.getBody().size();
 
   // Store error page config (paths already resolved in matchLocation)
   error_pages = location.error_page;
