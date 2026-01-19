@@ -27,7 +27,8 @@
       <p style="color: #94a3b8; font-size: 0.875rem">
         The server is configured with <code>max_request_body</code> directive.
         Default is 4096 bytes. Requests exceeding this limit will receive a
-        <strong>413 Payload Too Large</strong> response.
+        <strong>413 Payload Too Large</strong> response.<br>
+        <strong>Note:</strong> POST creates new resources (409 if file exists), PUT overwrites existing files.
       </p>
     </div>
 
@@ -37,30 +38,16 @@
       <input type="text" id="size-bytes" value="5000" />
 
       <label for="target-path">Target Path:</label>
-      <input type="text" id="target-path" value="/test.txt" />
+      <input type="text" id="target-path" value="/uploads/" placeholder="/uploads/ or /test-files/size-test.txt" />
+
+      <label for="request-method">Method:</label>
+      <select id="request-method">
+        <option value="POST">POST (to directory - creates new file)</option>
+        <option value="PUT">PUT (to file - overwrites/creates)</option>
+      </select>
 
       <button onclick="testBodySize()">Send Request</button>
       <div id="size-response" class="response-box"></div>
-    </div>
-
-    <h2>Quick Size Tests</h2>
-    <div class="test-grid">
-      <div class="test-card" onclick="quickSizeTest(1000)" style="cursor:pointer">
-        <h3><span class="method post">POST</span> 1 KB</h3>
-        <p>Should succeed (under limit)</p>
-      </div>
-      <div class="test-card" onclick="quickSizeTest(4000)" style="cursor:pointer">
-        <h3><span class="method post">POST</span> 4 KB</h3>
-        <p>Should succeed (near limit)</p>
-      </div>
-      <div class="test-card" onclick="quickSizeTest(5000)" style="cursor:pointer">
-        <h3><span class="method post">POST</span> 5 KB</h3>
-        <p>Should fail (over limit)</p>
-      </div>
-      <div class="test-card" onclick="quickSizeTest(10000)" style="cursor:pointer">
-        <h3><span class="method post">POST</span> 10 KB</h3>
-        <p>Should fail (way over limit)</p>
-      </div>
     </div>
   </div>
 
@@ -70,22 +57,27 @@
     async function testBodySize() {
       const sizeBytes = parseInt(document.getElementById("size-bytes").value) || 1000;
       const targetPath = document.getElementById("target-path").value;
-      await doSizeTest(sizeBytes, targetPath);
+      const method = document.getElementById("request-method").value;
+      await doSizeTest(sizeBytes, targetPath, method);
     }
 
     async function quickSizeTest(sizeBytes) {
       document.getElementById("size-bytes").value = sizeBytes;
-      await doSizeTest(sizeBytes, "/test.txt");
+      await doSizeTest(sizeBytes, "/uploads/", "POST");
     }
 
-    async function doSizeTest(sizeBytes, targetPath) {
+    // Make functions globally accessible for onclick handlers
+    window.testBodySize = testBodySize;
+    window.quickSizeTest = quickSizeTest;
+
+    async function doSizeTest(sizeBytes, targetPath, method = "POST") {
       const responseDiv = document.getElementById("size-response");
       responseDiv.innerHTML = "";
       const body = "x".repeat(sizeBytes);
       try {
         const startTime = performance.now();
         const response = await fetch(targetPath, {
-          method: "POST",
+          method: method,
           body: body,
           headers: { "Content-Type": "text/plain" },
         });
