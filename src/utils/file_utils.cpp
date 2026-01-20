@@ -179,10 +179,6 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
 
     ssize_t s = sendfile(sock_fd, file_fd, &offset, to_send);
     if (s < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG(DEBUG) << "file_utils: sendfile would block (EAGAIN)";
-        return 1;
-      }
       LOG_PERROR(ERROR, "file_utils: sendfile error");
       return -1;
     }
