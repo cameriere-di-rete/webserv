@@ -104,7 +104,7 @@ void ServerManager::acceptConnection(int listen_fd) {
     connections_[conn_fd] = connection;
 
     // watch for reads; no write interest yet
-    updateEvents(conn_fd, EPOLLIN | EPOLLET);
+    updateEvents(conn_fd, EPOLLIN);
     LOG(DEBUG) << "Connection fd " << conn_fd << " registered with EPOLLIN";
   }
 }
@@ -325,7 +325,7 @@ bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
   struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLET;
+  ev.events = EPOLLIN;
   ev.data.fd = pipe_fd;
 
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
@@ -395,7 +395,7 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Enable write events to send response
-  updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+  updateEvents(conn_fd, EPOLLOUT);
 }
 
 void ServerManager::prepareResponses() {
@@ -425,7 +425,7 @@ void ServerManager::prepareResponses() {
       LOG(INFO) << "Malformed request on fd " << conn_fd
                 << ", sending 400 Bad Request";
       conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;
     }
 
@@ -433,7 +433,7 @@ void ServerManager::prepareResponses() {
     int body_result = extractRequestBody(conn, conn_fd);
     if (body_result < 0) {
       // Error occurred, response already prepared
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;
     } else if (body_result == 0) {
       // Body not fully received yet, wait for more data
@@ -450,7 +450,7 @@ void ServerManager::prepareResponses() {
       LOG(ERROR) << "Server not found for connection fd " << conn_fd
                  << " (server_fd: " << conn.server_fd << ")";
       conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;
     }
 
@@ -473,7 +473,7 @@ void ServerManager::prepareResponses() {
                      << conn_fd;
           conn.clearHandler();
           conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-          updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+          updateEvents(conn_fd, EPOLLOUT);
           continue;
         }
         // Don't enable EPOLLOUT yet - wait for CGI to complete
@@ -482,7 +482,7 @@ void ServerManager::prepareResponses() {
     }
 
     /* enable EPOLLOUT now that we have data to send */
-    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+    updateEvents(conn_fd, EPOLLOUT);
   }
 }
 
@@ -657,7 +657,7 @@ void ServerManager::checkConnectionTimeouts() {
       // Update epoll events to watch for EPOLLOUT so the response is sent
       // in the next event loop iteration. This is more reliable than
       // attempting to send immediately, as the socket might not be ready.
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;  // Skip cleanup and closing, let event loop handle it
     }
 
