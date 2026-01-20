@@ -373,13 +373,6 @@ void Connection::processResponse(const Location& location) {
 
   // Directory handling
   if (is_directory) {
-    if (!location.index.empty()) {
-      // `index` directive is configured but no index file was found for the
-      // requested directory -> respond with 404 Not Found (not 403).
-      prepareErrorResponse(http::S_404_NOT_FOUND);
-      return;
-    }
-
     if (location.autoindex) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
@@ -398,6 +391,11 @@ void Connection::processResponse(const Location& location) {
         return;  // handler will continue later
       }
       // HR_DONE or HR_ERROR: executeHandler already handled everything
+      return;
+    } else if (!location.index.empty()) {
+      // `index` directive is configured but no index file was found for the
+      // requested directory -> respond with 404 Not Found (not 403).
+      prepareErrorResponse(http::S_404_NOT_FOUND);
       return;
     } else {
       // Directory listing not allowed
