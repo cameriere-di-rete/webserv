@@ -14,7 +14,11 @@
     <h1>Try it out</h1>
     <p class="subtitle">Have fun and enjoy the stay</p>
 
-    <h2>Feature Tests</h2>
+    <h2 style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+      <img src="/image/walking_bro.gif" alt="Walking Bro" style="width: 100px; height: auto;" />
+      <span>Feature Tests</span>
+      <img src="/image/walking_bro.gif" alt="Walking Bro" style="width: 100px; height: auto; transform: scaleX(-1);" />
+    </h2>
     <div class="test-grid">
       <a href="/tests/limits/" class="test-card">
         <h3>🤏 Request Limits</h3>
@@ -24,11 +28,13 @@
         <h3>📤 File Upload</h3>
         <p>Upload and delete files using PUT and DELETE</p>
       </a>
-      <a href="/tests/custom-error/" class="test-card" style="position: relative;">
+      <a href="/tests/custom-error/" class="test-card">
         <h3>⚠️ Custom Error Page</h3>
         <p>Trigger errors to view the custom error page</p>
-        <img src="/image/walking_bro.gif" alt="Walking Bro"
-          style="position: absolute; left: 150%; top: 50%; transform: translateY(-50%) scaleX(-1); width: 90px; height: auto; pointer-events: none;" />
+      </a>
+      <a href="/tests/timeout/" class="test-card">
+        <h3>⏱️ Timeout</h3>
+        <p>Test CGI script timeout handling</p>
       </a>
     </div>
 
