@@ -309,6 +309,15 @@ int ServerManager::run() {
         continue;
       }
 
+      // Extract the request body from read_buffer (after \r\n\r\n)
+      // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
+      std::size_t body_start = conn.headers_end_pos + 4;
+      if (body_start < conn.read_buffer.size()) {
+        conn.request.getBody().data = conn.read_buffer.substr(body_start);
+        LOG(DEBUG) << "Extracted request body: "
+                   << conn.request.getBody().data.size() << " bytes";
+      }
+
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
       if (srv_it == servers_.end()) {
