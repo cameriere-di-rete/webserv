@@ -13,6 +13,342 @@
       height: auto !important;
       min-height: 100vh;
     }
+
+    .upload-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 900px) {
+      .upload-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .upload-panel,
+    .files-panel {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    .panel-title {
+      color: var(--accent);
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+      border-bottom: 1px solid var(--card-hover);
+      padding-bottom: 0.5rem;
+      font-family: var(--font-mono);
+    }
+
+    .file-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: var(--panel-bg);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--card-hover);
+      transition: all 0.2s ease;
+    }
+
+    .file-item:hover {
+      background: var(--card-bg);
+      border-color: var(--accent);
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-icon {
+      font-size: 1.2rem;
+    }
+
+    .file-name {
+      color: var(--fg);
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-name:hover {
+      color: var(--accent);
+    }
+
+    .file-size {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-left: auto;
+      padding-right: 1rem;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: var(--err);
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      font-size: 1.1rem;
+    }
+
+    .delete-btn:hover {
+      background: rgba(248, 113, 113, 0.2);
+      transform: scale(1.1);
+    }
+
+    .delete-btn:active {
+      transform: scale(0.95);
+    }
+
+    .empty-message {
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem;
+      font-style: italic;
+    }
+
+    .loading-message {
+      color: var(--accent);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .refresh-btn {
+      background: var(--panel-bg);
+      border: 1px solid var(--card-hover);
+      color: var(--accent);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      margin-left: 1rem;
+    }
+
+    .refresh-btn:hover {
+      background: var(--card-hover);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-hover);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .panel-header .panel-title {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .panel-mascot {
+      margin-top: 1.5rem;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    .panel-mascot img {
+      max-width: 400px;
+      height: auto;
+      opacity: 0.8;
+      transition: all 0.3s ease;
+    }
+
+    .panel-mascot img:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 1rem 1.5rem;
+      border-radius: var(--radius);
+      color: white;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .notification.success {
+      background: var(--method-get-bg);
+    }
+
+    .notification.error {
+      background: var(--method-delete-bg);
+    }
+
+    /* Scrollable file list */
+    .file-list-scroll {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .file-list-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .file-list-scroll::-webkit-scrollbar-track {
+      background: var(--panel-bg);
+      border-radius: 4px;
+    }
+
+    .file-list-scroll::-webkit-scrollbar-thumb {
+      background: var(--card-hover);
+      border-radius: 4px;
+    }
+
+    .file-list-scroll::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* Drag and drop zone */
+    .dropzone {
+      border: 2px dashed var(--card-hover);
+      border-radius: var(--radius);
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      background: var(--panel-bg);
+    }
+
+    .dropzone:hover {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.1);
+      transform: scale(1.02);
+    }
+
+    .dropzone-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .dropzone-text {
+      color: var(--fg);
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .dropzone-subtext {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .dropzone-input {
+      display: none;
+    }
+
+    .upload-progress {
+      margin-top: 1rem;
+    }
+
+    .progress-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--panel-bg);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      border: 1px solid var(--card-hover);
+    }
+
+    .progress-item .file-icon {
+      font-size: 1.2rem;
+    }
+
+    .progress-item .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--fg);
+    }
+
+    .progress-item .status-icon {
+      font-size: 1rem;
+    }
+
+    .progress-item.uploading .status-icon {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .progress-item.success {
+      border-color: var(--method-get-bg);
+    }
+
+    .progress-item.error {
+      border-color: var(--err);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.5rem 0;
+      color: var(--muted);
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--card-hover);
+    }
+
+    .file-count {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-left: 0.5rem;
+    }
   </style>
 </head>
 
@@ -22,78 +358,398 @@
     <h1>📤 File Upload</h1>
     <p class="subtitle">Upload and delete files using PUT and DELETE</p>
 
-    <h2>Upload a File (PUT)</h2>
-    <div class="interactive">
-      <label for="upload-path">Upload Path:</label>
-      <input type="text" id="upload-path" value="/uploads/test-upload.txt" />
+    <div class="upload-layout">
+      <!-- Left Panel: Upload -->
+      <div class="upload-panel">
+        <h2 class="panel-title">📁 Upload Files</h2>
 
-      <label for="upload-content">File Content:</label>
-      <textarea id="upload-content" rows="4" placeholder="Enter file content to upload...">Hello from webserv!
+        <!-- Drag and Drop Zone -->
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" class="dropzone-input" multiple />
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-text">Drag & drop files here</div>
+          <div class="dropzone-subtext">or click to browse</div>
+        </div>
+        <div class="upload-progress" id="upload-progress"></div>
+
+        <div class="divider">or create a text file</div>
+
+        <div class="interactive">
+          <label for="upload-filename">File Name:</label>
+          <input type="text" id="upload-filename" value="test-upload.txt" placeholder="filename.txt" />
+
+          <label for="upload-content">File Content:</label>
+          <textarea id="upload-content" rows="6" placeholder="Enter file content to upload...">Hello from webserv!
 This file was uploaded using PUT.</textarea>
 
-      <button onclick="uploadFile()">Upload File</button>
-      <div id="upload-response" class="response-box"></div>
-    </div>
+          <button id="upload-btn">📤 Upload File</button>
+          <div id="upload-response" class="response-box"></div>
+        </div>
+      </div>
 
-    <h2>Delete a File (DELETE)</h2>
-    <div class="interactive">
-      <label for="delete-path">File Path:</label>
-      <input type="text" id="delete-path" value="/uploads/test-upload.txt" />
-
-      <button onclick="deleteFile()">Delete File</button>
-      <div id="delete-response" class="response-box"></div>
-    </div>
-
-    <h2>View Uploaded Files</h2>
-    <div class="test-grid">
-      <a href="/uploads/" class="test-card">
-        <h3><span class="method get">GET</span> /uploads/</h3>
-        <p>Browse uploaded files directory</p>
-      </a>
+      <!-- Right Panel: File List -->
+      <div class="files-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">📂 Uploaded Files<span class="file-count" id="file-count"></span></h2>
+          <button class="refresh-btn" id="refresh-btn">🔄 Refresh</button>
+        </div>
+        <div class="file-list-scroll" id="file-list-container">
+          <div class="loading-message">Loading files...</div>
+        </div>
+        <div class="panel-mascot">
+          <img src="/image/bird.png" alt="Bird mascot" />
+        </div>
+      </div>
     </div>
   </div>
+
+  <div id="notification" class="notification"></div>
 
   <script type="module">
     import { renderStatus, renderPre, renderError } from '/tests/common.js';
 
-    async function uploadFile() {
-      const path = document.getElementById("upload-path").value;
-      const content = document.getElementById("upload-content").value;
-      const responseDiv = document.getElementById("upload-response");
-      responseDiv.innerHTML = "";
+    const UPLOADS_PATH = '/uploads/';
+
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type} show`;
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const icons = {
+        'txt': '📄', 'md': '📝', 'html': '🌐', 'css': '🎨', 'js': '⚡',
+        'json': '📋', 'xml': '📰', 'csv': '📊', 'pdf': '📕', 'doc': '📘',
+        'docx': '📘', 'xls': '📗', 'xlsx': '📗', 'ppt': '📙', 'pptx': '📙',
+        'zip': '📦', 'tar': '📦', 'gz': '📦', 'rar': '📦', '7z': '📦',
+        'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️', 'svg': '🖼️',
+        'mp3': '🎵', 'wav': '🎵', 'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬',
+        'py': '🐍', 'cpp': '⚙️', 'c': '⚙️', 'h': '⚙️', 'hpp': '⚙️',
+        'sh': '🔧', 'bin': '💾'
+      };
+      return icons[ext] || '📄';
+    }
+
+    function getMimeType(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const mimeTypes = {
+        'txt': 'text/plain', 'html': 'text/html', 'htm': 'text/html',
+        'css': 'text/css', 'js': 'application/javascript',
+        'json': 'application/json', 'xml': 'application/xml',
+        'csv': 'text/csv', 'md': 'text/markdown',
+        'pdf': 'application/pdf',
+        'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt': 'application/vnd.ms-powerpoint', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'zip': 'application/zip', 'tar': 'application/x-tar', 'gz': 'application/gzip',
+        'rar': 'application/vnd.rar', '7z': 'application/x-7z-compressed',
+        'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'gif': 'image/gif', 'svg': 'image/svg+xml', 'webp': 'image/webp', 'ico': 'image/x-icon',
+        'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
+        'mp4': 'video/mp4', 'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska', 'webm': 'video/webm',
+        'py': 'text/x-python', 'cpp': 'text/x-c++src', 'c': 'text/x-csrc',
+        'h': 'text/x-chdr', 'hpp': 'text/x-c++hdr', 'sh': 'application/x-sh'
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
+    }
+
+    // Drag and Drop functionality
+    function initDragAndDrop() {
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('file-input');
+
+      // Prevent default drag behavior on the whole document
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.body.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }, false);
+      });
+
+      dropzone.addEventListener('click', () => fileInput.click());
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFileUpload(files);
+        }
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files.length > 0) {
+          handleFileUpload(files);
+        }
+        fileInput.value = ''; // Reset for next selection
+      });
+    }
+
+    async function handleFileUpload(files) {
+      const progressContainer = document.getElementById('upload-progress');
+      progressContainer.innerHTML = '';
+
+      for (const file of Array.from(files)) {
+        const progressItem = document.createElement('div');
+        progressItem.className = 'progress-item uploading';
+        progressItem.innerHTML = `
+          <span class="file-icon">${getFileIcon(file.name)}</span>
+          <span class="file-name">${file.name}</span>
+          <span class="status-icon">⏳</span>
+        `;
+        progressContainer.appendChild(progressItem);
+
+        try {
+          const path = UPLOADS_PATH + encodeURIComponent(file.name);
+          const mimeType = file.type || getMimeType(file.name);
+
+          // Read file as ArrayBuffer
+          const arrayBuffer = await file.arrayBuffer();
+
+          const response = await fetch(path, {
+            method: 'PUT',
+            body: arrayBuffer,
+            headers: { 'Content-Type': mimeType }
+          });
+
+          if (response.ok) {
+            progressItem.classList.remove('uploading');
+            progressItem.classList.add('success');
+            progressItem.querySelector('.status-icon').textContent = '✅';
+            showNotification(`"${file.name}" uploaded successfully`, 'success');
+          } else {
+            const errorText = await response.text();
+            throw new Error(`${response.status} ${response.statusText}`);
+          }
+        } catch (e) {
+          progressItem.classList.remove('uploading');
+          progressItem.classList.add('error');
+          progressItem.querySelector('.status-icon').textContent = '❌';
+          showNotification(`Failed to upload "${file.name}": ${e.message}`, 'error');
+        }
+      }
+
+      // Refresh file list after all uploads
+      loadFileList();
+
+      // Clear progress after a delay
+      setTimeout(() => {
+        progressContainer.innerHTML = '';
+      }, 3000);
+    }
+
+    async function loadFileList() {
+      const container = document.getElementById('file-list-container');
+      container.innerHTML = '<div class="loading-message">Loading files...</div>';
+
       try {
-        const response = await fetch(path, {
-          method: "PUT",
-          body: content,
-          headers: { "Content-Type": "text/plain" },
+        const response = await fetch(UPLOADS_PATH);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Parse the autoindex HTML to extract file information
+        const links = doc.querySelectorAll('a');
+        const files = [];
+
+        links.forEach(link => {
+          const href = link.getAttribute('href');
+          const text = link.textContent.trim();
+
+          // Skip parent directory link and empty links
+          if (!href || href === '../' || text === '../' || text === 'Parent Directory') {
+            return;
+          }
+
+          // Skip directories (ending with /)
+          if (href.endsWith('/')) {
+            return;
+          }
+
+          // Try to extract size from the row
+          let size = null;
+          const row = link.closest('tr');
+          if (row) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+              const sizeText = cells[cells.length - 1].textContent.trim();
+              if (sizeText && sizeText !== '-') {
+                size = sizeText;
+              }
+            }
+          }
+
+          files.push({
+            name: text.replace(/\/$/, ''),
+            href: href,
+            size: size
+          });
         });
-        const text = await response.text();
-        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
-        renderStatus(responseDiv, response.status, response.statusText, statusClass);
-        responseDiv.appendChild(document.createElement("br"));
-        renderPre(responseDiv, null, text || "(empty response)");
-        responseDiv.classList.add("show");
+
+        if (files.length === 0) {
+          container.innerHTML = '<div class="empty-message">No files uploaded yet</div>';
+          document.getElementById('file-count').textContent = '';
+          return;
+        }
+
+        document.getElementById('file-count').textContent = `(${files.length})`;
+
+        const ul = document.createElement('ul');
+        ul.className = 'file-list';
+
+        files.forEach(file => {
+          const li = document.createElement('li');
+          li.className = 'file-item';
+
+          const fileInfo = document.createElement('div');
+          fileInfo.className = 'file-info';
+
+          const icon = document.createElement('span');
+          icon.className = 'file-icon';
+          icon.textContent = getFileIcon(file.name);
+
+          const link = document.createElement('a');
+          link.className = 'file-name';
+          link.href = UPLOADS_PATH + file.name;
+          link.textContent = file.name;
+          link.target = '_blank';
+
+          fileInfo.appendChild(icon);
+          fileInfo.appendChild(link);
+
+          if (file.size) {
+            const size = document.createElement('span');
+            size.className = 'file-size';
+            size.textContent = file.size;
+            fileInfo.appendChild(size);
+          }
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'delete-btn';
+          deleteBtn.innerHTML = '🗑️';
+          deleteBtn.title = 'Delete ' + file.name;
+          deleteBtn.onclick = () => deleteFileFromList(file.name, li);
+
+          li.appendChild(fileInfo);
+          li.appendChild(deleteBtn);
+          ul.appendChild(li);
+        });
+
+        container.innerHTML = '';
+        container.appendChild(ul);
+
       } catch (e) {
-        renderError(responseDiv, e.message);
+        container.innerHTML = `<div class="empty-message">Error loading files: ${e.message}</div>`;
       }
     }
 
-    async function deleteFile() {
-      const path = document.getElementById("delete-path").value;
-      const responseDiv = document.getElementById("delete-response");
-      responseDiv.innerHTML = "";
+    async function deleteFileFromList(filename, listItem) {
+      const filePath = UPLOADS_PATH + filename;
+
+      if (!confirm(`Delete "${filename}"?`)) {
+        return;
+      }
+
       try {
-        const response = await fetch(path, { method: "DELETE" });
-        const text = await response.text();
-        const statusClass = response.status >= 200 && response.status < 400 ? "status-ok" : "status-error";
-        renderStatus(responseDiv, response.status, response.statusText, statusClass);
-        responseDiv.appendChild(document.createElement("br"));
-        renderPre(responseDiv, null, text || "(empty response)");
-        responseDiv.classList.add("show");
+        const response = await fetch(filePath, { method: 'DELETE' });
+
+        if (response.ok || response.status === 204) {
+          listItem.style.opacity = '0';
+          listItem.style.transform = 'translateX(20px)';
+          listItem.style.transition = 'all 0.3s ease';
+          setTimeout(() => {
+            listItem.remove();
+            // Check if list is empty
+            const ul = document.querySelector('.file-list');
+            if (ul && ul.children.length === 0) {
+              document.getElementById('file-list-container').innerHTML =
+                '<div class="empty-message">No files uploaded yet</div>';
+            }
+          }, 300);
+          showNotification(`"${filename}" deleted successfully`, 'success');
+        } else {
+          showNotification(`Failed to delete: ${response.status} ${response.statusText}`, 'error');
+        }
       } catch (e) {
-        renderError(responseDiv, e.message);
+        showNotification(`Error: ${e.message}`, 'error');
       }
     }
+
+    async function uploadFile() {
+      const filename = document.getElementById('upload-filename').value.trim();
+      const content = document.getElementById('upload-content').value;
+      const responseDiv = document.getElementById('upload-response');
+
+      if (!filename) {
+        showNotification('Please enter a filename', 'error');
+        return;
+      }
+
+      const path = UPLOADS_PATH + filename;
+      responseDiv.innerHTML = '';
+      responseDiv.classList.remove('show');
+
+      try {
+        const response = await fetch(path, {
+          method: 'PUT',
+          body: content,
+          headers: { 'Content-Type': 'text/plain' },
+        });
+        const text = await response.text();
+        const statusClass = response.status >= 200 && response.status < 400 ? 'status-ok' : 'status-error';
+        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+        responseDiv.appendChild(document.createElement('br'));
+        renderPre(responseDiv, null, text || '(empty response)');
+        responseDiv.classList.add('show');
+
+        if (response.ok) {
+          showNotification(`"${filename}" uploaded successfully`, 'success');
+          // Refresh the file list
+          loadFileList();
+        }
+      } catch (e) {
+        renderError(responseDiv, e.message);
+        showNotification(`Upload failed: ${e.message}`, 'error');
+      }
+    }
+
+    // Initialize
+    document.getElementById('upload-btn').addEventListener('click', uploadFile);
+    document.getElementById('refresh-btn').addEventListener('click', loadFileList);
+
+    // Initialize drag and drop
+    initDragAndDrop();
+
+    // Load file list on page load
+    loadFileList();
   </script>
 
   <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
