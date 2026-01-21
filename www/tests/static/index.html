@@ -6,6 +6,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Static Files - webserv</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    html,
+    body {
+      overflow: auto !important;
+      height: auto !important;
+      min-height: 100vh;
+    }
+  </style>
 </head>
 
 <body class="test-page">
@@ -27,6 +35,50 @@
       <a href="/css/style.css" class="test-card">
         <h3><span class="method get">GET</span> CSS File</h3>
         <p>Fetch the stylesheet</p>
+      </a>
+    </div>
+
+    <h2>Test Files</h2>
+    <div class="test-grid">
+      <a href="/test-files/sample.html" class="test-card">
+        <h3><span class="method get">GET</span> sample.html</h3>
+        <p>HTML sample file</p>
+      </a>
+      <a href="/test-files/sample.css" class="test-card">
+        <h3><span class="method get">GET</span> sample.css</h3>
+        <p>CSS sample file</p>
+      </a>
+      <a href="/test-files/sample.js" class="test-card">
+        <h3><span class="method get">GET</span> sample.js</h3>
+        <p>JavaScript sample file</p>
+      </a>
+      <a href="/test-files/sample.json" class="test-card">
+        <h3><span class="method get">GET</span> sample.json</h3>
+        <p>JSON sample file</p>
+      </a>
+      <a href="/test-files/sample.xml" class="test-card">
+        <h3><span class="method get">GET</span> sample.xml</h3>
+        <p>XML sample file</p>
+      </a>
+      <a href="/test-files/sample.txt" class="test-card">
+        <h3><span class="method get">GET</span> sample.txt</h3>
+        <p>Plain text sample file</p>
+      </a>
+      <a href="/test-files/sample.svg" class="test-card">
+        <h3><span class="method get">GET</span> sample.svg</h3>
+        <p>SVG image file</p>
+      </a>
+      <a href="/test-files/sample.ico" class="test-card">
+        <h3><span class="method get">GET</span> sample.ico</h3>
+        <p>Icon file</p>
+      </a>
+      <a href="/test-files/sample.jpg" class="test-card">
+        <h3><span class="method get">GET</span> sample.jpg</h3>
+        <p>JPEG image file</p>
+      </a>
+      <a href="/test-files/sample.mp4" class="test-card">
+        <h3><span class="method get">GET</span> sample.mp4</h3>
+        <p>MP4 video file</p>
       </a>
     </div>
 
