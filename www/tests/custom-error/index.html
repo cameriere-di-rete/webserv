@@ -12,7 +12,7 @@
 <body class="test-page">
   <div class="container">
     <a href="/tests/" class="back-link">← Back to Test Suite</a>
-    <h1>Error page test</h1>
+    <h1>⚠️ Error page test</h1>
     <br>
     <br>
     <p class="subtitle">Scegli un codice di errore e visualizza la pagina custom corrispondente.</p>
@@ -68,7 +68,7 @@
     <script>
       document.getElementById('trigger-error').onclick = function () {
         const code = document.getElementById('error-select').value;
-        window.location.href = '/test-error?code=' + code;
+        window.location.href = '/404.html?code=' + code;
       };
     </script>
   </div>
