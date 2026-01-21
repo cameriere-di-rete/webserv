@@ -17,6 +17,7 @@ class CgiHandler : public IHandler {
   virtual HandlerResult start(Connection& conn);
   virtual HandlerResult resume(Connection& conn);
   virtual int getMonitorFd() const;
+  virtual bool checkTimeout(Connection& conn);
 
  private:
   void setupEnvironment(Connection& conn);
@@ -27,7 +28,6 @@ class CgiHandler : public IHandler {
   bool validateScriptPath(const std::string& path, std::string& error_msg);
   bool isAllowedExtension(const std::string& path);
   bool isPathTraversalSafe(const std::string& path);
-  bool checkTimeout(Connection& conn);
 
   std::string script_path_;
   std::set<std::string> allowed_extensions_;

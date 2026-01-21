@@ -183,7 +183,9 @@ int ServerManager::run() {
   LOG(DEBUG) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
+    // Use 1 second timeout to periodically check for CGI/connection timeouts
+    // even when there are no I/O events
+    int n = epoll_wait(efd_, events, MAX_EVENTS, 1000);
     if (n < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
@@ -558,12 +560,21 @@ void ServerManager::cleanupHandlerResources(Connection& c) {
 
 void ServerManager::checkConnectionTimeouts() {
   std::vector<int> timed_out_fds;
+  std::vector<int> cgi_timed_out_fds;
 
   // First pass: identify timed out connections
   for (std::map<int, Connection>::iterator it = connections_.begin();
        it != connections_.end(); ++it) {
     Connection& conn = it->second;
     int conn_fd = it->first;
+
+    // Check for CGI handler timeouts first
+    if (conn.active_handler != NULL &&
+        conn.active_handler->checkTimeout(conn)) {
+      LOG(INFO) << "CGI timeout on fd " << conn_fd;
+      cgi_timed_out_fds.push_back(conn_fd);
+      continue;
+    }
 
     // Check for read phase timeouts (connections waiting for client data)
     if (conn.isReadTimedOut(READ_TIMEOUT_SECONDS)) {
@@ -579,6 +590,32 @@ void ServerManager::checkConnectionTimeouts() {
                 << " (sending for >= " << WRITE_TIMEOUT_SECONDS << "s)";
       timed_out_fds.push_back(conn_fd);
     }
+  }
+
+  // Handle CGI timeouts - cleanup handler and send response
+  for (std::size_t i = 0; i < cgi_timed_out_fds.size(); ++i) {
+    int conn_fd = cgi_timed_out_fds[i];
+    std::map<int, Connection>::iterator it = connections_.find(conn_fd);
+    if (it == connections_.end()) {
+      continue;
+    }
+
+    Connection& conn = it->second;
+
+    // Unregister CGI pipe if any
+    if (conn.active_handler != NULL) {
+      int pipe_fd = conn.active_handler->getMonitorFd();
+      if (pipe_fd >= 0) {
+        unregisterCgiPipe(pipe_fd);
+      }
+    }
+
+    // Clear the CGI handler first, then prepare error response
+    // This order is important to avoid use-after-free when
+    // prepareErrorResponse installs a new handler (ErrorFileHandler)
+    conn.clearHandler();
+    conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
+    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
   }
 
   // Second pass: close timed out connections

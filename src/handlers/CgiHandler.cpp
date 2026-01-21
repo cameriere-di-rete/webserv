@@ -227,6 +227,7 @@ HandlerResult CgiHandler::resume(Connection& conn) {
 }
 
 bool CgiHandler::checkTimeout(Connection& conn) {
+  (void)conn;  // Not used here - ServerManager handles the response
   if (start_time_ == 0 || script_pid_ <= 0) {
     return false;
   }
@@ -237,7 +238,8 @@ bool CgiHandler::checkTimeout(Connection& conn) {
                << script_pid_;
     kill(script_pid_, SIGKILL);
     cleanupProcess();
-    conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
+    // Don't call prepareErrorResponse here - ServerManager will do it
+    // after clearing this handler to avoid use-after-free
     return true;
   }
   return false;

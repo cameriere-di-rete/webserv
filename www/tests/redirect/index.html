@@ -9,9 +9,118 @@
   <style>
     html,
     body {
-      overflow: auto !important;
-      height: auto !important;
-      min-height: 100vh;
+      overflow: hidden;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      height: calc(100vh - 50px);
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 5px;
+      box-sizing: border-box;
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 25px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .column h2 {
+      margin: 0 0 5px 0;
+      font-size: 1rem;
+    }
+
+    .redirect-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .redirect-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #1e293b;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      color: #f1f5f9;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .redirect-btn:hover {
+      background: #334155;
+      border-color: #3b82f6;
+      transform: translateX(5px);
+    }
+
+    .redirect-btn .path {
+      font-weight: bold;
+      font-size: 1rem;
+      color: #3b82f6;
+    }
+
+    .redirect-btn .destination {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .redirect-btn .arrow {
+      font-size: 1.2rem;
+      color: #3b82f6;
+    }
+
+    .status-codes {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 10px 15px;
+    }
+
+    .status-codes p {
+      margin: 0 0 8px 0;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .status-codes ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .status-codes li {
+      margin-bottom: 3px;
+    }
+
+    .interactive {
+      padding: 15px;
+    }
+
+    .interactive p {
+      margin: 0 0 10px 0;
+    }
+
+    .subtitle {
+      margin-bottom: 25px !important;
+    }
+
+    h1 {
+      margin-bottom: 8px !important;
     }
   </style>
 </head>
@@ -22,72 +131,92 @@
     <h1>🔀 Redirects</h1>
     <p class="subtitle">Test HTTP redirect responses</p>
 
-    <h2>Configured Redirects</h2>
-    <div class="test-grid">
-      <a href="/42" class="test-card">
-        <h3><span class="method get">GET</span> /42</h3>
-        <p>302 redirect to https://42.fr</p>
-      </a>
-    </div>
+    <div class="two-column">
+      <!-- Left column: Redirects and Status Codes -->
+      <div class="column">
+        <h2>Configured Redirects</h2>
+        <div class="redirect-buttons">
+          <a href="/42" class="redirect-btn">
+            <div>
+              <div class="path">/42</div>
+              <div class="destination">→ https://42.fr</div>
+            </div>
+            <span class="arrow">🚀</span>
+          </a>
+          <a href="/google" class="redirect-btn">
+            <div>
+              <div class="path">/google</div>
+              <div class="destination">→ https://google.com</div>
+            </div>
+            <span class="arrow">🚀</span>
+          </a>
+          <a href="/github" class="redirect-btn">
+            <div>
+              <div class="path">/github</div>
+              <div class="destination">→ https://github.com</div>
+            </div>
+            <span class="arrow">🚀</span>
+          </a>
+        </div>
 
-    <h2>Test Redirect (without following)</h2>
-    <div class="interactive">
-      <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem">
-        This test fetches the redirect without following it, so you can see the redirect response.
-      </p>
-      <label for="redirect-path">Redirect Path:</label>
-      <input type="text" id="redirect-path" value="/42" />
+        <h2>Status Codes</h2>
+        <div class="status-codes">
+          <p>Common HTTP redirect codes:</p>
+          <ul>
+            <li><strong>301</strong> - Moved Permanently</li>
+            <li><strong>302</strong> - Found (Temporary)</li>
+            <li><strong>303</strong> - See Other</li>
+            <li><strong>307</strong> - Temporary Redirect</li>
+            <li><strong>308</strong> - Permanent Redirect</li>
+          </ul>
+        </div>
+      </div>
 
-      <button onclick="testRedirect()">Test Redirect</button>
-      <div id="redirect-response" class="response-box"></div>
-    </div>
+      <!-- Right column: Custom test -->
+      <div class="column">
+        <h2>Test Custom Path</h2>
+        <div class="interactive">
+          <p style="color: #94a3b8; font-size: 0.8rem;">
+            Test any redirect path without following it.
+          </p>
+          <label for="redirect-path">Redirect Path:</label>
+          <input type="text" id="redirect-path" value="/42" />
 
-    <h2>Redirect Status Codes</h2>
-    <div class="interactive">
-      <p style="color: #94a3b8; font-size: 0.875rem">
-        Common HTTP redirect status codes:
-      </p>
-      <ul>
-        <li><strong>301</strong> - Moved Permanently</li>
-        <li><strong>302</strong> - Found (Temporary Redirect)</li>
-        <li><strong>303</strong> - See Other</li>
-        <li><strong>307</strong> - Temporary Redirect</li>
-        <li><strong>308</strong> - Permanent Redirect</li>
-      </ul>
+          <button onclick="testRedirect()">Test Redirect</button>
+          <div id="redirect-response" class="response-box"></div>
+        </div>
+
+        <!-- Walking bro -->
+        <div style="display: flex; align-items: center; justify-content: center; margin-top: 25px;">
+          <img src="/image/walking_bro.gif" alt="Walking bro" style="height: 110px; transform: scaleX(-1);">
+        </div>
+      </div>
     </div>
   </div>
 
-  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
-  <script type="module">
-    import { renderStatus, renderPre, renderError } from '/tests/common.js';
-
-    async function testRedirect() {
+  <footer class="footer" style="position: fixed; bottom: 0; left: 0; right: 0;">webserv by fmartusc, edforte, lrocca
+  </footer>
+  <script>
+    function testRedirect() {
       const path = document.getElementById("redirect-path").value;
       const responseDiv = document.getElementById("redirect-response");
+
+      const statusSpan = document.createElement("span");
+      statusSpan.className = "status-ok";
+      statusSpan.textContent = "Status: 302 Found";
+
+      const infoDiv = document.createElement("div");
+      infoDiv.style.marginTop = "0.5em";
+      infoDiv.style.color = "#4ade80";
+      infoDiv.textContent = "Opening redirect...";
+
       responseDiv.innerHTML = "";
-      try {
-        const response = await fetch(path, { redirect: "manual" });
-        const statusClass = response.status >= 300 && response.status < 400 ? "status-ok" : "status-error";
-        renderStatus(responseDiv, response.status, response.statusText, statusClass);
+      responseDiv.appendChild(statusSpan);
+      responseDiv.appendChild(infoDiv);
+      responseDiv.classList.add("show");
 
-        // Location
-        responseDiv.appendChild(document.createElement("br"));
-        const locationDiv = document.createElement("div");
-        locationDiv.style.marginTop = "1em";
-        const locationLabel = document.createElement("strong");
-        locationLabel.textContent = "Location: ";
-        locationDiv.appendChild(locationLabel);
-        const locationValue = document.createElement("span");
-        locationValue.textContent = response.headers.get("Location") || "(none)";
-        locationDiv.appendChild(locationValue);
-        responseDiv.appendChild(locationDiv);
-
-        // Headers
-        renderPre(responseDiv, "Headers:", Array.from(response.headers.entries()).map(([k, v]) => `  ${k}: ${v}`).join("\n"));
-        responseDiv.classList.add("show");
-      } catch (e) {
-        renderError(responseDiv, e.message);
-      }
+      // Open the redirect path in a new tab
+      setTimeout(() => window.open(path, "_blank"), 300);
     }
   </script>
 </body>
