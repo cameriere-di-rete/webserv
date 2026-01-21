@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>502 Bad Gateway</title>
+	<link rel="stylesheet" href="/_error_common.css">
+</head>
+
+<body>
+	<div class="container" id="mainContainer">
+		<div class="error-number" id="errorCode">502</div>
+		<img src="/image/bird.png" alt="Confused Pigeon" class="bird-image" id="theBird">
+		<div class="text-content">
+			<h2 id="errorTitle">Bad Gateway</h2>
+			<p id="errorMsg">The messenger pigeon got lost in the clouds. He's not the brightest bird in the flock.</p>
+			<a href="/" class="home-btn">Go Home</a>
+		</div>
+	</div>
+	<script>var ERROR_CODE = '502'; var ERROR_TITLE = 'Bad Gateway'; var ERROR_MSG = "The messenger pigeon got lost in the clouds. He's not the brightest bird in the flock.";</script>
+	<script src="/_error_common.js"></script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Error - Bad Gateway</title>
+	<style>
+		body,
+		html {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			overflow: hidden
+		}
+
+		.container {
+			display: grid;
+			place-items: center;
+			height: 100vh;
+			width: 100vw;
+			position: relative;
+			grid-template-areas: "content";
+			background-color: #dedede;
+			transition: background .5s ease-in-out;
+			background-size: cover;
+			background-position: center;
+			background-repeat: no-repeat
+		}
+
+		.error-number {
+			grid-area: content;
+			font-size: 85vh;
+			font-weight: 900;
+			color: #222;
+			z-index: 1;
+			user-select: none;
+			line-height: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center
+		}
+
+		.text-content {
+			grid-area: content;
+			text-align: center;
+			z-index: 10;
+			background: rgba(255, 255, 255, .7);
+			padding: 40px;
+			border-radius: 20px;
+			backdrop-filter: blur(5px);
+			box-shadow: 0 4px 15px rgba(0, 0, 0, .1);
+			max-width: 500px;
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%)
+		}
+
+		.home-btn {
+			display: inline-block;
+			padding: 12px 30px;
+			background-color: #333;
+			color: #fff;
+			text-decoration: none;
+			border-radius: 5px
+		}
+
+		@media (max-width:768px) {
+			.error-number {
+				font-size: 50vw
+			}
+
+			.text-content {
+				width: 80%
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container" id="mainContainer">
+		<div class="error-number" id="errorCode">502</div>
+		<div class="text-content">
+			<h2 id="errorTitle">Oops!</h2>
+			<p id="errorMsg">The messenger pigeon got lost in the clouds.</p>
+			<a href="/" class="home-btn">Go Home</a>
+		</div>
+	</div>
+	<script>
+		const messages = { '502': { title: 'Bad Gateway', text: 'The messenger pigeon got lost in the clouds. He\'s not the brightest bird in the flock.' }, 'default': { title: 'Unknown Error', text: 'Something is wrong.' } };
+		const urlParams = new URLSearchParams(window.location.search);
+		const code = urlParams.get('code') || '502';
+		document.getElementById('errorCode').innerText = code;
+		const messageData = messages[code] || messages['default'];
+		document.getElementById('errorTitle').innerText = messageData.title;
+		document.getElementById('errorMsg').innerText = messageData.text;
+	</script>
+</body>
+
+</html>

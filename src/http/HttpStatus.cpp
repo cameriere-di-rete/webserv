@@ -202,7 +202,8 @@ bool isClientError(Status s) {
 }
 
 bool isServerError(Status s) {
-  return s >= 500 && s <= 505;
+  // Accept all defined 5xx statuses supported by the project (up to 511)
+  return s >= 500 && s <= 511;
 }
 
 bool isValidStatusCode(int status) {

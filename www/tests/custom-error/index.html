@@ -68,7 +68,8 @@
     <script>
       document.getElementById('trigger-error').onclick = function () {
         const code = document.getElementById('error-select').value;
-        window.location.href = '/404.html?code=' + code;
+        // Navigate directly to the per-code static page (no redirect query)
+        window.location.href = '/' + code + '.html';
       };
     </script>
   </div>
