@@ -386,7 +386,8 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_PORT", "8080", 1);
   setenv("SCRIPT_NAME", script_path_.c_str(), 1);
 
-  // Set SCRIPT_FILENAME to absolute path - required by php-cgi to know which script to execute
+  // Set SCRIPT_FILENAME to absolute path - required by php-cgi to know which
+  // script to execute
   char abs_script_filename[PATH_MAX];
   if (realpath(script_path_.c_str(), abs_script_filename) != NULL) {
     setenv("SCRIPT_FILENAME", abs_script_filename, 1);
