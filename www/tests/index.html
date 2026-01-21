@@ -97,8 +97,8 @@
     let breadRightInterval = null;
 
     function startBreadIntervals() {
-      if (!breadLeftInterval) breadLeftInterval = setInterval(() => { dropBread('left'); }, 900);
-      if (!breadRightInterval) breadRightInterval = setInterval(() => { dropBread('right'); }, 900);
+      if (!breadLeftInterval) breadLeftInterval = setInterval(() => { dropBread('left'); }, 3000);
+      if (!breadRightInterval) breadRightInterval = setInterval(() => { dropBread('right'); }, 3000);
     }
     function stopBreadIntervals() {
       if (breadLeftInterval) { clearInterval(breadLeftInterval); breadLeftInterval = null; }
