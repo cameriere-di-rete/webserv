@@ -122,6 +122,10 @@ int Connection::handleRead() {
     ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
     if (r < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        // No more data to read right now (non-blocking socket, edge-triggered)
+        return 0;
+      }
       LOG_PERROR(ERROR, "read");
       return -1;
     }
@@ -137,8 +141,14 @@ int Connection::handleRead() {
     // Check if the HTTP request headers are complete
     std::size_t pos = read_buffer.find(CRLF CRLF);
     if (pos != std::string::npos) {
-      headers_end_pos = pos;
-      break;
+      // Record headers end but continue reading to drain the socket when
+      // using edge-triggered epoll. Draining prevents missing subsequent
+      // EPOLLIN events for the remaining body bytes.
+      if (headers_end_pos == std::string::npos) {
+        headers_end_pos = pos;
+      }
+      // continue reading until recv() would block
+      continue;
     }
   }
   return 0;
