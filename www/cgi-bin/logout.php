@@ -1,4 +1,4 @@
-#!/workspaces/webserv/run-php-cgi.sh
+#!/usr/local/bin/run-php-cgi.sh
 <?php
 /**
  * Logout script - expires cookies to end the session.

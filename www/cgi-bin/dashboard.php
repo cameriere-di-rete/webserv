@@ -1,4 +1,4 @@
-#!/workspaces/webserv/run-php-cgi.sh
+#!/usr/local/bin/run-php-cgi.sh
 <?php
 /**
  * Session dashboard - shows session info and protected content.
@@ -197,8 +197,7 @@ $username = $logged_in ? urldecode($cookies['session_user']) : null;
 
     <div class="action-buttons">
       <?php if ($logged_in): ?>
-        <a href="/cgi-bin/session_demo.php">🔄 Refresh</a>
-        <a href="/test-files/cookie_demo.html">🧪 Demo Tests</a>
+        <a href="/cgi-bin/dashboard.php">🔄 Refresh</a>
         <a href="/cgi-bin/logout.php" class="logout">🚪 Logout</a>
       <?php else: ?>
         <a href="/cgi-bin/login.php">🔐 Login</a>

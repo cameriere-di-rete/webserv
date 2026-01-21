@@ -1,4 +1,4 @@
-#!/workspaces/webserv/run-php-cgi.sh
+#!/usr/local/bin/run-php-cgi.sh
 <?php
 /**
  * Simple PHP login demo using cookies for session management.
@@ -28,6 +28,9 @@ if (isset($_SERVER['HTTP_COOKIE'])) {
     if (isset($cookies['session_user'])) {
         $logged_in = true;
         $current_user = urldecode($cookies['session_user']);
+        // Redirect to dashboard.php if already logged in
+        header('Location: /cgi-bin/dashboard.php', true, 302);
+        exit;
     }
 }
 
@@ -92,8 +95,7 @@ HTML;
         echo <<<'HTML'
 </strong></div>
         <div class="flex nav-links" style="justify-content: center;">
-          <a href="/cgi-bin/session_demo.php">📊 Go to Dashboard</a>
-          <a href="/test-files/cookie_demo.html">🧪 Demo Tests</a>
+          <a href="/cgi-bin/dashboard.php">📊 Go to Dashboard</a>
         </div>
       </div>
     </main>
@@ -191,31 +193,24 @@ HTML;
   <div class="site-root">
     <main class="content">
       <div class="form-box">
-        <?php if ($logged_in): ?>
-          <h1 class="title" style="font-size: 1.5rem;">✓ Already Logged In</h1>
-          <p style="color: var(--muted); margin: 1rem 0;">You are currently logged in as <strong><?php echo htmlspecialchars($current_user); ?></strong>.</p>
-          <a href="/cgi-bin/session_demo.php" class="nav-link" style="margin-right: 0.5rem;">📊 Dashboard</a>
-          <a href="/cgi-bin/logout.php" class="nav-link">🚪 Logout</a>
-        <?php else: ?>
-          <h1 class="title" style="font-size: 1.5rem; margin-bottom: 1.5rem;">🔐 Login</h1>
+        <h1 class="title" style="font-size: 1.5rem; margin-bottom: 1.5rem;">🔐 Login</h1>
 
-          <form method="POST" action="/cgi-bin/login.php">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required autofocus />
+        <form method="POST" action="/cgi-bin/login.php">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autofocus />
 
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required />
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
 
-            <button type="submit" style="width: 100%;">Sign In</button>
-          </form>
+          <button type="submit" style="width: 100%;">Sign In</button>
+        </form>
 
-          <div class="credentials-box">
-            <strong>Test Credentials</strong>
-            <code>admin / admin123</code>
-            <code>user / password</code>
-            <code>demo / demo</code>
-          </div>
-        <?php endif; ?>
+        <div class="credentials-box">
+          <strong>Test Credentials</strong>
+          <code>admin / admin123</code>
+          <code>user / password</code>
+          <code>demo / demo</code>
+        </div>
       </div>
     </main>
   </div>
