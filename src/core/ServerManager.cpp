@@ -311,32 +311,10 @@ int ServerManager::run() {
         continue;
       }
 
-      // Extract the request body from read_buffer (after \r\n\r\n)
-      // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
-      std::size_t body_start = conn.headers_end_pos + 4;
-      if (body_start < conn.read_buffer.size()) {
-        conn.request.getBody().data = conn.read_buffer.substr(body_start);
-        LOG(DEBUG) << "Extracted request body: "
-                   << conn.request.getBody().data.size() << " bytes";
-      }
-
-      // If a Content-Length header is present, wait until we've received the
-      // entire body before processing the request. Otherwise we may switch
-      // the socket to EPOLLOUT and stop reading, causing large uploads to
-      // stall when the remaining body hasn't been consumed yet.
-      std::string content_length_str;
-      if (conn.request.getHeader("Content-Length", content_length_str)) {
-        long long content_len = 0;
-        if (safeStrtoll(content_length_str, content_len)) {
-          if (conn.request.getBody().data.size() <
-              static_cast<std::size_t>(content_len)) {
-            LOG(DEBUG) << "Waiting for full request body: have "
-                       << conn.request.getBody().data.size() << " of "
-                       << content_len << " bytes";
-            // Not all body bytes received yet — keep monitoring for reads
-            continue;
-          }
-        }
+      // Extract request body & check Content-Length via helper
+      if (!extractRequestBody(conn)) {
+        // Not all body bytes received yet — keep monitoring for reads
+        continue;
       }
 
       /* find the server that accepted this connection */
@@ -388,6 +366,38 @@ int ServerManager::run() {
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
+}
+
+bool ServerManager::extractRequestBody(Connection& conn) {
+  // Extract the request body from read_buffer (after \r\n\r\n)
+  // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
+  std::size_t body_start = conn.headers_end_pos + 4;
+  if (body_start < conn.read_buffer.size()) {
+    conn.request.getBody().data = conn.read_buffer.substr(body_start);
+    LOG(DEBUG) << "Extracted request body: "
+               << conn.request.getBody().data.size() << " bytes";
+  } else {
+    conn.request.getBody().data.clear();
+  }
+
+  // If a Content-Length header is present, wait until we've received the
+  // entire body before processing the request. Otherwise we may switch
+  // the socket to EPOLLOUT and stop reading, causing large uploads to
+  // stall when the remaining body hasn't been consumed yet.
+  std::string content_length_str;
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    long long content_len = 0;
+    if (safeStrtoll(content_length_str, content_len)) {
+      if (conn.request.getBody().data.size() <
+          static_cast<std::size_t>(content_len)) {
+        LOG(DEBUG) << "Waiting for full request body: have "
+                   << conn.request.getBody().data.size() << " of "
+                   << content_len << " bytes";
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 void ServerManager::setupSignalHandlers() {
