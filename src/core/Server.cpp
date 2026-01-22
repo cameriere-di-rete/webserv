@@ -180,11 +180,7 @@ Location Server::matchLocation(const std::string& path) const {
   Location result;
   if (best_it != locations.end()) {
     LOG(DEBUG) << "Matched location: '" << best_it->first << "'";
-    LOG(DEBUG) << "Source location allow_methods size: "
-               << best_it->second.allow_methods.size();
     result = best_it->second;
-    LOG(DEBUG) << "Result location allow_methods size after copy: "
-               << result.allow_methods.size();
   } else {
     // No location matched, start with default location
     LOG(DEBUG) << "No location matched, using server defaults";
