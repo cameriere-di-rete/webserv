@@ -1,19 +1,19 @@
 // Shared behavior for static error pages.
-// Expects three globals set before including this script:
-//   ERROR_CODE, ERROR_TITLE, ERROR_MSG
 
 (function () {
 	try {
-		var code = window.ERROR_CODE || '000';
-		var title = window.ERROR_TITLE || 'Error';
-		var msg = window.ERROR_MSG || '';
-
 		document.addEventListener('DOMContentLoaded', function () {
 			var codeEl = document.getElementById('errorCode');
 			var titleEl = document.getElementById('errorTitle');
 			var msgEl = document.getElementById('errorMsg');
 			var birdElement = document.getElementById('theBird');
 			var containerElement = document.getElementById('mainContainer');
+
+			// Read text from the DOM (pages already render the text).
+			// Fallback to defaults if the nodes are missing or empty.
+			var code = (codeEl && codeEl.innerText) ? codeEl.innerText : '000';
+			var title = (titleEl && titleEl.innerText) ? titleEl.innerText : 'Error';
+			var msg = (msgEl && msgEl.innerText) ? msgEl.innerText : '';
 
 			if (codeEl) codeEl.innerText = code;
 			if (titleEl) titleEl.innerText = title;
