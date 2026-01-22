@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $session_id = md5(uniqid($username, true));
         // Use replace=false to allow multiple Set-Cookie headers
         header('Set-Cookie: session_id=' . $session_id . '; Path=/; HttpOnly', false);
-        header('Set-Cookie: session_user=' . urlencode($username) . '; Path=/', false);
+        header('Set-Cookie: session_user=' . urlencode($username) . '; Path=/; HttpOnly', false);
         echo <<<'HTML'
 <!DOCTYPE html>
 <html lang="en">
