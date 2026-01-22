@@ -374,6 +374,9 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Set PATH for script execution
   setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 
+  // Required for php-cgi: signals successful execution state
+  setenv("REDIRECT_STATUS", "200", 1);
+
   // Standard CGI environment variables
   setenv("REQUEST_METHOD", conn.request.request_line.method.c_str(), 1);
   setenv("REQUEST_URI", conn.request.request_line.uri.c_str(), 1);
@@ -382,6 +385,15 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_NAME", "webserv", 1);
   setenv("SERVER_PORT", "8080", 1);
   setenv("SCRIPT_NAME", script_path_.c_str(), 1);
+
+  // Set SCRIPT_FILENAME to absolute path - required by php-cgi to know which
+  // script to execute
+  char abs_script_filename[PATH_MAX];
+  if (realpath(script_path_.c_str(), abs_script_filename) != NULL) {
+    setenv("SCRIPT_FILENAME", abs_script_filename, 1);
+  } else {
+    setenv("SCRIPT_FILENAME", script_path_.c_str(), 1);
+  }
 
   // Query string - use pre-parsed Uri from request
   std::string uri_no_query = conn.request.uri.getPath();
@@ -414,8 +426,20 @@ void CgiHandler::setupEnvironment(Connection& conn) {
     setenv("CONTENT_LENGTH", len_ss.str().c_str(), 1);
   }
 
-  // HTTP headers as environment variables
-  // Note: Request class needs to provide header iteration interface
+  // Export Cookie headers to HTTP_COOKIE environment variable for CGI.
+  // If multiple Cookie headers are present, join them with "; " per RFC.
+  std::vector<std::string> cookie_headers = conn.request.getHeaders("Cookie");
+  if (!cookie_headers.empty()) {
+    std::string joined;
+    for (std::vector<std::string>::const_iterator it = cookie_headers.begin();
+         it != cookie_headers.end(); ++it) {
+      if (!joined.empty()) {
+        joined += "; ";
+      }
+      joined += *it;
+    }
+    setenv("HTTP_COOKIE", joined.c_str(), 1);
+  }
 }
 
 // Security validation: check if script path is safe to execute
