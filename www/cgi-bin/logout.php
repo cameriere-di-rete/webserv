@@ -8,7 +8,7 @@ header('Content-Type: text/html; charset=utf-8');
 
 // Expire the session cookies
 header('Set-Cookie: session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly', false);
-header('Set-Cookie: session_user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT', false);
+header('Set-Cookie: session_user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly', false);
 
 ?>
 <!DOCTYPE html>
