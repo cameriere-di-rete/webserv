@@ -6,7 +6,6 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -21,7 +20,6 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
-#include "file_utils.hpp"
 #include "utils.hpp"
 
 Connection::Connection()
