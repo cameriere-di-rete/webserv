@@ -135,14 +135,8 @@ int Connection::handleRead() {
     // Check if the HTTP request headers are complete
     std::size_t pos = read_buffer.find(CRLF CRLF);
     if (pos != std::string::npos) {
-      // Record headers end but continue reading to drain the socket when
-      // using edge-triggered epoll. Draining prevents missing subsequent
-      // EPOLLIN events for the remaining body bytes.
-      if (headers_end_pos == std::string::npos) {
-        headers_end_pos = pos;
-      }
-      // continue reading until recv() would block
-      continue;
+      headers_end_pos = pos;
+      break;
     }
   }
   return 0;
