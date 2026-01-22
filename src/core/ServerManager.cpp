@@ -87,11 +87,8 @@ void ServerManager::acceptConnection(int listen_fd) {
     int conn_fd =
         accept(listen_fd, (struct sockaddr*)&client_addr, &client_len);
     if (conn_fd < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG(DEBUG) << "No more pending connections on fd: " << listen_fd;
-        break;
-      }
-      LOG_PERROR(ERROR, "accept");
+      LOG(DEBUG) << "accept returned error on fd: " << listen_fd
+                 << " (stop accepting for now)";
       break;
     }
 
@@ -460,7 +457,7 @@ void ServerManager::prepareResponses() {
       LOG(INFO) << "Malformed request on fd " << conn_fd
                 << ", sending 400 Bad Request";
       conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;
     }
 
@@ -477,7 +474,7 @@ void ServerManager::prepareResponses() {
       LOG(ERROR) << "Server not found for connection fd " << conn_fd
                  << " (server_fd: " << conn.server_fd << ")";
       conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;
     }
 
@@ -500,7 +497,7 @@ void ServerManager::prepareResponses() {
                      << conn_fd;
           conn.clearHandler();
           conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-          updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+          updateEvents(conn_fd, EPOLLOUT);
           continue;
         }
         // Don't enable EPOLLOUT yet - wait for CGI to complete
@@ -509,7 +506,7 @@ void ServerManager::prepareResponses() {
     }
 
     /* enable EPOLLOUT now that we have data to send */
-    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+    updateEvents(conn_fd, EPOLLOUT);
   }
 }
 
@@ -648,7 +645,7 @@ void ServerManager::checkConnectionTimeouts() {
     // prepareErrorResponse installs a new handler (ErrorFileHandler)
     conn.clearHandler();
     conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
-    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+    updateEvents(conn_fd, EPOLLOUT);
   }
 
   // Second pass: close timed out connections
