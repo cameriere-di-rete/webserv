@@ -35,9 +35,10 @@ class ServerManager {
   void handleCgiPipeEvent(int pipe_fd);
   // Clean up handler resources (CGI pipes) for a connection before closing
   void cleanupHandlerResources(Connection& c);
-  // Extract and validate request body from read buffer
-  // Returns: 1 = body ready, 0 = need more data, -1 = error (response prepared)
-  int extractRequestBody(Connection& conn, int conn_fd);
+  // Process parsed headers after headers_end_pos is set but before preparing
+  // the response. Returns: 1 = continue processing, 0 = wait for more data,
+  // -1 = error response prepared (stop processing)
+  int processParsedHeaders(Connection& c);
   // Prepare responses for connections that have completed reading
   // but do not yet have a write buffer
   void prepareResponses();

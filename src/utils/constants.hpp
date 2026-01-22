@@ -9,6 +9,9 @@
 #define MAX_EVENTS 64
 #define WRITE_BUF_SIZE 4096
 
+// Maximum bytes to scan while searching for end of headers
+#define HEADERS_SEARCH_LIMIT 4096
+
 #define EXIT_NOT_FOUND 127  // Standard shell exit code for "command not found"
 #define FILE_UPLOAD_MODE \
   0600  // File permissions for uploaded files (owner read/write only)

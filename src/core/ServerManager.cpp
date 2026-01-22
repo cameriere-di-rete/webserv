@@ -451,14 +451,12 @@ void ServerManager::prepareResponses() {
 
     LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
 
-    if (!conn.request.parseStartAndHeaders(conn.read_buffer,
-                                           conn.headers_end_pos)) {
-      /* malformed start line or headers -> 400 Bad Request */
-      LOG(INFO) << "Malformed request on fd " << conn_fd
-                << ", sending 400 Bad Request";
-      conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-      updateEvents(conn_fd, EPOLLOUT);
-      continue;
+    if (!conn.request_parsed) {
+      int ph = processParsedHeaders(conn);
+      if (ph != 1) {
+        // ph == 0 -> need more data; ph == -1 -> error already prepared
+        continue;
+      }
     }
 
     // Extract request body & check Content-Length via helper
@@ -559,6 +557,14 @@ void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
 
     if (c.headers_end_pos != std::string::npos) {
       LOG(DEBUG) << "Headers complete on fd: " << fd;
+
+      if (!c.request_parsed) {
+        int ph = processParsedHeaders(c);
+        if (ph != 1) {
+          // ph == 0 -> need more data; ph == -1 -> error already prepared
+          return;
+        }
+      }
     }
   }
 
@@ -577,6 +583,78 @@ void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
       connections_.erase(fd);
     }
   }
+}
+
+int ServerManager::processParsedHeaders(Connection& c) {
+  // Parse start line and headers to populate request and URI
+  if (!c.request.parseStartAndHeaders(c.read_buffer, c.headers_end_pos)) {
+    LOG(INFO) << "Malformed request on fd " << c.fd
+              << ", sending 400 Bad Request";
+    c.prepareErrorResponse(http::S_400_BAD_REQUEST);
+    updateEvents(c.fd, EPOLLOUT);
+    return -1;
+  }
+  c.request_parsed = true;
+
+  // Determine whether to ignore body: only keep body for POST/PUT
+  std::string method_tmp = c.request.request_line.method;
+  c.ignore_body = method_tmp != "POST" && method_tmp != "PUT";
+
+  // Determine location-specific max_request_body
+  std::size_t loc_max = kMaxRequestBodyUnset;
+  std::map<int, Server>::iterator srv_it = servers_.find(c.server_fd);
+  if (srv_it != servers_.end()) {
+    Location loc = srv_it->second.matchLocation(c.request.uri.getPath());
+    loc_max = loc.max_request_body;
+  }
+
+  if (c.ignore_body) {
+    // If Content-Length present, validate against location max
+    std::string content_length_str;
+    if (!c.request.getHeader("Content-Length", content_length_str)) {
+      // Body expected but no Content-Length supplied
+      c.prepareErrorResponse(http::S_411_LENGTH_REQUIRED);
+      updateEvents(c.fd, EPOLLOUT);
+      return -1;
+    }
+    if (c.request.getHeader("Content-Length", content_length_str)) {
+      long long content_len = 0;
+      if (!safeStrtoll(content_length_str, content_len)) {
+        c.prepareErrorResponse(http::S_400_BAD_REQUEST);
+        updateEvents(c.fd, EPOLLOUT);
+        return -1;
+      }
+      if (content_len < 0) {
+        c.prepareErrorResponse(http::S_400_BAD_REQUEST);
+        updateEvents(c.fd, EPOLLOUT);
+        return -1;
+      }
+      if (loc_max != kMaxRequestBodyUnset &&
+          static_cast<std::size_t>(content_len) > loc_max) {
+        c.prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+        updateEvents(c.fd, EPOLLOUT);
+        return -1;
+      }
+
+      // Extract any body bytes already received
+      std::size_t body_start = c.headers_end_pos + 4;
+      if (body_start < c.read_buffer.size()) {
+        c.request.getBody().data = c.read_buffer.substr(body_start);
+      } else {
+        c.request.getBody().data.clear();
+      }
+
+      // If body not fully received yet, wait for more data
+      if (c.request.getBody().data.size() <
+          static_cast<std::size_t>(content_len)) {
+        return 0;
+      }
+      // else full body already in buffer; let prepareResponses handle it
+    }
+    // If no Content-Length header, treat as empty body and proceed
+  }
+
+  return 1;
 }
 
 void ServerManager::cleanupHandlerResources(Connection& c) {

@@ -29,6 +29,8 @@ class Connection {
   std::size_t write_offset;
   std::size_t headers_end_pos;
   bool write_ready;
+  bool request_parsed;
+  bool ignore_body;
   Request request;
   Response response;
   IHandler* active_handler;
