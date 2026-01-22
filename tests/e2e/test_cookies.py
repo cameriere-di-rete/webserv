@@ -3,8 +3,6 @@
 End-to-end cookie tests using unittest and the shared WebservTestCase.
 """
 
-import os
-import sys
 import unittest
 
 from webserv_test_base import WebservTestCase
