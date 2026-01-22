@@ -23,13 +23,7 @@ echo "Using webserv from: $WEBSERV_PATH"
 echo "Running end-to-end tests..."
 echo
 
-# Run each test file
-for test_file in test_*.py; do
-    if [ -f "$test_file" ]; then
-        echo "Running $test_file..."
-        python3 "$test_file"
-        echo
-    fi
-done
+
+python3 -m unittest discover -s . -v
 
 echo "All e2e tests completed!"
