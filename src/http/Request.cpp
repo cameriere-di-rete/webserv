@@ -78,8 +78,9 @@ bool Request::parseStartAndHeaders(const std::string& buffer,
         std::string k = trim_copy(pair.substr(0, eq));
         std::string v = trim_copy(pair.substr(eq + 1));
         if (!k.empty()) {
-          // If multiple cookies share the same name, the last occurrence overwrites
-          // the previous value ("last value wins" policy as defined by the application).
+          // If multiple cookies share the same name, the last occurrence
+          // overwrites the previous value ("last value wins" policy as defined
+          // by the application).
           cookies[k] = v;
         }
       }
