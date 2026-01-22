@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -17,6 +18,9 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
+// CGI script timeout in seconds
+static const unsigned int CGI_TIMEOUT_SECONDS = 10;
+
 CgiHandler::CgiHandler(const std::string& script_path,
                        const std::set<std::string>& allowed_extensions)
     : script_path_(script_path),
@@ -26,7 +30,8 @@ CgiHandler::CgiHandler(const std::string& script_path,
       pipe_write_fd_(-1),
       process_started_(false),
       headers_parsed_(false),
-      accumulated_output_() {}
+      accumulated_output_(),
+      start_time_(0) {}
 
 CgiHandler::~CgiHandler() {
   cleanupProcess();
@@ -153,6 +158,9 @@ HandlerResult CgiHandler::start(Connection& conn) {
       script_name = abs_script_path;
     }
 
+    // Set timeout - script will be killed by SIGALRM after CGI_TIMEOUT_SECONDS
+    alarm(CGI_TIMEOUT_SECONDS);
+
     // Execute script using ./filename (we're in its directory)
     // On Unix, scripts must be executed with ./ prefix when in current
     // directory
@@ -171,6 +179,7 @@ HandlerResult CgiHandler::start(Connection& conn) {
   pipe_write_fd_ = pipe_to_cgi[1];
   pipe_read_fd_ = pipe_from_cgi[0];
   process_started_ = true;
+  start_time_ = time(NULL);  // Record start time for timeout
 
   // Set pipe to non-blocking mode for asynchronous I/O
   if (set_nonblocking(pipe_read_fd_) < 0) {
@@ -217,7 +226,31 @@ HandlerResult CgiHandler::resume(Connection& conn) {
   return readCgiOutput(conn);
 }
 
+bool CgiHandler::checkTimeout(Connection& conn) {
+  (void)conn;  // Not used here - ServerManager handles the response
+  if (start_time_ == 0 || script_pid_ <= 0) {
+    return false;
+  }
+  time_t now = time(NULL);
+  if (now - start_time_ >= CGI_TIMEOUT_SECONDS) {
+    LOG(ERROR) << "CgiHandler: CGI script timed out after "
+               << CGI_TIMEOUT_SECONDS << " seconds, killing pid "
+               << script_pid_;
+    kill(script_pid_, SIGKILL);
+    cleanupProcess();
+    // Don't call prepareErrorResponse here - ServerManager will do it
+    // after clearing this handler to avoid use-after-free
+    return true;
+  }
+  return false;
+}
+
 HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
+  // Check for timeout before reading
+  if (checkTimeout(conn)) {
+    return HR_DONE;
+  }
+
   char buffer[WRITE_BUF_SIZE];
   ssize_t bytes_read;
 
@@ -374,6 +407,9 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Set PATH for script execution
   setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 
+  // Required for php-cgi: signals successful execution state
+  setenv("REDIRECT_STATUS", "200", 1);
+
   // Standard CGI environment variables
   setenv("REQUEST_METHOD", conn.request.request_line.method.c_str(), 1);
   setenv("REQUEST_URI", conn.request.request_line.uri.c_str(), 1);
@@ -382,6 +418,15 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_NAME", "webserv", 1);
   setenv("SERVER_PORT", "8080", 1);
   setenv("SCRIPT_NAME", script_path_.c_str(), 1);
+
+  // Set SCRIPT_FILENAME to absolute path - required by php-cgi to know which
+  // script to execute
+  char abs_script_filename[PATH_MAX];
+  if (realpath(script_path_.c_str(), abs_script_filename) != NULL) {
+    setenv("SCRIPT_FILENAME", abs_script_filename, 1);
+  } else {
+    setenv("SCRIPT_FILENAME", script_path_.c_str(), 1);
+  }
 
   // Query string - use pre-parsed Uri from request
   std::string uri_no_query = conn.request.uri.getPath();
@@ -414,8 +459,20 @@ void CgiHandler::setupEnvironment(Connection& conn) {
     setenv("CONTENT_LENGTH", len_ss.str().c_str(), 1);
   }
 
-  // HTTP headers as environment variables
-  // Note: Request class needs to provide header iteration interface
+  // Export Cookie headers to HTTP_COOKIE environment variable for CGI.
+  // If multiple Cookie headers are present, join them with "; " per RFC.
+  std::vector<std::string> cookie_headers = conn.request.getHeaders("Cookie");
+  if (!cookie_headers.empty()) {
+    std::string joined;
+    for (std::vector<std::string>::const_iterator it = cookie_headers.begin();
+         it != cookie_headers.end(); ++it) {
+      if (!joined.empty()) {
+        joined += "; ";
+      }
+      joined += *it;
+    }
+    setenv("HTTP_COOKIE", joined.c_str(), 1);
+  }
 }
 
 // Security validation: check if script path is safe to execute

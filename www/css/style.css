@@ -1,3 +1,48 @@
+/* Fix: ensure select dropdown is always above button */
+select:focus {
+  position: relative;
+  z-index: 10;
+}
+
+/* Bird image bottom right */
+
+.bird-image {
+  position: fixed;
+  bottom: -8vh;
+  right: -8vw;
+  width: 38vw;
+  max-width: 900px;
+  min-width: 200px;
+  height: auto;
+  z-index: 9999;
+  pointer-events: auto;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: scale(1);
+  user-select: none;
+}
+
+.bird-image:hover {
+  animation: happyHop 0.5s infinite alternate ease-in-out;
+}
+
+.bird-image.is-jumping {
+  animation: happyHop 0.5s infinite alternate ease-in-out;
+}
+
+.bird-image.is-scaling {
+  transform: scale(1.7);
+}
+
+@keyframes happyHop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    transform: translateY(-30px) scale(1.1);
+  }
+}
+
 /* webserv - Shared styles */
 
 * {
@@ -32,10 +77,13 @@
   --gap: 1rem;
 }
 
+
 html,
 body {
-  min-height: 100%;
+  min-height: 100vh;
+  height: 100vh;
   margin: 0;
+  overflow: hidden;
 }
 
 body {
@@ -126,6 +174,19 @@ body.test-page {
 .container {
   max-width: 900px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container>.back-link {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+.container>*:not(.back-link) {
+  text-align: center;
+  width: 100%;
 }
 
 h1 {
@@ -137,7 +198,9 @@ h1 {
 
 .subtitle {
   color: var(--muted);
-  margin-bottom: 2rem;
+  margin-top: -0.7rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
 }
 
 h2 {

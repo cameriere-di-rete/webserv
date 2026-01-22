@@ -50,7 +50,6 @@ void Response::setBodyWithContentType(const std::string& data,
   oss << body.size();
   addHeader("Content-Length", oss.str());
 }
-
 std::string Response::serialize() const {
   std::ostringstream o;
   o << startLine() << CRLF;
@@ -72,4 +71,14 @@ std::string Response::serializeHeadersWithConnection() const {
     headers_str += std::string("Connection: close") + CRLF;
   }
   return headers_str;
+}
+
+void Response::addCookie(const std::string& name, const std::string& value,
+                         const std::string& attrs) {
+  std::string cookie = name + "=" + value;
+  if (!attrs.empty()) {
+    cookie += "; ";
+    cookie += attrs;
+  }
+  addHeader("Set-Cookie", cookie);
 }

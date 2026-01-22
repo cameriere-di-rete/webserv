@@ -47,6 +47,10 @@ MimeMap createExtToMimeMap() {
   m["ico"] = "image/x-icon";
   m["svg"] = "image/svg+xml";
   m["webp"] = "image/webp";
+  // Video types
+  m["mp4"] = "video/mp4";
+  m["webm"] = "video/webm";
+  m["ogg"] = "video/ogg";
   return m;
 }
 
