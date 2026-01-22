@@ -120,10 +120,6 @@ int Connection::handleRead() {
     ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
     if (r < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        // No more data to read right now (non-blocking socket, edge-triggered)
-        return 0;
-      }
       LOG_PERROR(ERROR, "read");
       return -1;
     }
