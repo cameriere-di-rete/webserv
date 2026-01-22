@@ -6,7 +6,6 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -21,7 +20,6 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
-#include "file_utils.hpp"
 #include "utils.hpp"
 
 Connection::Connection()
@@ -289,6 +287,8 @@ void Connection::processRequest(const Server& server) {
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+  LOG(DEBUG) << "Location max_request_body: " << location.max_request_body;
+  LOG(DEBUG) << "Request body size: " << request.getBody().size();
 
   // Store error page config (paths already resolved in matchLocation)
   error_pages = location.error_page;
@@ -360,7 +360,19 @@ void Connection::processResponse(const Location& location) {
     return;  // resolvePathForLocation prepared an error response
   }
 
-  // Directory handling
+  // For POST/PUT/DELETE on directories, use FileHandler which can create files
+  std::string method = request.request_line.method;
+  if (is_directory && method == "POST") {
+    // FileHandler can handle POST to directory (creates new file)
+    IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
+    HandlerResult hr = executeHandler(handler);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    }
+    return;
+  }
+
+  // Directory handling (GET/HEAD only)
   if (is_directory) {
     if (location.autoindex) {
       // Delegate to AutoindexHandler (produces directory listing)

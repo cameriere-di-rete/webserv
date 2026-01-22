@@ -28,6 +28,7 @@ SOURCES	:=	src/http/Body.cpp \
 			src/handlers/IHandler.cpp \
 			src/handlers/AutoindexHandler.cpp \
 			src/handlers/EchoHandler.cpp \
+			src/handlers/ErrorFileHandler.cpp \
 			src/handlers/FileHandler.cpp \
 			src/handlers/RedirectHandler.cpp \
 			src/handlers/CgiHandler.cpp \

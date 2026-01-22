@@ -62,7 +62,7 @@ class TestAutoindex(WebservTestCase):
 
     def test_autoindex_directory_listing(self):
         """Test that autoindex generates a directory listing."""
-        response, body = self.make_request("GET", "/autoindex/")
+        response, body = self.make_request("GET", "/uploads/")
         self.assertEqual(response.status, 200)
         # Check that the response contains HTML with directory listing
         self.assertIn(b"<html", body.lower())
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         webserv_path = os.path.join(
             os.path.dirname(__file__), "..", "..", "build", "webserv"
         )
-    
+
     if not os.path.exists(webserv_path):
         print(
             f"Error: webserv executable not found in ../../webserv or ../../build/webserv",

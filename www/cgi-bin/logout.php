@@ -1,4 +1,4 @@
-#!/usr/local/bin/run-php-cgi.sh
+#!/usr/bin/env php-cgi
 <?php
 /**
  * Logout script - expires cookies to end the session.

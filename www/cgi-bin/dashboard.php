@@ -1,4 +1,4 @@
-#!/usr/local/bin/run-php-cgi.sh
+#!/usr/bin/env php-cgi
 <?php
 /**
  * Session dashboard - shows session info and protected content.

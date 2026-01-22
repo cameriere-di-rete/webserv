@@ -1,4 +1,4 @@
-#!/usr/local/bin/run-php-cgi.sh
+#!/usr/bin/env php-cgi
 <?php
 /**
  * Simple PHP login demo using cookies for session management.

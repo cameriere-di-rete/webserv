@@ -183,7 +183,9 @@ int ServerManager::run() {
   LOG(DEBUG) << "Entering main event loop (waiting for connections)...";
 
   while (!stop_requested_) {
-    int n = epoll_wait(efd_, events, MAX_EVENTS, -1);
+    // Use 1 second timeout to periodically check for CGI/connection timeouts
+    // even when there are no I/O events
+    int n = epoll_wait(efd_, events, MAX_EVENTS, 1000);
     if (n < 0) {
       if (errno == EINTR) {
         if (stop_requested_) {
@@ -309,19 +311,11 @@ int ServerManager::run() {
         continue;
       }
 
-      // Extract and validate request body
-      int body_result = extractRequestBody(conn, conn_fd);
-      if (body_result < 0) {
-        // Error occurred, response already prepared
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-        continue;
-      } else if (body_result == 0) {
-        // Body not fully received yet, wait for more data
+      // Extract request body & check Content-Length via helper
+      if (!extractRequestBody(conn)) {
+        // Not all body bytes received yet — keep monitoring for reads
         continue;
       }
-
-      LOG(DEBUG) << "Request parsed: " << conn.request.request_line.method
-                 << " " << conn.request.request_line.uri;
 
       /* find the server that accepted this connection */
       std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
@@ -372,6 +366,38 @@ int ServerManager::run() {
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
+}
+
+bool ServerManager::extractRequestBody(Connection& conn) {
+  // Extract the request body from read_buffer (after \r\n\r\n)
+  // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
+  std::size_t body_start = conn.headers_end_pos + 4;
+  if (body_start < conn.read_buffer.size()) {
+    conn.request.getBody().data = conn.read_buffer.substr(body_start);
+    LOG(DEBUG) << "Extracted request body: "
+               << conn.request.getBody().data.size() << " bytes";
+  } else {
+    conn.request.getBody().data.clear();
+  }
+
+  // If a Content-Length header is present, wait until we've received the
+  // entire body before processing the request. Otherwise we may switch
+  // the socket to EPOLLOUT and stop reading, causing large uploads to
+  // stall when the remaining body hasn't been consumed yet.
+  std::string content_length_str;
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    long long content_len = 0;
+    if (safeStrtoll(content_length_str, content_len)) {
+      if (conn.request.getBody().data.size() <
+          static_cast<std::size_t>(content_len)) {
+        LOG(DEBUG) << "Waiting for full request body: have "
+                   << conn.request.getBody().data.size() << " of "
+                   << content_len << " bytes";
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 void ServerManager::setupSignalHandlers() {
@@ -561,62 +587,23 @@ void ServerManager::cleanupHandlerResources(Connection& c) {
   }
 }
 
-int ServerManager::extractRequestBody(Connection& conn, int conn_fd) {
-  // Extract body from read_buffer (after "\r\n\r\n")
-  std::size_t body_start = conn.headers_end_pos + 4;
-
-  // Check for Content-Length header
-  std::string content_length_str;
-  std::size_t expected_body_length = 0;
-  bool has_content_length = false;
-
-  if (conn.request.getHeader("Content-Length", content_length_str)) {
-    // C++98 compatible: use atol instead of std::stoul
-    long content_len = std::atol(content_length_str.c_str());
-    if (content_len < 0) {
-      // Malformed Content-Length header
-      LOG(INFO) << "Malformed Content-Length header on fd " << conn_fd
-                << ", sending 400 Bad Request";
-      conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-      return -1;
-    }
-    expected_body_length = static_cast<std::size_t>(content_len);
-    has_content_length = true;
-  }
-
-  std::size_t available_body_length =
-      (body_start < conn.read_buffer.size())
-          ? (conn.read_buffer.size() - body_start)
-          : 0;
-
-  if (has_content_length) {
-    if (available_body_length < expected_body_length) {
-      // Body not fully received yet, wait for more data
-      return 0;
-    }
-    // Use exactly the expected length (handles both exact match and excess)
-    std::string body_data =
-        conn.read_buffer.substr(body_start, expected_body_length);
-    conn.request.getBody().data = body_data;
-  } else {
-    // No Content-Length header, use all available data
-    if (available_body_length > 0) {
-      std::string body_data = conn.read_buffer.substr(body_start);
-      conn.request.getBody().data = body_data;
-    }
-  }
-
-  return 1;  // Body ready
-}
-
 void ServerManager::checkConnectionTimeouts() {
   std::vector<int> timed_out_fds;
+  std::vector<int> cgi_timed_out_fds;
 
   // First pass: identify timed out connections
   for (std::map<int, Connection>::iterator it = connections_.begin();
        it != connections_.end(); ++it) {
     Connection& conn = it->second;
     int conn_fd = it->first;
+
+    // Check for CGI handler timeouts first
+    if (conn.active_handler != NULL &&
+        conn.active_handler->checkTimeout(conn)) {
+      LOG(INFO) << "CGI timeout on fd " << conn_fd;
+      cgi_timed_out_fds.push_back(conn_fd);
+      continue;
+    }
 
     // Check for read phase timeouts (connections waiting for client data)
     if (conn.isReadTimedOut(READ_TIMEOUT_SECONDS)) {
@@ -632,6 +619,32 @@ void ServerManager::checkConnectionTimeouts() {
                 << " (sending for >= " << WRITE_TIMEOUT_SECONDS << "s)";
       timed_out_fds.push_back(conn_fd);
     }
+  }
+
+  // Handle CGI timeouts - cleanup handler and send response
+  for (std::size_t i = 0; i < cgi_timed_out_fds.size(); ++i) {
+    int conn_fd = cgi_timed_out_fds[i];
+    std::map<int, Connection>::iterator it = connections_.find(conn_fd);
+    if (it == connections_.end()) {
+      continue;
+    }
+
+    Connection& conn = it->second;
+
+    // Unregister CGI pipe if any
+    if (conn.active_handler != NULL) {
+      int pipe_fd = conn.active_handler->getMonitorFd();
+      if (pipe_fd >= 0) {
+        unregisterCgiPipe(pipe_fd);
+      }
+    }
+
+    // Clear the CGI handler first, then prepare error response
+    // This order is important to avoid use-after-free when
+    // prepareErrorResponse installs a new handler (ErrorFileHandler)
+    conn.clearHandler();
+    conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
+    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
   }
 
   // Second pass: close timed out connections

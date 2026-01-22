@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ctime>
 #include <set>
 #include <string>
 
@@ -16,6 +17,7 @@ class CgiHandler : public IHandler {
   virtual HandlerResult start(Connection& conn);
   virtual HandlerResult resume(Connection& conn);
   virtual int getMonitorFd() const;
+  virtual bool checkTimeout(Connection& conn);
 
  private:
   void setupEnvironment(Connection& conn);
@@ -36,4 +38,5 @@ class CgiHandler : public IHandler {
   bool headers_parsed_;
   std::string remaining_data_;
   std::string accumulated_output_;
+  time_t start_time_;
 };
