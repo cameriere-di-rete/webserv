@@ -26,19 +26,13 @@ class ServerManager {
   bool registerCgiPipe(int pipe_fd, int conn_fd);
   // Unregister a CGI pipe FD from epoll
   void unregisterCgiPipe(int pipe_fd);
-  // Extract request body from connection's read buffer and validate
-  // against Content-Length header if present.
-  // Returns true when the full body is available (or no Content-Length).
-  // Returns false when more data is required.
-  bool extractRequestBody(Connection& conn);
   // Handle CGI pipe events (called when pipe is readable)
   void handleCgiPipeEvent(int pipe_fd);
   // Clean up handler resources (CGI pipes) for a connection before closing
   void cleanupHandlerResources(Connection& c);
-  // Process parsed headers after headers_end_pos is set but before preparing
-  // the response. Returns: 1 = continue processing, 0 = wait for more data,
-  // -1 = error response prepared (stop processing)
-  int processParsedHeaders(Connection& c);
+  // Close a connection FD: cleanup handler resources, close fd, and remove
+  // it from the connections_ map. Safe to call even if fd is not present.
+  void closeAndRemoveConnection(int fd);
   // Prepare responses for connections that have completed reading
   // but do not yet have a write buffer
   void prepareResponses();

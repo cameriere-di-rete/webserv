@@ -28,8 +28,7 @@ Connection::Connection()
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
-      request_parsed(false),
-      ignore_body(false),
+      parsed_content_length(-1),
       request(),
       response(),
       active_handler(NULL),
@@ -43,8 +42,7 @@ Connection::Connection(int fd)
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
-      request_parsed(false),
-      ignore_body(false),
+      parsed_content_length(-1),
       request(),
       response(),
       active_handler(NULL),
@@ -61,8 +59,7 @@ Connection::Connection(const Connection& other)
       write_offset(other.write_offset),
       headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
-      request_parsed(other.request_parsed),
-      ignore_body(other.ignore_body),
+      parsed_content_length(other.parsed_content_length),
       request(other.request),
       response(other.response),
       active_handler(NULL),
@@ -88,8 +85,7 @@ Connection& Connection::operator=(const Connection& other) {
     response = other.response;
     clearHandler();
     error_pages = other.error_pages;
-    request_parsed = other.request_parsed;
-    ignore_body = other.ignore_body;
+    parsed_content_length = other.parsed_content_length;
     read_start = other.read_start;
     write_start = other.write_start;
   }
@@ -121,7 +117,7 @@ bool Connection::isWriteTimedOut(int timeout_seconds) const {
   return (now - write_start) >= timeout_seconds;
 }
 
-int Connection::handleRead() {
+int Connection::handleRead(const Server& server) {
   while (1) {
     char buf[WRITE_BUF_SIZE] = {0};
 
@@ -140,61 +136,110 @@ int Connection::handleRead() {
     // Add new data to persistent buffer
     read_buffer.append(buf, r);
 
-    // If headers not yet complete, enforce a 4KB cap while searching
+    // If headers not yet complete, enforce a cap while searching
     if (headers_end_pos == std::string::npos) {
       if (read_buffer.size() > HEADERS_SEARCH_LIMIT) {
         // Headers too large / not found within limit -> Bad Request
         prepareErrorResponse(http::S_400_BAD_REQUEST);
         return 2; /* response ready, signal caller to enable EPOLLOUT */
       }
+
       std::size_t pos = read_buffer.find(CRLF CRLF);
-      if (pos != std::string::npos) {
-        headers_end_pos = pos;
-        // let caller parse headers and determine request specifics
-      } else {
+      if (pos == std::string::npos) {
         // headers not complete yet
-        return 0;
+        continue;
+      }
+
+      headers_end_pos = pos;
+      // Attempt to parse headers. Prepare any immediate error responses
+      // (411/400/413) and return a code indicating a response is ready.
+      int ph = processParsedHeaders(server);
+      if (ph != 0) {
+        // Ready to process response. Error response prepared or no body
+        // expected.
+        return ph;
       }
     }
 
-    // If headers already parsed by ServerManager, update request body
-    if (headers_end_pos != std::string::npos && request_parsed) {
-      // If ServerManager determined the body should be ignored, signal ready
-      if (ignore_body) {
-        return 1;  // ready to prepare response, ignore any body
-      }
-      std::string content_length_str;
-      if (request.getHeader("Content-Length", content_length_str)) {
-        long long content_len = 0;
-        if (!safeStrtoll(content_length_str, content_len)) {
-          prepareErrorResponse(http::S_400_BAD_REQUEST);
-          return 2;
-        }
-        if (content_len < 0) {
-          prepareErrorResponse(http::S_400_BAD_REQUEST);
-          return 2;
-        }
-
-        std::size_t body_start = headers_end_pos + 4;
-        if (body_start < read_buffer.size()) {
-          request.getBody().data = read_buffer.substr(body_start);
-        } else {
-          request.getBody().data.clear();
-        }
-
-        // If we still haven't received the full body, wait for more data
-        if (request.getBody().data.size() <
-            static_cast<std::size_t>(content_len)) {
-          return 0;
-        }
-        // full body received; let prepareResponses handle processing
-        return 1;
-      } else {
-        // No Content-Length: treat as no-body request
-        return 1;
-      }
+    if (isBodyReady()) {
+      return 1;
     }
   }
+  return 0;
+}
+
+bool Connection::isBodyReady() {
+  // If parsed_content_length is negative or zero, there is no body to read
+  if (parsed_content_length <= 0) {
+    return true;  // no body expected
+  }
+
+  // check whether we've received the full body
+  std::size_t body_start = headers_end_pos + 4;
+  std::size_t available = 0;
+  if (body_start < read_buffer.size()) {
+    available = read_buffer.size() - body_start;
+  }
+
+  if (available < static_cast<std::size_t>(parsed_content_length)) {
+    // not enough body bytes yet
+    return false;
+  }
+
+  // full body available, extract
+  request.getBody().data = read_buffer.substr(
+      body_start, static_cast<std::size_t>(parsed_content_length));
+
+  return true;
+}
+
+int Connection::processParsedHeaders(const Server& server) {
+  // Parse start line and headers to populate request and URI
+  if (!request.parseStartAndHeaders(read_buffer, headers_end_pos)) {
+    LOG(INFO) << "Malformed request on fd " << fd
+              << ", sending 400 Bad Request";
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+
+  // Determine whether to expect a body: only POST and PUT have bodies.
+  std::string method_tmp = request.request_line.method;
+  if (method_tmp != "POST" && method_tmp != "PUT") {
+    return 1;
+  }
+
+  // Determine location-specific max_request_body from provided server
+  std::size_t loc_max = kMaxRequestBodyUnset;
+  Location loc = server.matchLocation(request.uri.getPath());
+  loc_max = loc.max_request_body;
+
+  // If Content-Length present, validate against location max
+  std::string content_length_str;
+  if (!request.getHeader("Content-Length", content_length_str)) {
+    // Body expected but no Content-Length supplied
+    prepareErrorResponse(http::S_411_LENGTH_REQUIRED);
+    return 2;
+  }
+
+  long long content_len = -1;
+  if (!safeStrtoll(content_length_str, content_len)) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (content_len < 0) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (loc_max != kMaxRequestBodyUnset &&
+      static_cast<std::size_t>(content_len) > loc_max) {
+    prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+    return 2;
+  }
+
+  // Cache parsed Content-Length. Only extract the body when the full body
+  // is present using headers_end_pos to compute the body start.
+  parsed_content_length = content_len;
+
   return 0;
 }
 

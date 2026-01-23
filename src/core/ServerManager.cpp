@@ -101,7 +101,6 @@ void ServerManager::acceptConnection(int listen_fd) {
     connection.remote_addr = inet_ntoa(client_addr.sin_addr);
     connections_[conn_fd] = connection;
 
-    // watch for reads; no write interest yet
     updateEvents(conn_fd, EPOLLIN);
     LOG(DEBUG) << "Connection fd " << conn_fd << " registered with EPOLLIN";
   }
@@ -218,38 +217,6 @@ int ServerManager::run() {
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
-}
-
-bool ServerManager::extractRequestBody(Connection& conn) {
-  // Extract the request body from read_buffer (after \r\n\r\n)
-  // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
-  std::size_t body_start = conn.headers_end_pos + 4;
-  if (body_start < conn.read_buffer.size()) {
-    conn.request.getBody().data = conn.read_buffer.substr(body_start);
-    LOG(DEBUG) << "Extracted request body: "
-               << conn.request.getBody().data.size() << " bytes";
-  } else {
-    conn.request.getBody().data.clear();
-  }
-
-  // If a Content-Length header is present, wait until we've received the
-  // entire body before processing the request. Otherwise we may switch
-  // the socket to EPOLLOUT and stop reading, causing large uploads to
-  // stall when the remaining body hasn't been consumed yet.
-  std::string content_length_str;
-  if (conn.request.getHeader("Content-Length", content_length_str)) {
-    long long content_len = 0;
-    if (safeStrtoll(content_length_str, content_len)) {
-      if (conn.request.getBody().data.size() <
-          static_cast<std::size_t>(content_len)) {
-        LOG(DEBUG) << "Waiting for full request body: have "
-                   << conn.request.getBody().data.size() << " of "
-                   << content_len << " bytes";
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 void ServerManager::setupSignalHandlers() {
@@ -431,6 +398,7 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
 }
 
 void ServerManager::prepareResponses() {
+  std::vector<int> to_close;
   for (std::map<int, Connection>::iterator it = connections_.begin();
        it != connections_.end(); ++it) {
     Connection& conn = it->second;
@@ -450,20 +418,6 @@ void ServerManager::prepareResponses() {
     }
 
     LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
-
-    if (!conn.request_parsed) {
-      int ph = processParsedHeaders(conn);
-      if (ph != 1) {
-        // ph == 0 -> need more data; ph == -1 -> error already prepared
-        continue;
-      }
-    }
-
-    // Extract request body & check Content-Length via helper
-    if (!extractRequestBody(conn)) {
-      // Not all body bytes received yet — keep monitoring for reads
-      continue;
-    }
 
     /* find the server that accepted this connection */
     std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
@@ -506,6 +460,13 @@ void ServerManager::prepareResponses() {
     /* enable EPOLLOUT now that we have data to send */
     updateEvents(conn_fd, EPOLLOUT);
   }
+
+  // Close any connections that were marked because their server config
+  // was missing. Do this after iterating to avoid invalidating iterators.
+  for (std::size_t i = 0; i < to_close.size(); ++i) {
+    int fd = to_close[i];
+    closeAndRemoveConnection(fd);
+  }
 }
 
 void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
@@ -545,26 +506,28 @@ void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
   /* readable */
   if (ev_mask & EPOLLIN) {
     LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
-    int status = c.handleRead();
+    std::map<int, Server>::iterator srv_it_conn = servers_.find(c.server_fd);
+    if (srv_it_conn == servers_.end()) {
+      LOG(ERROR) << "Server not found for connection fd " << fd
+                 << " (server_fd: " << c.server_fd << ") - closing";
+      closeAndRemoveConnection(fd);
+      return;
+    }
+    const Server& srv_ref = srv_it_conn->second;
+    int status = c.handleRead(srv_ref);
 
     if (status < 0) {
       LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
-      cleanupHandlerResources(c);
-      close(fd);
-      connections_.erase(fd);
+      closeAndRemoveConnection(fd);
       return;
     }
 
-    if (c.headers_end_pos != std::string::npos) {
-      LOG(DEBUG) << "Headers complete on fd: " << fd;
-
-      if (!c.request_parsed) {
-        int ph = processParsedHeaders(c);
-        if (ph != 1) {
-          // ph == 0 -> need more data; ph == -1 -> error already prepared
-          return;
-        }
-      }
+    if (status == 2) {
+      // Connection prepared an error/response during read; enable write
+      // events so the response can be sent.
+      LOG(DEBUG) << "Connection prepared response during read on fd: " << fd;
+      updateEvents(fd, EPOLLOUT);
+      return;
     }
   }
 
@@ -578,83 +541,9 @@ void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
       c.logAccess();
       LOG(DEBUG) << "handleWrite complete or failed, closing connection fd: "
                  << fd;
-      cleanupHandlerResources(c);
-      close(fd);
-      connections_.erase(fd);
+      closeAndRemoveConnection(fd);
     }
   }
-}
-
-int ServerManager::processParsedHeaders(Connection& c) {
-  // Parse start line and headers to populate request and URI
-  if (!c.request.parseStartAndHeaders(c.read_buffer, c.headers_end_pos)) {
-    LOG(INFO) << "Malformed request on fd " << c.fd
-              << ", sending 400 Bad Request";
-    c.prepareErrorResponse(http::S_400_BAD_REQUEST);
-    updateEvents(c.fd, EPOLLOUT);
-    return -1;
-  }
-  c.request_parsed = true;
-
-  // Determine whether to ignore body: only keep body for POST/PUT
-  std::string method_tmp = c.request.request_line.method;
-  c.ignore_body = method_tmp != "POST" && method_tmp != "PUT";
-
-  // Determine location-specific max_request_body
-  std::size_t loc_max = kMaxRequestBodyUnset;
-  std::map<int, Server>::iterator srv_it = servers_.find(c.server_fd);
-  if (srv_it != servers_.end()) {
-    Location loc = srv_it->second.matchLocation(c.request.uri.getPath());
-    loc_max = loc.max_request_body;
-  }
-
-  if (c.ignore_body) {
-    // If Content-Length present, validate against location max
-    std::string content_length_str;
-    if (!c.request.getHeader("Content-Length", content_length_str)) {
-      // Body expected but no Content-Length supplied
-      c.prepareErrorResponse(http::S_411_LENGTH_REQUIRED);
-      updateEvents(c.fd, EPOLLOUT);
-      return -1;
-    }
-    if (c.request.getHeader("Content-Length", content_length_str)) {
-      long long content_len = 0;
-      if (!safeStrtoll(content_length_str, content_len)) {
-        c.prepareErrorResponse(http::S_400_BAD_REQUEST);
-        updateEvents(c.fd, EPOLLOUT);
-        return -1;
-      }
-      if (content_len < 0) {
-        c.prepareErrorResponse(http::S_400_BAD_REQUEST);
-        updateEvents(c.fd, EPOLLOUT);
-        return -1;
-      }
-      if (loc_max != kMaxRequestBodyUnset &&
-          static_cast<std::size_t>(content_len) > loc_max) {
-        c.prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
-        updateEvents(c.fd, EPOLLOUT);
-        return -1;
-      }
-
-      // Extract any body bytes already received
-      std::size_t body_start = c.headers_end_pos + 4;
-      if (body_start < c.read_buffer.size()) {
-        c.request.getBody().data = c.read_buffer.substr(body_start);
-      } else {
-        c.request.getBody().data.clear();
-      }
-
-      // If body not fully received yet, wait for more data
-      if (c.request.getBody().data.size() <
-          static_cast<std::size_t>(content_len)) {
-        return 0;
-      }
-      // else full body already in buffer; let prepareResponses handle it
-    }
-    // If no Content-Length header, treat as empty body and proceed
-  }
-
-  return 1;
 }
 
 void ServerManager::cleanupHandlerResources(Connection& c) {
@@ -751,8 +640,18 @@ void ServerManager::checkConnectionTimeouts() {
     }
 
     // Clean up and close
-    cleanupHandlerResources(conn);
-    close(conn_fd);
-    connections_.erase(conn_fd);
+    closeAndRemoveConnection(conn_fd);
   }
+}
+
+void ServerManager::closeAndRemoveConnection(int fd) {
+  std::map<int, Connection>::iterator it = connections_.find(fd);
+  if (it == connections_.end()) {
+    return;
+  }
+
+  Connection& c = it->second;
+  cleanupHandlerResources(c);
+  close(fd);
+  connections_.erase(it);
 }
