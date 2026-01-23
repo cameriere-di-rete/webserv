@@ -118,53 +118,52 @@ bool Connection::isWriteTimedOut(int timeout_seconds) const {
 }
 
 int Connection::handleRead(const Server& server) {
-  while (1) {
-    char buf[WRITE_BUF_SIZE] = {0};
+  char buf[WRITE_BUF_SIZE] = {0};
 
-    ssize_t r = recv(fd, buf, sizeof(buf), 0);
+  ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
-    if (r < 0) {
-      LOG_PERROR(ERROR, "read");
-      return -1;
+  if (r < 0) {
+    LOG_PERROR(ERROR, "read");
+    return -1;
+  }
+
+  if (r == 0) {
+    LOG(INFO) << "Client disconnected (fd: " << fd << ")";
+    return -1;
+  }
+
+  // Add new data to persistent buffer
+  read_buffer.append(buf, r);
+
+  // If headers not yet complete, enforce a cap while searching
+  if (headers_end_pos == std::string::npos) {
+    if (read_buffer.size() > HEADERS_SEARCH_LIMIT) {
+      // Headers too large / not found within limit -> Bad Request
+      prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return 2; /* response ready, signal caller to enable EPOLLOUT */
     }
 
-    if (r == 0) {
-      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
-      return -1;
+    std::size_t pos = read_buffer.find(CRLF CRLF);
+    if (pos == std::string::npos) {
+      // headers not complete yet
+      return 0;
     }
 
-    // Add new data to persistent buffer
-    read_buffer.append(buf, r);
-
-    // If headers not yet complete, enforce a cap while searching
-    if (headers_end_pos == std::string::npos) {
-      if (read_buffer.size() > HEADERS_SEARCH_LIMIT) {
-        // Headers too large / not found within limit -> Bad Request
-        prepareErrorResponse(http::S_400_BAD_REQUEST);
-        return 2; /* response ready, signal caller to enable EPOLLOUT */
-      }
-
-      std::size_t pos = read_buffer.find(CRLF CRLF);
-      if (pos == std::string::npos) {
-        // headers not complete yet
-        continue;
-      }
-
-      headers_end_pos = pos;
-      // Attempt to parse headers. Prepare any immediate error responses
-      // (411/400/413) and return a code indicating a response is ready.
-      int ph = processParsedHeaders(server);
-      if (ph != 0) {
-        // Ready to process response. Error response prepared or no body
-        // expected.
-        return ph;
-      }
-    }
-
-    if (isBodyReady()) {
-      return 1;
+    headers_end_pos = pos;
+    // Attempt to parse headers. Prepare any immediate error responses
+    // (411/400/413) and return a code indicating a response is ready.
+    int ph = processParsedHeaders(server);
+    if (ph != 0) {
+      // Ready to process response. Error response prepared or no body
+      // expected.
+      return ph;
     }
   }
+
+  if (isBodyReady()) {
+    return 1;
+  }
+
   return 0;
 }
 
