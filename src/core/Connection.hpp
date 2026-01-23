@@ -11,6 +11,7 @@
 #include "IHandler.hpp"
 #include "Request.hpp"
 #include "Response.hpp"
+#include "Server.hpp"
 
 class Connection {
  public:
@@ -29,6 +30,8 @@ class Connection {
   std::size_t write_offset;
   std::size_t headers_end_pos;
   bool write_ready;
+  // Cached parsed Content-Length (negative if not present)
+  long long parsed_content_length;
   Request request;
   Response response;
   IHandler* active_handler;
@@ -36,7 +39,24 @@ class Connection {
   time_t read_start;   // Timestamp when connection started (for read timeout)
   time_t write_start;  // Timestamp when write phase started (0 if not started)
 
-  int handleRead();
+  // handleRead returns: -1 = error, 0 = need more data, 1 = ready,
+  // 2 = response prepared (error page ready)
+  // Now accepts the servers map so it can parse headers that depend on
+  // server configuration (location limits) and prepare error responses
+  // before returning.
+  // `server` is the Server configuration to use for parsing headers.
+  // If no server configuration is available, callers should pass a
+  // default-constructed `Server` whose defaults indicate unset values.
+  int handleRead(const Server& server);
+  // Check whether the request body is ready/complete based on headers and
+  // any previously parsed Content-Length. Returns `true` when the body is
+  // complete (or no body); returns `false` when more data is required.
+  // In case of a parsing error this will prepare an error response.
+  bool isBodyReady();
+  // Parse start line and headers to populate request/URI and determine
+  // whether the body should be ignored. Returns: 1 = ready to process response,
+  // 0 = wait for more data, 2 = error response prepared.
+  int processParsedHeaders(const Server& server);
   void startWritePhase();  // Mark the start of write phase
   bool isReadTimedOut(
       int timeout_seconds) const;  // Check if read phase timed out

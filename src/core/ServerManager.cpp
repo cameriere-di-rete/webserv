@@ -27,7 +27,6 @@
 #include "IHandler.hpp"
 #include "Logger.hpp"
 #include "constants.hpp"
-#include "utils.hpp"
 
 ServerManager::ServerManager() : efd_(-1), sfd_(-1), stop_requested_(false) {}
 
@@ -87,17 +86,9 @@ void ServerManager::acceptConnection(int listen_fd) {
     int conn_fd =
         accept(listen_fd, (struct sockaddr*)&client_addr, &client_len);
     if (conn_fd < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG(DEBUG) << "No more pending connections on fd: " << listen_fd;
-        break;
-      }
-      LOG_PERROR(ERROR, "accept");
+      LOG(DEBUG) << "accept returned error on fd: " << listen_fd
+                 << " (stop accepting for now)";
       break;
-    }
-    if (set_nonblocking(conn_fd) < 0) {
-      LOG_PERROR(ERROR, "set_nonblocking conn_fd");
-      close(conn_fd);
-      continue;
     }
 
     LOG(DEBUG) << "New connection accepted (fd: " << conn_fd
@@ -109,8 +100,7 @@ void ServerManager::acceptConnection(int listen_fd) {
     connection.remote_addr = inet_ntoa(client_addr.sin_addr);
     connections_[conn_fd] = connection;
 
-    // watch for reads; no write interest yet
-    updateEvents(conn_fd, EPOLLIN | EPOLLET);
+    updateEvents(conn_fd, EPOLLIN);
     LOG(DEBUG) << "Connection fd " << conn_fd << " registered with EPOLLIN";
   }
 }
@@ -203,77 +193,12 @@ int ServerManager::run() {
 
     for (int i = 0; i < n; ++i) {
       int fd = events[i].data.fd;
-      LOG(DEBUG) << "Processing event for fd: " << fd;
-
-      if (fd == sfd_) {
-        // process pending signals from signalfd
-        if (processSignalsFromFd()) {
-          LOG(DEBUG) << "ServerManager: stop requested by signal (signalfd)";
-        }
-        if (stop_requested_) {
-          return EXIT_SUCCESS;
-        }
-        continue;
-      }
-
-      std::map<int, Server>::iterator s_it = servers_.find(fd);
-      if (s_it != servers_.end()) {
-        LOG(DEBUG)
-            << "Event is on server listen socket, accepting connections...";
-        acceptConnection(fd);
-        continue;
-      }
-
-      // Check if this is a CGI pipe FD
-      std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(fd);
-      if (cgi_it != cgi_pipe_to_conn_.end()) {
-        LOG(DEBUG) << "EPOLLIN event on CGI pipe fd: " << fd;
-        handleCgiPipeEvent(fd);
-        continue;
-      }
-
-      std::map<int, Connection>::iterator c_it = connections_.find(fd);
-      if (c_it == connections_.end()) {
-        LOG(DEBUG) << "Unknown fd: " << fd << ", skipping";
-        continue; /* unknown fd */
-      }
-
-      Connection& c = c_it->second;
       uint32_t ev_mask = events[i].events;
 
-      /* readable */
-      if (ev_mask & EPOLLIN) {
-        LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
-        int status = c.handleRead();
+      handleEvent(fd, ev_mask);
 
-        if (status < 0) {
-          LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
-          cleanupHandlerResources(c);
-          close(fd);
-          connections_.erase(fd);
-          continue;
-        }
-
-        if (c.headers_end_pos != std::string::npos) {
-          LOG(DEBUG) << "Headers complete on fd: " << fd;
-        }
-      }
-
-      /* writable */
-      if (ev_mask & EPOLLOUT) {
-        LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
-        int status = c.handleWrite();
-
-        if (status <= 0) {
-          // Log the completed request in nginx-style format
-          c.logAccess();
-          LOG(DEBUG)
-              << "handleWrite complete or failed, closing connection fd: "
-              << fd;
-          cleanupHandlerResources(c);
-          close(fd);
-          connections_.erase(fd);
-        }
+      if (stop_requested_) {
+        return EXIT_SUCCESS;
       }
     }
 
@@ -281,83 +206,8 @@ int ServerManager::run() {
        for those that completed reading but don't yet have a write buffer. */
     LOG(DEBUG) << "Checking " << connections_.size()
                << " connection(s) for response preparation";
-    for (std::map<int, Connection>::iterator it = connections_.begin();
-         it != connections_.end(); ++it) {
-      Connection& conn = it->second;
-      int conn_fd = it->first;
 
-      if (conn.headers_end_pos == std::string::npos) {
-        continue;
-      }
-
-      if (!conn.write_buffer.empty()) {
-        continue; /* already prepared */
-      }
-
-      // Skip if handler is already active (e.g., waiting for CGI output)
-      if (conn.active_handler != NULL) {
-        continue;
-      }
-
-      LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
-
-      if (!conn.request.parseStartAndHeaders(conn.read_buffer,
-                                             conn.headers_end_pos)) {
-        /* malformed start line or headers -> 400 Bad Request */
-        LOG(INFO) << "Malformed request on fd " << conn_fd
-                  << ", sending 400 Bad Request";
-        conn.prepareErrorResponse(http::S_400_BAD_REQUEST);
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-        continue;
-      }
-
-      // Extract request body & check Content-Length via helper
-      if (!extractRequestBody(conn)) {
-        // Not all body bytes received yet — keep monitoring for reads
-        continue;
-      }
-
-      /* find the server that accepted this connection */
-      std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
-      if (srv_it == servers_.end()) {
-        /* shouldn't happen, but handle gracefully */
-        LOG(ERROR) << "Server not found for connection fd " << conn_fd
-                   << " (server_fd: " << conn.server_fd << ")";
-        conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-        updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-        continue;
-      }
-
-      LOG(DEBUG) << "Found server configuration for fd " << conn_fd
-                 << " (port: " << srv_it->second.port << ")";
-
-      /* process request using new handler methods */
-      conn.processRequest(srv_it->second);
-
-      // Check if handler needs async I/O (e.g., CGI pipe monitoring)
-      if (conn.active_handler != NULL) {
-        int monitor_fd = conn.active_handler->getMonitorFd();
-        if (monitor_fd >= 0) {
-          // Register CGI pipe for epoll monitoring
-          LOG(DEBUG) << "Registering CGI pipe fd " << monitor_fd
-                     << " for connection fd " << conn_fd;
-          if (!registerCgiPipe(monitor_fd, conn_fd)) {
-            // Failed to register pipe, send 500 error
-            LOG(ERROR) << "Failed to register CGI pipe for connection fd "
-                       << conn_fd;
-            conn.clearHandler();
-            conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-            updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-            continue;
-          }
-          // Don't enable EPOLLOUT yet - wait for CGI to complete
-          continue;
-        }
-      }
-
-      /* enable EPOLLOUT now that we have data to send */
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
-    }
+    prepareResponses();
 
     // Check for timed out connections AFTER processing all events.
     // This ensures connections with pending EPOLLIN/EPOLLOUT events get a
@@ -366,38 +216,6 @@ int ServerManager::run() {
   }
   LOG(DEBUG) << "ServerManager: exiting event loop";
   return EXIT_SUCCESS;
-}
-
-bool ServerManager::extractRequestBody(Connection& conn) {
-  // Extract the request body from read_buffer (after \r\n\r\n)
-  // The body starts at headers_end_pos + 4 (length of "\r\n\r\n")
-  std::size_t body_start = conn.headers_end_pos + 4;
-  if (body_start < conn.read_buffer.size()) {
-    conn.request.getBody().data = conn.read_buffer.substr(body_start);
-    LOG(DEBUG) << "Extracted request body: "
-               << conn.request.getBody().data.size() << " bytes";
-  } else {
-    conn.request.getBody().data.clear();
-  }
-
-  // If a Content-Length header is present, wait until we've received the
-  // entire body before processing the request. Otherwise we may switch
-  // the socket to EPOLLOUT and stop reading, causing large uploads to
-  // stall when the remaining body hasn't been consumed yet.
-  std::string content_length_str;
-  if (conn.request.getHeader("Content-Length", content_length_str)) {
-    long long content_len = 0;
-    if (safeStrtoll(content_length_str, content_len)) {
-      if (conn.request.getBody().data.size() <
-          static_cast<std::size_t>(content_len)) {
-        LOG(DEBUG) << "Waiting for full request body: have "
-                   << conn.request.getBody().data.size() << " of "
-                   << content_len << " bytes";
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 void ServerManager::setupSignalHandlers() {
@@ -505,7 +323,7 @@ bool ServerManager::registerCgiPipe(int pipe_fd, int conn_fd) {
   cgi_pipe_to_conn_[pipe_fd] = conn_fd;
 
   struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLET;
+  ev.events = EPOLLIN;
   ev.data.fd = pipe_fd;
 
   if (epoll_ctl(efd_, EPOLL_CTL_ADD, pipe_fd, &ev) < 0) {
@@ -575,7 +393,156 @@ void ServerManager::handleCgiPipeEvent(int pipe_fd) {
   }
 
   // Enable write events to send response
-  updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+  updateEvents(conn_fd, EPOLLOUT);
+}
+
+void ServerManager::prepareResponses() {
+  std::vector<int> to_close;
+  for (std::map<int, Connection>::iterator it = connections_.begin();
+       it != connections_.end(); ++it) {
+    Connection& conn = it->second;
+    int conn_fd = it->first;
+
+    if (conn.headers_end_pos == std::string::npos) {
+      continue;
+    }
+
+    if (!conn.write_buffer.empty()) {
+      continue; /* already prepared */
+    }
+
+    // Skip if handler is already active (e.g., waiting for CGI output)
+    if (conn.active_handler != NULL) {
+      continue;
+    }
+
+    LOG(DEBUG) << "Preparing response for connection fd: " << conn_fd;
+
+    /* find the server that accepted this connection */
+    std::map<int, Server>::iterator srv_it = servers_.find(conn.server_fd);
+    if (srv_it == servers_.end()) {
+      /* shouldn't happen, but handle gracefully */
+      LOG(ERROR) << "Server not found for connection fd " << conn_fd
+                 << " (server_fd: " << conn.server_fd << ")";
+      conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+      updateEvents(conn_fd, EPOLLOUT);
+      continue;
+    }
+
+    LOG(DEBUG) << "Found server configuration for fd " << conn_fd
+               << " (port: " << srv_it->second.port << ")";
+
+    /* process request using new handler methods */
+    conn.processRequest(srv_it->second);
+
+    // Check if handler needs async I/O (e.g., CGI pipe monitoring)
+    if (conn.active_handler != NULL) {
+      int monitor_fd = conn.active_handler->getMonitorFd();
+      if (monitor_fd >= 0) {
+        // Register CGI pipe for epoll monitoring
+        LOG(DEBUG) << "Registering CGI pipe fd " << monitor_fd
+                   << " for connection fd " << conn_fd;
+        if (!registerCgiPipe(monitor_fd, conn_fd)) {
+          // Failed to register pipe, send 500 error
+          LOG(ERROR) << "Failed to register CGI pipe for connection fd "
+                     << conn_fd;
+          conn.clearHandler();
+          conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+          updateEvents(conn_fd, EPOLLOUT);
+          continue;
+        }
+        // Don't enable EPOLLOUT yet - wait for CGI to complete
+        continue;
+      }
+    }
+
+    /* enable EPOLLOUT now that we have data to send */
+    updateEvents(conn_fd, EPOLLOUT);
+  }
+
+  // Close any connections that were marked because their server config
+  // was missing. Do this after iterating to avoid invalidating iterators.
+  for (std::size_t i = 0; i < to_close.size(); ++i) {
+    int fd = to_close[i];
+    closeAndRemoveConnection(fd);
+  }
+}
+
+void ServerManager::handleEvent(int fd, u_int32_t ev_mask) {
+  LOG(DEBUG) << "Processing event for fd: " << fd;
+
+  if (fd == sfd_) {
+    // process pending signals from signalfd
+    if (processSignalsFromFd()) {
+      LOG(DEBUG) << "ServerManager: stop requested by signal (signalfd)";
+    }
+    return;
+  }
+
+  std::map<int, Server>::iterator s_it = servers_.find(fd);
+  if (s_it != servers_.end()) {
+    LOG(DEBUG) << "Event is on server listen socket, accepting connections...";
+    acceptConnection(fd);
+    return;
+  }
+
+  // Check if this is a CGI pipe FD
+  std::map<int, int>::iterator cgi_it = cgi_pipe_to_conn_.find(fd);
+  if (cgi_it != cgi_pipe_to_conn_.end()) {
+    LOG(DEBUG) << "EPOLLIN event on CGI pipe fd: " << fd;
+    handleCgiPipeEvent(fd);
+    return;
+  }
+
+  std::map<int, Connection>::iterator c_it = connections_.find(fd);
+  if (c_it == connections_.end()) {
+    LOG(DEBUG) << "Unknown fd: " << fd << ", skipping";
+    return; /* unknown fd */
+  }
+
+  Connection& c = c_it->second;
+
+  /* readable */
+  if (ev_mask & EPOLLIN) {
+    LOG(DEBUG) << "EPOLLIN event on connection fd: " << fd;
+    std::map<int, Server>::iterator srv_it_conn = servers_.find(c.server_fd);
+    if (srv_it_conn == servers_.end()) {
+      LOG(ERROR) << "Server not found for connection fd " << fd
+                 << " (server_fd: " << c.server_fd << ") - closing";
+      closeAndRemoveConnection(fd);
+      return;
+    }
+    const Server& srv_ref = srv_it_conn->second;
+    int status = c.handleRead(srv_ref);
+
+    if (status < 0) {
+      LOG(DEBUG) << "handleRead failed, closing connection fd: " << fd;
+      closeAndRemoveConnection(fd);
+      return;
+    }
+
+    if (status == 2) {
+      // Connection prepared an error/response during read; enable write
+      // events so the response can be sent.
+      LOG(DEBUG) << "Connection prepared response during read on fd: " << fd;
+      updateEvents(fd, EPOLLOUT);
+      return;
+    }
+  }
+
+  /* writable */
+  if (ev_mask & EPOLLOUT) {
+    LOG(DEBUG) << "EPOLLOUT event on connection fd: " << fd;
+    int status = c.handleWrite();
+
+    if (status <= 0) {
+      // Log the completed request in nginx-style format
+      c.logAccess();
+      LOG(DEBUG) << "handleWrite complete or failed, closing connection fd: "
+                 << fd;
+      closeAndRemoveConnection(fd);
+    }
+  }
 }
 
 void ServerManager::cleanupHandlerResources(Connection& c) {
@@ -644,7 +611,7 @@ void ServerManager::checkConnectionTimeouts() {
     // prepareErrorResponse installs a new handler (ErrorFileHandler)
     conn.clearHandler();
     conn.prepareErrorResponse(http::S_504_GATEWAY_TIMEOUT);
-    updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+    updateEvents(conn_fd, EPOLLOUT);
   }
 
   // Second pass: close timed out connections
@@ -667,13 +634,23 @@ void ServerManager::checkConnectionTimeouts() {
       // Update epoll events to watch for EPOLLOUT so the response is sent
       // in the next event loop iteration. This is more reliable than
       // attempting to send immediately, as the socket might not be ready.
-      updateEvents(conn_fd, EPOLLOUT | EPOLLET);
+      updateEvents(conn_fd, EPOLLOUT);
       continue;  // Skip cleanup and closing, let event loop handle it
     }
 
     // Clean up and close
-    cleanupHandlerResources(conn);
-    close(conn_fd);
-    connections_.erase(conn_fd);
+    closeAndRemoveConnection(conn_fd);
   }
+}
+
+void ServerManager::closeAndRemoveConnection(int fd) {
+  std::map<int, Connection>::iterator it = connections_.find(fd);
+  if (it == connections_.end()) {
+    return;
+  }
+
+  Connection& c = it->second;
+  cleanupHandlerResources(c);
+  close(fd);
+  connections_.erase(it);
 }

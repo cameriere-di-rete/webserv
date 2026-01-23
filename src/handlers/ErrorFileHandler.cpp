@@ -33,7 +33,6 @@ HandlerResult ErrorFileHandler::start(Connection& conn) {
   offset_ = 0;
   end_offset_ = fi_.size - 1;
   active_ = true;
-
   // Prepare headers with error status already set by Connection
   conn.response.addHeader("Content-Type", fi_.content_type);
   {
@@ -43,10 +42,19 @@ HandlerResult ErrorFileHandler::start(Connection& conn) {
   }
   std::ostringstream header_stream;
   header_stream << conn.response.startLine() << CRLF;
-  header_stream << conn.response.serializeHeaders();
+  header_stream << conn.response.serializeHeadersWithConnection();
   header_stream << CRLF;
   conn.write_buffer = header_stream.str();
   conn.write_offset = 0;
+
+  // If the request was a HEAD, send only headers and do not stream body.
+  const std::string& method = conn.request.request_line.method;
+  if (method == "HEAD") {
+    // Do not mark active for streaming; resume() will immediately finish.
+    active_ = false;
+    return HR_WOULD_BLOCK;  // handler installed so Connection will call
+                            // resume()
+  }
 
   return HR_WOULD_BLOCK;  // body will be streamed in resume()
 }

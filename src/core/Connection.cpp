@@ -28,6 +28,7 @@ Connection::Connection()
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
+      parsed_content_length(-1),
       request(),
       response(),
       active_handler(NULL),
@@ -41,6 +42,7 @@ Connection::Connection(int fd)
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
+      parsed_content_length(-1),
       request(),
       response(),
       active_handler(NULL),
@@ -57,6 +59,7 @@ Connection::Connection(const Connection& other)
       write_offset(other.write_offset),
       headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
+      parsed_content_length(other.parsed_content_length),
       request(other.request),
       response(other.response),
       active_handler(NULL),
@@ -82,6 +85,7 @@ Connection& Connection::operator=(const Connection& other) {
     response = other.response;
     clearHandler();
     error_pages = other.error_pages;
+    parsed_content_length = other.parsed_content_length;
     read_start = other.read_start;
     write_start = other.write_start;
   }
@@ -113,32 +117,128 @@ bool Connection::isWriteTimedOut(int timeout_seconds) const {
   return (now - write_start) >= timeout_seconds;
 }
 
-int Connection::handleRead() {
-  while (1) {
-    char buf[WRITE_BUF_SIZE] = {0};
+int Connection::handleRead(const Server& server) {
+  char buf[WRITE_BUF_SIZE] = {0};
 
-    ssize_t r = recv(fd, buf, sizeof(buf), 0);
+  ssize_t r = recv(fd, buf, sizeof(buf), 0);
 
-    if (r < 0) {
-      LOG_PERROR(ERROR, "read");
-      return -1;
+  if (r < 0) {
+    LOG_PERROR(ERROR, "read");
+    return -1;
+  }
+
+  if (r == 0) {
+    LOG(INFO) << "Client disconnected (fd: " << fd << ")";
+    return -1;
+  }
+
+  // Add new data to persistent buffer
+  read_buffer.append(buf, r);
+
+  // If headers not yet complete, enforce a cap while searching
+  if (headers_end_pos == std::string::npos) {
+    if (read_buffer.size() > HEADERS_SEARCH_LIMIT) {
+      // Headers too large / not found within limit -> Bad Request
+      prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return 2; /* response ready, signal caller to enable EPOLLOUT */
     }
 
-    if (r == 0) {
-      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
-      return -1;
-    }
-
-    // Add new data to persistent buffer
-    read_buffer.append(buf, r);
-
-    // Check if the HTTP request headers are complete
     std::size_t pos = read_buffer.find(CRLF CRLF);
-    if (pos != std::string::npos) {
-      headers_end_pos = pos;
-      break;
+    if (pos == std::string::npos) {
+      // headers not complete yet
+      return 0;
+    }
+
+    headers_end_pos = pos;
+    // Attempt to parse headers. Prepare any immediate error responses
+    // (411/400/413) and return a code indicating a response is ready.
+    int ph = processParsedHeaders(server);
+    if (ph != 0) {
+      // Ready to process response. Error response prepared or no body
+      // expected.
+      return ph;
     }
   }
+
+  if (isBodyReady()) {
+    return 1;
+  }
+
+  return 0;
+}
+
+bool Connection::isBodyReady() {
+  // If parsed_content_length is negative or zero, there is no body to read
+  if (parsed_content_length <= 0) {
+    return true;  // no body expected
+  }
+
+  // check whether we've received the full body
+  std::size_t body_start = headers_end_pos + 4;
+  std::size_t available = 0;
+  if (body_start < read_buffer.size()) {
+    available = read_buffer.size() - body_start;
+  }
+
+  if (available < static_cast<std::size_t>(parsed_content_length)) {
+    // not enough body bytes yet
+    return false;
+  }
+
+  // full body available, extract
+  request.getBody().data = read_buffer.substr(
+      body_start, static_cast<std::size_t>(parsed_content_length));
+
+  return true;
+}
+
+int Connection::processParsedHeaders(const Server& server) {
+  // Parse start line and headers to populate request and URI
+  if (!request.parseStartAndHeaders(read_buffer, headers_end_pos)) {
+    LOG(INFO) << "Malformed request on fd " << fd
+              << ", sending 400 Bad Request";
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+
+  // Determine whether to expect a body: only POST and PUT have bodies.
+  std::string method_tmp = request.request_line.method;
+  if (method_tmp != "POST" && method_tmp != "PUT") {
+    return 1;
+  }
+
+  // Determine location-specific max_request_body from provided server
+  std::size_t loc_max = kMaxRequestBodyUnset;
+  Location loc = server.matchLocation(request.uri.getPath());
+  loc_max = loc.max_request_body;
+
+  // If Content-Length present, validate against location max
+  std::string content_length_str;
+  if (!request.getHeader("Content-Length", content_length_str)) {
+    // Body expected but no Content-Length supplied
+    prepareErrorResponse(http::S_411_LENGTH_REQUIRED);
+    return 2;
+  }
+
+  long long content_len = -1;
+  if (!safeStrtoll(content_length_str, content_len)) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (content_len < 0) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (loc_max != kMaxRequestBodyUnset &&
+      static_cast<std::size_t>(content_len) > loc_max) {
+    prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+    return 2;
+  }
+
+  // Cache parsed Content-Length. Only extract the body when the full body
+  // is present using headers_end_pos to compute the body start.
+  parsed_content_length = content_len;
+
   return 0;
 }
 
@@ -191,26 +291,24 @@ void Connection::prepareErrorResponse(http::Status status) {
   response.status_line.reason = http::reasonPhrase(status);
 
   // Check if there's a custom error page configured for this status.
-  {
-    std::map<http::Status, std::string>::const_iterator it =
-        error_pages.find(status);
-    if (it != error_pages.end()) {
-      // Serve the custom error page using ErrorFileHandler (streams via
-      // sendfile() and integrates with the Connection's event loop).
-      ErrorFileHandler* efh = new ErrorFileHandler(it->second);
-      // Ensure response status reflects the error
-      response.status_line.version = getHttpVersion();
-      response.status_line.status_code = status;
-      response.status_line.reason = http::reasonPhrase(status);
-      // Let handler prepare headers and stream body
-      HandlerResult hr = efh->start(*this);
-      if (hr == HR_WOULD_BLOCK) {
-        setHandler(efh);
-        return;
-      }
-      // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
-      delete efh;
+  std::map<http::Status, std::string>::const_iterator it =
+      error_pages.find(status);
+  if (it != error_pages.end()) {
+    // Serve the custom error page using ErrorFileHandler (streams via
+    // sendfile() and integrates with the Connection's event loop).
+    ErrorFileHandler* efh = new ErrorFileHandler(it->second);
+    // Ensure response status reflects the error
+    response.status_line.version = getHttpVersion();
+    response.status_line.status_code = status;
+    response.status_line.reason = http::reasonPhrase(status);
+    // Let handler prepare headers and stream body
+    HandlerResult hr = efh->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      setHandler(efh);
+      return;
     }
+    // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
+    delete efh;
     LOG(ERROR) << "Failed to open custom error page: " << it->second;
   }
 
@@ -220,8 +318,23 @@ void Connection::prepareErrorResponse(http::Status status) {
        << CRLF << "<body>" << CRLF << "<center><h1>" << title
        << "</h1></center>" << CRLF << "</body>" << CRLF << "</html>" << CRLF;
 
-  response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
-  write_buffer = response.serialize();
+  // For HEAD requests, send only headers (with correct Content-Length).
+  const std::string& method = request.request_line.method;
+  if (method == "HEAD") {
+    response.addHeader("Content-Type", "text/html; charset=utf-8");
+    std::ostringstream len;
+    len << body.str().size();
+    response.addHeader("Content-Length", len.str());
+
+    std::ostringstream header_stream;
+    header_stream << response.startLine() << CRLF;
+    header_stream << response.serializeHeadersWithConnection();
+    header_stream << CRLF;
+    write_buffer = header_stream.str();
+  } else {
+    response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
+    write_buffer = response.serialize();
+  }
 }
 
 void Connection::setHandler(IHandler* h) {
@@ -392,6 +505,11 @@ void Connection::processResponse(const Location& location) {
         return;  // handler will continue later
       }
       // HR_DONE or HR_ERROR: executeHandler already handled everything
+      return;
+    } else if (!location.index.empty()) {
+      // `index` directive is configured but no index file was found for the
+      // requested directory -> respond with 404 Not Found (not 403).
+      prepareErrorResponse(http::S_404_NOT_FOUND);
       return;
     } else {
       // Directory listing not allowed

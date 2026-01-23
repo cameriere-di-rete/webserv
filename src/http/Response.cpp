@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "HttpStatus.hpp"
+#include "constants.hpp"
 
 Response::Response() : Message(), status_line() {}
 
@@ -48,6 +49,28 @@ void Response::setBodyWithContentType(const std::string& data,
   std::ostringstream oss;
   oss << body.size();
   addHeader("Content-Length", oss.str());
+}
+std::string Response::serialize() const {
+  std::ostringstream o;
+  o << startLine() << CRLF;
+  std::string headers_str = serializeHeaders();
+  std::string tmp;
+  if (!getHeader("Connection", tmp)) {
+    headers_str += std::string("Connection: close") + CRLF;
+  }
+  o << headers_str;
+  o << CRLF;
+  o << body.data;
+  return o.str();
+}
+
+std::string Response::serializeHeadersWithConnection() const {
+  std::string headers_str = serializeHeaders();
+  std::string tmp;
+  if (!getHeader("Connection", tmp)) {
+    headers_str += std::string("Connection: close") + CRLF;
+  }
+  return headers_str;
 }
 
 void Response::addCookie(const std::string& name, const std::string& value,

@@ -45,6 +45,8 @@ std::string reasonPhrase(Status status) {
       return "Conflict";
     case S_410_GONE:
       return "Gone";
+    case S_411_LENGTH_REQUIRED:
+      return "Length Required";
     case S_413_PAYLOAD_TOO_LARGE:
       return "Payload Too Large";
     case S_414_URI_TOO_LONG:
@@ -132,6 +134,8 @@ Status intToStatus(int status) {
       return S_409_CONFLICT;
     case 410:
       return S_410_GONE;
+    case 411:
+      return S_411_LENGTH_REQUIRED;
     case 413:
       return S_413_PAYLOAD_TOO_LARGE;
     case 414:

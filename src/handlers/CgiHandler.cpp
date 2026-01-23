@@ -307,7 +307,7 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
 
     std::ostringstream response_stream;
     response_stream << conn.response.startLine() << CRLF;
-    response_stream << conn.response.serializeHeaders();
+    response_stream << conn.response.serializeHeadersWithConnection();
     response_stream << CRLF;
     response_stream << accumulated_output_;
 
@@ -383,7 +383,7 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     // Build response headers
     std::ostringstream response_stream;
     response_stream << conn.response.startLine() << CRLF;
-    response_stream << conn.response.serializeHeaders();
+    response_stream << conn.response.serializeHeadersWithConnection();
     response_stream << CRLF;
 
     conn.write_buffer = response_stream.str();
@@ -447,12 +447,12 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("PATH_INFO", path_info.c_str(), 1);
 
   // Content headers
-  std::string content_type, content_length;
+  std::string content_type, content_length_str;
   if (conn.request.getHeader("Content-Type", content_type)) {
     setenv("CONTENT_TYPE", content_type.c_str(), 1);
   }
-  if (conn.request.getHeader("Content-Length", content_length)) {
-    setenv("CONTENT_LENGTH", content_length.c_str(), 1);
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    setenv("CONTENT_LENGTH", content_length_str.c_str(), 1);
   } else {
     std::ostringstream len_ss;
     len_ss << conn.request.getBody().data.length();
