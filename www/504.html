@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>504 Gateway Timeout</title>
+	<link rel="stylesheet" href="/_error_common.css">
+</head>
+
+<body>
+	<div class="container" id="mainContainer">
+		<div class="error-number" id="errorCode">504</div>
+		<img src="/image/bird.png" alt="Confused Pigeon" class="bird-image" id="theBird">
+		<div class="text-content">
+			<h2 id="errorTitle">Gateway Timeout</h2>
+			<p id="errorMsg">The upstream pigeon is flying too slow. He probably stopped for a snack on a statue.</p>
+			<a href="/" class="home-btn">Go Home</a>
+		</div>
+	</div>
+	<script>var ERROR_CODE = '504'; var ERROR_TITLE = 'Gateway Timeout'; var ERROR_MSG = 'The upstream pigeon is flying too slow. He probably stopped for a snack on a statue.';</script>
+	<script src="/_error_common.js"></script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Error - Gateway Timeout</title>
+	<style>
+		body,
+		html {
+			margin: 0;
+			padding: 0;
+			height: 100%;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			overflow: hidden
+		}
+
+		.container {
+			display: grid;
+			place-items: center;
+			height: 100vh;
+			width: 100vw;
+			position: relative;
+			grid-template-areas: "content";
+			background-color: #dedede
+		}
+
+		.error-number {
+			grid-area: content;
+			font-size: 85vh;
+			font-weight: 900;
+			color: #222;
+			z-index: 1;
+			user-select: none;
+			line-height: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center
+		}
+
+		.text-content {
+			grid-area: content;
+			text-align: center;
+			z-index: 10;
+			background: rgba(255, 255, 255, .7);
+			padding: 40px;
+			border-radius: 20px;
+			max-width: 500px;
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -50%)
+		}
+
+		.home-btn {
+			display: inline-block;
+			padding: 12px 30px;
+			background-color: #333;
+			color: #fff;
+			text-decoration: none;
+			border-radius: 5px
+		}
+
+		@media (max-width:768px) {
+			.error-number {
+				font-size: 50vw
+			}
+
+			.text-content {
+				width: 80%
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container" id="mainContainer">
+		<div class="error-number" id="errorCode">504</div>
+		<div class="text-content">
+			<h2 id="errorTitle">Gateway Timeout</h2>
+			<p id="errorMsg">The upstream pigeon is flying too slow. He probably stopped for a snack on a statue.</p>
+			<a href="/" class="home-btn">Go Home</a>
+		</div>
+	</div>
+	<script>
+		const messages = {
+			'200': { title: "OK", text: "The pigeon delivered your message successfully!" },
+			'301': { title: "Moved Permanently", text: "The pigeon has migrated. Please follow him to the new location." },
+			'302': { title: "Found", text: "The pigeon found what you were looking for, but it's somewhere else." },
+			'400': { title: "Bad Request", text: "The pigeon tilted its head in confusion. Your request makes no sense in Pigeonish." },
+			'401': { title: "Unauthorized", text: "Who goes there? The pigeon security guard needs to see your VIP Badge. No crumbs, no entry." },
+			'403': { title: "Forbidden", text: "STOP! The Pigeon Council has denied your access. Fly away before they get angry." },
+			'404': { title: "Page Not Found", text: "We sent a homing pigeon to find this page, but he got distracted by a shiny object and never came back." },
+			'405': { title: "Method Not Allowed", text: "You can't fly that way! It's against the flock's flight regulations." },
+			'429': { title: "Too Many Requests", text: "SLOW DOWN! You are feeding the server too fast. The pigeon is getting fat and can't fly!" },
+			'500': { title: "Internal Server Error", text: "Oops. A pigeon flew into the server fan. Feathers everywhere. We are cleaning up the mess." },
+			'502': { title: "Bad Gateway", text: "The messenger pigeon got lost in the clouds. He's not the brightest bird in the flock." },
+			'503': { title: "Service Unavailable", text: "The pigeons are on a union strike. They demand better brioche. Come back later." },
+			'504': { title: "Gateway Timeout", text: "The upstream pigeon is flying too slow. He probably stopped for a snack on a statue." },
+			'default': { title: "Unknown Error", text: "Something is wrong. The pigeon is looking at you with a very judgmental stare." }
+		};
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const code = urlParams.get('code') || '504';
+		document.getElementById('errorCode').innerText = code;
+		const messageData = messages[code] || messages['default'];
+		document.getElementById('errorTitle').innerText = messageData.title;
+		document.getElementById('errorMsg').innerText = messageData.text;
+	</script>
+</body>
+
+</html>

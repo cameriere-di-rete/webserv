@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CGI Scripts - webserv</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    html,
+    body {
+      overflow: auto !important;
+      height: auto !important;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+
+<body class="test-page">
+  <div class="container">
+    <a href="/tests/" class="back-link">← Back to Test Suite</a>
+    <h1>⚙️ CGI Scripts</h1>
+    <p class="subtitle">Execute Python and Shell CGI scripts</p>
+
+    <div class="test-grid">
+      <a href="/cgi-bin/test.py" class="test-card">
+        <h3><span class="method get">GET</span> test.py</h3>
+        <p>Full CGI test with environment variables and POST support</p>
+      </a>
+      <a href="/cgi-bin/test.sh" class="test-card">
+        <h3><span class="method get">GET</span> test.sh</h3>
+        <p>Environment variables and date output</p>
+      </a>
+    </div>
+  </div>
+
+  <footer class="footer">webserv by fmartusc, edforte, lrocca</footer>
+
+  <!-- Walking Bros Container -->
+  <div class="walking-bros-container">
+    <img src="/image/walking_bro.gif" alt="Walking Bro 1" class="walking-bro bro1" />
+    <img src="/image/walking_bro.gif" alt="Walking Bro 2" class="walking-bro bro2" />
+    <img src="/image/walking_bro.gif" alt="Walking Bro 3" class="walking-bro bro3" />
+    <img src="/image/walking_bro.gif" alt="Walking Bro 4" class="walking-bro bro4" />
+    <img src="/image/walking_bro.gif" alt="Walking Bro 5" class="walking-bro bro5" />
+  </div>
+
+  <style>
+    .walking-bros-container {
+      position: fixed;
+      bottom: 120px;
+      left: 0;
+      width: 100%;
+      height: 100px;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .walking-bro {
+      position: absolute;
+      bottom: 0;
+      width: 80px;
+      height: auto;
+    }
+
+    .bro1 {
+      animation: walkRight 12s linear infinite;
+      animation-delay: 0s;
+    }
+
+    .bro2 {
+      animation: walkRight 10s linear infinite;
+      animation-delay: -2s;
+    }
+
+    .bro3 {
+      animation: walkRight 14s linear infinite;
+      animation-delay: -5s;
+    }
+
+    .bro4 {
+      animation: walkRight 9s linear infinite;
+      animation-delay: -7s;
+    }
+
+    .bro5 {
+      animation: walkRight 11s linear infinite;
+      animation-delay: -3s;
+    }
+
+    @keyframes walkRight {
+      0% {
+        left: -100px;
+      }
+
+      100% {
+        left: 100%;
+      }
+    }
+  </style>
+</body>
+
+</html>

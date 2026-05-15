@@ -25,6 +25,17 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build -- -j2
 
-      - name: Run tests
+      - name: Run unit tests
         run: |
           ctest --test-dir build --output-on-failure -j2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run e2e tests
+        run: |
+          cd tests/e2e
+          chmod +x run_e2e_tests.sh
+          ./run_e2e_tests.sh

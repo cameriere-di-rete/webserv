@@ -8,6 +8,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <sstream>
 
 #include "HttpStatus.hpp"
@@ -18,35 +19,116 @@
 
 namespace file_utils {
 
+// Static MIME type mappings
+namespace {
+
+typedef std::map<std::string, std::string> MimeMap;
+
+// Extension to MIME type mapping
+MimeMap createExtToMimeMap() {
+  MimeMap m;
+  // Text types
+  m["html"] = "text/html; charset=utf-8";
+  m["htm"] = "text/html; charset=utf-8";
+  m["txt"] = "text/plain; charset=utf-8";
+  m["css"] = "text/css";
+  m["csv"] = "text/csv";
+  // Application types
+  m["js"] = "application/javascript";
+  m["json"] = "application/json";
+  m["xml"] = "application/xml";
+  m["pdf"] = "application/pdf";
+  m["zip"] = "application/zip";
+  // Image types
+  m["jpg"] = "image/jpeg";
+  m["jpeg"] = "image/jpeg";
+  m["png"] = "image/png";
+  m["gif"] = "image/gif";
+  m["ico"] = "image/x-icon";
+  m["svg"] = "image/svg+xml";
+  m["webp"] = "image/webp";
+  // Video types
+  m["mp4"] = "video/mp4";
+  m["webm"] = "video/webm";
+  m["ogg"] = "video/ogg";
+  return m;
+}
+
+// MIME type to extension mapping (for reverse lookup)
+MimeMap createMimeToExtMap() {
+  MimeMap m;
+  m["text/plain"] = ".txt";
+  m["text/html"] = ".html";
+  m["text/css"] = ".css";
+  m["text/csv"] = ".csv";
+  m["application/javascript"] = ".js";
+  m["application/json"] = ".json";
+  m["application/xml"] = ".xml";
+  m["application/pdf"] = ".pdf";
+  m["application/zip"] = ".zip";
+  m["image/jpeg"] = ".jpg";
+  m["image/png"] = ".png";
+  m["image/gif"] = ".gif";
+  m["image/x-icon"] = ".ico";
+  m["image/svg+xml"] = ".svg";
+  m["image/webp"] = ".webp";
+  return m;
+}
+
+const MimeMap& extToMime() {
+  static MimeMap instance = createExtToMimeMap();
+  return instance;
+}
+
+const MimeMap& mimeToExt() {
+  static MimeMap instance = createMimeToExtMap();
+  return instance;
+}
+
+}  // anonymous namespace
+
 std::string guessMime(const std::string& path) {
-  std::string def = "application/octet-stream";
+  static const std::string kDefaultMime = "application/octet-stream";
+
   std::size_t pos = path.rfind('.');
   if (pos == std::string::npos) {
-    return def;
+    return kDefaultMime;
   }
+
   std::string ext = path.substr(pos + 1);
-  if (ext == "html" || ext == "htm") {
-    return "text/html; charset=utf-8";
+  const MimeMap& m = extToMime();
+  MimeMap::const_iterator it = m.find(ext);
+  if (it != m.end()) {
+    return it->second;
   }
-  if (ext == "txt") {
-    return "text/plain; charset=utf-8";
+  return kDefaultMime;
+}
+
+std::string mimeToExtension(const std::string& mime_type) {
+  static const std::string kDefaultExt = ".bin";
+
+  const MimeMap& m = mimeToExt();
+
+  // Extract base MIME type (before any ';'), and trim whitespace
+  std::string::size_type semi = mime_type.find(';');
+  std::string base_type =
+      (semi == std::string::npos) ? mime_type : mime_type.substr(0, semi);
+
+  // Trim whitespace from base_type
+  std::string::size_type start = base_type.find_first_not_of(" \t\r\n");
+  if (start == std::string::npos) {
+    return kDefaultExt;
   }
-  if (ext == "css") {
-    return "text/css";
+  std::string::size_type end = base_type.find_last_not_of(" \t\r\n");
+  base_type = base_type.substr(start, end - start + 1);
+
+  // Try exact match
+  MimeMap::const_iterator it = m.find(base_type);
+  if (it != m.end()) {
+    return it->second;
   }
-  if (ext == "js") {
-    return "application/javascript";
-  }
-  if (ext == "jpg" || ext == "jpeg") {
-    return "image/jpeg";
-  }
-  if (ext == "png") {
-    return "image/png";
-  }
-  if (ext == "gif") {
-    return "image/gif";
-  }
-  return def;
+
+  return kDefaultExt;
 }
 
 bool openFile(const std::string& path, FileInfo& out) {
@@ -56,7 +138,7 @@ bool openFile(const std::string& path, FileInfo& out) {
 
   int fd = open(path.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG_PERROR(ERROR, "file_utils: openFile failed for '" << path << "'");
+    LOG_PERROR(DEBUG, "file_utils: openFile failed for '" << path << "'");
     return false;
   }
 
@@ -101,10 +183,6 @@ int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset) {
 
     ssize_t s = sendfile(sock_fd, file_fd, &offset, to_send);
     if (s < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG(DEBUG) << "file_utils: sendfile would block (EAGAIN)";
-        return 1;
-      }
       LOG_PERROR(ERROR, "file_utils: sendfile error");
       return -1;
     }
@@ -187,7 +265,8 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 
 int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
                         ::Response& outResponse, FileInfo& outFile,
-                        off_t& out_start, off_t& out_end) {
+                        off_t& out_start, off_t& out_end,
+                        const std::string& httpVersion) {
   outFile.fd = -1;
   outFile.size = 0;
   outFile.content_type.clear();
@@ -229,7 +308,7 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
   }
 
   if (is_partial) {
-    outResponse.status_line.version = HTTP_VERSION;
+    outResponse.status_line.version = httpVersion;
     outResponse.status_line.status_code = http::S_206_PARTIAL_CONTENT;
     outResponse.status_line.reason =
         http::reasonPhrase(http::S_206_PARTIAL_CONTENT);
@@ -243,7 +322,7 @@ int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
     cr << "bytes " << out_start << "-" << out_end << "/" << file_size;
     outResponse.addHeader("Content-Range", cr.str());
   } else {
-    outResponse.status_line.version = HTTP_VERSION;
+    outResponse.status_line.version = httpVersion;
     outResponse.status_line.status_code = http::S_200_OK;
     outResponse.status_line.reason = http::reasonPhrase(http::S_200_OK);
     {

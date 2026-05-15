@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -17,14 +18,20 @@
 #include "constants.hpp"
 #include "utils.hpp"
 
-CgiHandler::CgiHandler(const std::string& script_path)
+// CGI script timeout in seconds
+static const unsigned int CGI_TIMEOUT_SECONDS = 10;
+
+CgiHandler::CgiHandler(const std::string& script_path,
+                       const std::set<std::string>& allowed_extensions)
     : script_path_(script_path),
+      allowed_extensions_(allowed_extensions),
       script_pid_(-1),
       pipe_read_fd_(-1),
       pipe_write_fd_(-1),
       process_started_(false),
       headers_parsed_(false),
-      accumulated_output_() {}
+      accumulated_output_(),
+      start_time_(0) {}
 
 CgiHandler::~CgiHandler() {
   cleanupProcess();
@@ -53,8 +60,35 @@ int CgiHandler::getMonitorFd() const {
 HandlerResult CgiHandler::start(Connection& conn) {
   LOG(DEBUG) << "CgiHandler: starting CGI script " << script_path_;
 
-  // Security validation: check script path
+  // Check if script exists (404 if not found, 500 for other errors)
   std::string error_msg;
+  struct stat st;
+  if (stat(script_path_.c_str(), &st) != 0) {
+    if (errno == ENOENT || errno == ENOTDIR) {
+      LOG(ERROR) << "CgiHandler: script not found: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_404_NOT_FOUND);
+    } else {
+      LOG(ERROR) << "CgiHandler: stat() failed: " << strerror(errno);
+      conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    }
+    return HR_DONE;
+  }
+
+  // Check if path is a regular file and has executable permissions
+  bool is_regular = S_ISREG(st.st_mode);
+  bool is_executable = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+
+  if (!is_regular || !is_executable) {
+    if (!is_regular) {
+      LOG(ERROR) << "CgiHandler: script path is not a regular file";
+    } else {
+      LOG(ERROR) << "CgiHandler: script file is not executable";
+    }
+    conn.prepareErrorResponse(http::S_403_FORBIDDEN);
+    return HR_DONE;
+  }
+
+  // Security validation: check script path (403 if fails)
   if (!validateScriptPath(script_path_, error_msg)) {
     LOG(ERROR) << "CgiHandler: security validation failed: " << error_msg;
     conn.prepareErrorResponse(http::S_403_FORBIDDEN);
@@ -63,8 +97,15 @@ HandlerResult CgiHandler::start(Connection& conn) {
 
   // Create pipes for communication
   int pipe_to_cgi[2], pipe_from_cgi[2];
-  if (pipe(pipe_to_cgi) == -1 || pipe(pipe_from_cgi) == -1) {
+  if (pipe(pipe_to_cgi) == -1) {
     LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
+    return HR_DONE;
+  }
+  if (pipe(pipe_from_cgi) == -1) {
+    LOG_PERROR(ERROR, "CgiHandler: pipe failed");
+    close(pipe_to_cgi[0]);
+    close(pipe_to_cgi[1]);
     conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_DONE;
   }
@@ -117,6 +158,9 @@ HandlerResult CgiHandler::start(Connection& conn) {
       script_name = abs_script_path;
     }
 
+    // Set timeout - script will be killed by SIGALRM after CGI_TIMEOUT_SECONDS
+    alarm(CGI_TIMEOUT_SECONDS);
+
     // Execute script using ./filename (we're in its directory)
     // On Unix, scripts must be executed with ./ prefix when in current
     // directory
@@ -135,6 +179,7 @@ HandlerResult CgiHandler::start(Connection& conn) {
   pipe_write_fd_ = pipe_to_cgi[1];
   pipe_read_fd_ = pipe_from_cgi[0];
   process_started_ = true;
+  start_time_ = time(NULL);  // Record start time for timeout
 
   // Set pipe to non-blocking mode for asynchronous I/O
   if (set_nonblocking(pipe_read_fd_) < 0) {
@@ -153,9 +198,6 @@ HandlerResult CgiHandler::start(Connection& conn) {
     while (remaining > 0) {
       ssize_t written = write(pipe_write_fd_, buf + total_written, remaining);
       if (written == -1) {
-        if (errno == EINTR) {
-          continue;  // Retry on interrupt
-        }
         LOG_PERROR(ERROR, "CgiHandler: write to CGI failed");
         break;
       }
@@ -184,7 +226,31 @@ HandlerResult CgiHandler::resume(Connection& conn) {
   return readCgiOutput(conn);
 }
 
+bool CgiHandler::checkTimeout(Connection& conn) {
+  (void)conn;  // Not used here - ServerManager handles the response
+  if (start_time_ == 0 || script_pid_ <= 0) {
+    return false;
+  }
+  time_t now = time(NULL);
+  if (now - start_time_ >= CGI_TIMEOUT_SECONDS) {
+    LOG(ERROR) << "CgiHandler: CGI script timed out after "
+               << CGI_TIMEOUT_SECONDS << " seconds, killing pid "
+               << script_pid_;
+    kill(script_pid_, SIGKILL);
+    cleanupProcess();
+    // Don't call prepareErrorResponse here - ServerManager will do it
+    // after clearing this handler to avoid use-after-free
+    return true;
+  }
+  return false;
+}
+
 HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
+  // Check for timeout before reading
+  if (checkTimeout(conn)) {
+    return HR_DONE;
+  }
+
   char buffer[WRITE_BUF_SIZE];
   ssize_t bytes_read;
 
@@ -196,17 +262,11 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
   }
 
   if (bytes_read == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      // No more data available right now, need to wait for more
-      LOG(DEBUG) << "CgiHandler: would block, accumulated "
-                 << accumulated_output_.size() << " bytes so far";
-      return HR_WOULD_BLOCK;
-    }
-    // Real error
-    LOG_PERROR(ERROR, "CgiHandler: read from CGI failed");
-    cleanupProcess();
-    conn.prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
-    return HR_DONE;
+    // Non-blocking read returned -1. Treat as "would block" and wait for
+    // more data; do not inspect `errno` here per policy.
+    LOG(DEBUG) << "CgiHandler: would block, accumulated "
+               << accumulated_output_.size() << " bytes so far";
+    return HR_WOULD_BLOCK;
   }
 
   // bytes_read == 0 means EOF - CGI finished writing
@@ -240,14 +300,14 @@ HandlerResult CgiHandler::readCgiOutput(Connection& conn) {
 
   // Ensure we have response headers if none were parsed
   if (!headers_parsed_) {
-    conn.response.status_line.version = HTTP_VERSION;
+    conn.response.status_line.version = conn.getHttpVersion();
     conn.response.status_line.status_code = http::S_200_OK;
     conn.response.status_line.reason = "OK";
     conn.response.addHeader("Content-Type", "text/plain");
 
     std::ostringstream response_stream;
     response_stream << conn.response.startLine() << CRLF;
-    response_stream << conn.response.serializeHeaders();
+    response_stream << conn.response.serializeHeadersWithConnection();
     response_stream << CRLF;
     response_stream << accumulated_output_;
 
@@ -280,7 +340,7 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     std::string body_part = remaining_data_.substr(headers_end + separator_len);
 
     // Set default status
-    conn.response.status_line.version = HTTP_VERSION;
+    conn.response.status_line.version = conn.getHttpVersion();
     conn.response.status_line.status_code = http::S_200_OK;
     conn.response.status_line.reason = "OK";
 
@@ -323,7 +383,7 @@ HandlerResult CgiHandler::parseOutput(Connection& conn,
     // Build response headers
     std::ostringstream response_stream;
     response_stream << conn.response.startLine() << CRLF;
-    response_stream << conn.response.serializeHeaders();
+    response_stream << conn.response.serializeHeadersWithConnection();
     response_stream << CRLF;
 
     conn.write_buffer = response_stream.str();
@@ -347,6 +407,9 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   // Set PATH for script execution
   setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 
+  // Required for php-cgi: signals successful execution state
+  setenv("REDIRECT_STATUS", "200", 1);
+
   // Standard CGI environment variables
   setenv("REQUEST_METHOD", conn.request.request_line.method.c_str(), 1);
   setenv("REQUEST_URI", conn.request.request_line.uri.c_str(), 1);
@@ -356,13 +419,18 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("SERVER_PORT", "8080", 1);
   // SCRIPT_NAME is set below after parsing the URI
 
-  // Query string
-  std::string uri = conn.request.request_line.uri;
-  size_t query_pos = uri.find('?');
-  std::string uri_no_query =
-      (query_pos != std::string::npos) ? uri.substr(0, query_pos) : uri;
-  std::string query_string =
-      (query_pos != std::string::npos) ? uri.substr(query_pos + 1) : "";
+  // Set SCRIPT_FILENAME to absolute path - required by php-cgi to know which
+  // script to execute
+  char abs_script_filename[PATH_MAX];
+  if (realpath(script_path_.c_str(), abs_script_filename) != NULL) {
+    setenv("SCRIPT_FILENAME", abs_script_filename, 1);
+  } else {
+    setenv("SCRIPT_FILENAME", script_path_.c_str(), 1);
+  }
+
+  // Query string - use pre-parsed Uri from request
+  std::string uri_no_query = conn.request.uri.getPath();
+  std::string query_string = conn.request.uri.getQuery();
   setenv("QUERY_STRING", query_string.c_str(), 1);
 
   // Extract script filename from filesystem path for matching
@@ -395,20 +463,32 @@ void CgiHandler::setupEnvironment(Connection& conn) {
   setenv("PATH_INFO", path_info.c_str(), 1);
 
   // Content headers
-  std::string content_type, content_length;
+  std::string content_type, content_length_str;
   if (conn.request.getHeader("Content-Type", content_type)) {
     setenv("CONTENT_TYPE", content_type.c_str(), 1);
   }
-  if (conn.request.getHeader("Content-Length", content_length)) {
-    setenv("CONTENT_LENGTH", content_length.c_str(), 1);
+  if (conn.request.getHeader("Content-Length", content_length_str)) {
+    setenv("CONTENT_LENGTH", content_length_str.c_str(), 1);
   } else {
     std::ostringstream len_ss;
     len_ss << conn.request.getBody().data.length();
     setenv("CONTENT_LENGTH", len_ss.str().c_str(), 1);
   }
 
-  // HTTP headers as environment variables
-  // Note: Request class needs to provide header iteration interface
+  // Export Cookie headers to HTTP_COOKIE environment variable for CGI.
+  // If multiple Cookie headers are present, join them with "; " per RFC.
+  std::vector<std::string> cookie_headers = conn.request.getHeaders("Cookie");
+  if (!cookie_headers.empty()) {
+    std::string joined;
+    for (std::vector<std::string>::const_iterator it = cookie_headers.begin();
+         it != cookie_headers.end(); ++it) {
+      if (!joined.empty()) {
+        joined += "; ";
+      }
+      joined += *it;
+    }
+    setenv("HTTP_COOKIE", joined.c_str(), 1);
+  }
 }
 
 // Security validation: check if script path is safe to execute
@@ -417,24 +497,6 @@ bool CgiHandler::validateScriptPath(const std::string& path,
   // Check for path traversal attacks
   if (!isPathTraversalSafe(path)) {
     error_msg = "Path traversal detected in script path";
-    return false;
-  }
-
-  // Check if file exists and is a regular file
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    error_msg = "Script file not found";
-    return false;
-  }
-
-  if (!S_ISREG(st.st_mode)) {
-    error_msg = "Script path is not a regular file";
-    return false;
-  }
-
-  // Check if file has executable permissions
-  if (!isExecutable(path)) {
-    error_msg = "Script file is not executable";
     return false;
   }
 
@@ -447,13 +509,9 @@ bool CgiHandler::validateScriptPath(const std::string& path,
   return true;
 }
 
-// Check if path contains path traversal sequences
+// Check if path is within allowed CGI directories (defense against symlink
+// attacks)
 bool CgiHandler::isPathTraversalSafe(const std::string& path) {
-  // Check for obvious path traversal patterns
-  if (path.find("..") != std::string::npos) {
-    return false;
-  }
-
   // Get absolute path and verify it doesn't escape allowed directory
   char resolved_path[PATH_MAX];
   if (realpath(path.c_str(), resolved_path) == NULL) {
@@ -493,27 +551,8 @@ bool CgiHandler::isPathTraversalSafe(const std::string& path) {
   return false;
 }
 
-// Check if file has executable permissions
-bool CgiHandler::isExecutable(const std::string& path) {
-  struct stat st;
-  if (stat(path.c_str(), &st) != 0) {
-    return false;
-  }
-
-  // Check if file has execute permission for owner, group, or others
-  return (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
-}
-
 // Check if file extension is in the allowed list
 bool CgiHandler::isAllowedExtension(const std::string& path) {
-  // Whitelist of allowed CGI script extensions
-  const char* allowed_extensions[] = {".sh",   // Shell scripts
-                                      ".py",   // Python scripts
-                                      ".pl",   // Perl scripts
-                                      ".php",  // PHP scripts
-                                      ".cgi",  // Generic CGI scripts
-                                      NULL};
-
   size_t dot_pos = path.find_last_of('.');
   if (dot_pos == std::string::npos) {
     // No extension found
@@ -522,11 +561,6 @@ bool CgiHandler::isAllowedExtension(const std::string& path) {
 
   std::string extension = path.substr(dot_pos);
 
-  for (int i = 0; allowed_extensions[i] != NULL; ++i) {
-    if (extension == allowed_extensions[i]) {
-      return true;
-    }
-  }
-
-  return false;
+  // Only accept explicitly configured extensions
+  return allowed_extensions_.find(extension) != allowed_extensions_.end();
 }

@@ -1,0 +1,107 @@
+name: Build and test
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - 'CMakeLists.txt'
+      - '**/CMakeLists.txt'
+      - 'cmake/**'
+      - 'Makefile'
+      - 'tests/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to checkout'
+        required: true
+        type: string
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build job - compiles the project and uploads artifacts for dependent jobs
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      build-cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup GTest
+        uses: ./.github/actions/setup-gtest
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=build-${{ hashFiles('**/*.cpp', '**/*.hpp', '**/CMakeLists.txt') }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: build-${{ runner.os }}
+          max-size: 100M
+
+      - name: Configure and build with CMake
+        run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+          cmake -S . -B build \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+          cmake --build build -- -j$(nproc)
+
+      - name: Verify binary was created
+        run: |
+          if test -f build/webserv; then
+            echo "✅ Build successful - webserv binary created"
+          else
+            echo "❌ Error: webserv binary was not created"
+            ls -la build || true
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ steps.cache-key.outputs.key }}
+          path: |
+            build/
+            !build/_deps/
+            !build/CMakeFiles/
+          retention-days: 1
+
+  # Run tests using artifacts from build job
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup GTest
+        uses: ./.github/actions/setup-gtest
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ needs.build.outputs.build-cache-key }}
+          path: build
+
+      - name: Fix permissions
+        run: chmod +x build/webserv build/tests/runTests 2>/dev/null || true
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build --output-on-failure -j$(nproc)

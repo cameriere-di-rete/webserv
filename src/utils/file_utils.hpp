@@ -5,6 +5,7 @@
 #include <string>
 
 #include "Response.hpp"
+#include "constants.hpp"
 
 struct FileInfo {
   int fd;
@@ -16,6 +17,11 @@ namespace file_utils {
 bool openFile(const std::string& path, FileInfo& out);
 void closeFile(FileInfo& fi);
 std::string guessMime(const std::string& path);
+
+// Get file extension from MIME type (e.g., "text/plain" -> ".txt")
+// Returns ".bin" if MIME type is not recognized
+std::string mimeToExtension(const std::string& mime_type);
+
 // stream file contents (uses sendfile). Returns:
 //  0 = finished sending up to max_offset, 1 = would block (EAGAIN), -1 = error
 int streamToSocket(int sock_fd, int file_fd, off_t& offset, off_t max_offset);
@@ -38,5 +44,6 @@ bool parseRange(const std::string& rangeHeader, off_t file_size,
 // range
 int prepareFileResponse(const std::string& path, const std::string* rangeHeader,
                         ::Response& outResponse, FileInfo& outFile,
-                        off_t& out_start, off_t& out_end);
+                        off_t& out_start, off_t& out_end,
+                        const std::string& httpVersion = HTTP_VERSION);
 }  // namespace file_utils

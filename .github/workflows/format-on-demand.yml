@@ -16,7 +16,7 @@ jobs:
       contents: write
       pull-requests: write
       actions: write
-    
+
     steps:
       - name: Check user permission
         uses: actions-cool/check-user-permission@v2
@@ -99,9 +99,8 @@ jobs:
             fi
           done
           set -e
-          gh workflow run check-build.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
+          gh workflow run build-and-test.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
           gh workflow run check-lint.yml --ref "$HEAD_REF" -f ref="$HEAD_REF" -f pr_number="${{ github.event.issue.number }}"
-          gh workflow run check-makefile.yml --ref "$HEAD_REF" -f ref="$HEAD_REF"
 
       - name: Add success reaction
         if: steps.check-changes.outputs.has_changes == 'true'

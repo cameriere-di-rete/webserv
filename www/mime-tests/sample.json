@@ -1,0 +1,26 @@
+{
+	"name": "MIME Type Test",
+	"description": "JSON test file for webserv",
+	"expectedContentType": "application/json",
+	"data": {
+		"items": [
+			{
+				"id": 1,
+				"value": "first"
+			},
+			{
+				"id": 2,
+				"value": "second"
+			},
+			{
+				"id": 3,
+				"value": "third"
+			}
+		],
+		"count": 3
+	},
+	"metadata": {
+		"created": "2025-12-10",
+		"author": "webserv test"
+	}
+}

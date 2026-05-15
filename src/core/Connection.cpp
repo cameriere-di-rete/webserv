@@ -10,8 +10,8 @@
 #include <sstream>
 
 #include "AutoindexHandler.hpp"
-#include "Body.hpp"
 #include "CgiHandler.hpp"
+#include "ErrorFileHandler.hpp"
 #include "FileHandler.hpp"
 #include "HttpMethod.hpp"
 #include "HttpStatus.hpp"
@@ -20,6 +20,7 @@
 #include "RedirectHandler.hpp"
 #include "Server.hpp"
 #include "constants.hpp"
+#include "utils.hpp"
 
 Connection::Connection()
     : fd(-1),
@@ -27,9 +28,13 @@ Connection::Connection()
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
+      parsed_content_length(-1),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages(),
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(int fd)
     : fd(fd),
@@ -37,21 +42,30 @@ Connection::Connection(int fd)
       write_offset(0),
       headers_end_pos(std::string::npos),
       write_ready(false),
+      parsed_content_length(-1),
       request(),
       response(),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages(),
+      read_start(time(NULL)),
+      write_start(0) {}
 
 Connection::Connection(const Connection& other)
     : fd(other.fd),
       server_fd(other.server_fd),
+      remote_addr(other.remote_addr),
       read_buffer(other.read_buffer),
       write_buffer(other.write_buffer),
       write_offset(other.write_offset),
       headers_end_pos(other.headers_end_pos),
       write_ready(other.write_ready),
+      parsed_content_length(other.parsed_content_length),
       request(other.request),
       response(other.response),
-      active_handler(NULL) {}
+      active_handler(NULL),
+      error_pages(other.error_pages),
+      read_start(other.read_start),
+      write_start(other.write_start) {}
 
 Connection::~Connection() {
   clearHandler();
@@ -61,6 +75,7 @@ Connection& Connection::operator=(const Connection& other) {
   if (this != &other) {
     fd = other.fd;
     server_fd = other.server_fd;
+    remote_addr = other.remote_addr;
     read_buffer = other.read_buffer;
     write_buffer = other.write_buffer;
     write_offset = other.write_offset;
@@ -69,39 +84,161 @@ Connection& Connection::operator=(const Connection& other) {
     request = other.request;
     response = other.response;
     clearHandler();
+    error_pages = other.error_pages;
+    parsed_content_length = other.parsed_content_length;
+    read_start = other.read_start;
+    write_start = other.write_start;
   }
   return *this;
 }
 
-int Connection::handleRead() {
-  while (1) {
-    char buf[WRITE_BUF_SIZE] = {0};
+void Connection::startWritePhase() {
+  write_start = time(NULL);
+}
 
-    ssize_t r = recv(fd, buf, sizeof(buf), 0);
+bool Connection::isReadTimedOut(int timeout_seconds) const {
+  time_t now = time(NULL);
+  if (now < read_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
+  return (now - read_start) >= timeout_seconds;
+}
 
-    if (r < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return 1;
-      }
-      LOG_PERROR(ERROR, "read");
-      return -1;
+bool Connection::isWriteTimedOut(int timeout_seconds) const {
+  if (write_start == 0) {
+    return false;  // Write phase hasn't started yet
+  }
+  time_t now = time(NULL);
+  if (now < write_start) {
+    // Clock went backwards, consider not timed out
+    return false;
+  }
+  return (now - write_start) >= timeout_seconds;
+}
+
+int Connection::handleRead(const Server& server) {
+  char buf[WRITE_BUF_SIZE] = {0};
+
+  ssize_t r = recv(fd, buf, sizeof(buf), 0);
+
+  if (r < 0) {
+    LOG_PERROR(ERROR, "read");
+    return -1;
+  }
+
+  if (r == 0) {
+    LOG(INFO) << "Client disconnected (fd: " << fd << ")";
+    return -1;
+  }
+
+  // Add new data to persistent buffer
+  read_buffer.append(buf, r);
+
+  // If headers not yet complete, enforce a cap while searching
+  if (headers_end_pos == std::string::npos) {
+    if (read_buffer.size() > HEADERS_SEARCH_LIMIT) {
+      // Headers too large / not found within limit -> Bad Request
+      prepareErrorResponse(http::S_400_BAD_REQUEST);
+      return 2; /* response ready, signal caller to enable EPOLLOUT */
     }
 
-    if (r == 0) {
-      LOG(INFO) << "Client disconnected (fd: " << fd << ")";
-      return -1;
-    }
-
-    // Add new data to persistent buffer
-    read_buffer.append(buf, r);
-
-    // Check if the HTTP request headers are complete
     std::size_t pos = read_buffer.find(CRLF CRLF);
-    if (pos != std::string::npos) {
-      headers_end_pos = pos;
-      break;
+    if (pos == std::string::npos) {
+      // headers not complete yet
+      return 0;
+    }
+
+    headers_end_pos = pos;
+    // Attempt to parse headers. Prepare any immediate error responses
+    // (411/400/413) and return a code indicating a response is ready.
+    int ph = processParsedHeaders(server);
+    if (ph != 0) {
+      // Ready to process response. Error response prepared or no body
+      // expected.
+      return ph;
     }
   }
+
+  if (isBodyReady()) {
+    return 1;
+  }
+
+  return 0;
+}
+
+bool Connection::isBodyReady() {
+  // If parsed_content_length is negative or zero, there is no body to read
+  if (parsed_content_length <= 0) {
+    return true;  // no body expected
+  }
+
+  // check whether we've received the full body
+  std::size_t body_start = headers_end_pos + 4;
+  std::size_t available = 0;
+  if (body_start < read_buffer.size()) {
+    available = read_buffer.size() - body_start;
+  }
+
+  if (available < static_cast<std::size_t>(parsed_content_length)) {
+    // not enough body bytes yet
+    return false;
+  }
+
+  // full body available, extract
+  request.getBody().data = read_buffer.substr(
+      body_start, static_cast<std::size_t>(parsed_content_length));
+
+  return true;
+}
+
+int Connection::processParsedHeaders(const Server& server) {
+  // Parse start line and headers to populate request and URI
+  if (!request.parseStartAndHeaders(read_buffer, headers_end_pos)) {
+    LOG(INFO) << "Malformed request on fd " << fd
+              << ", sending 400 Bad Request";
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+
+  // Determine whether to expect a body: only POST and PUT have bodies.
+  std::string method_tmp = request.request_line.method;
+  if (method_tmp != "POST" && method_tmp != "PUT") {
+    return 1;
+  }
+
+  // Determine location-specific max_request_body from provided server
+  std::size_t loc_max = kMaxRequestBodyUnset;
+  Location loc = server.matchLocation(request.uri.getPath());
+  loc_max = loc.max_request_body;
+
+  // If Content-Length present, validate against location max
+  std::string content_length_str;
+  if (!request.getHeader("Content-Length", content_length_str)) {
+    // Body expected but no Content-Length supplied
+    prepareErrorResponse(http::S_411_LENGTH_REQUIRED);
+    return 2;
+  }
+
+  long long content_len = -1;
+  if (!safeStrtoll(content_length_str, content_len)) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (content_len < 0) {
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return 2;
+  }
+  if (loc_max != kMaxRequestBodyUnset &&
+      static_cast<std::size_t>(content_len) > loc_max) {
+    prepareErrorResponse(http::S_413_PAYLOAD_TOO_LARGE);
+    return 2;
+  }
+
+  // Cache parsed Content-Length. Only extract the body when the full body
+  // is present using headers_end_pos to compute the body start.
+  parsed_content_length = content_len;
+
   return 0;
 }
 
@@ -114,10 +251,7 @@ int Connection::handleWrite() {
     LOG(DEBUG) << "Sent " << w << " bytes to fd=" << fd;
 
     if (w < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        return 1;
-      }
-      // Error occurred
+      // Error occurred during send
       LOG_PERROR(ERROR, "write");
       return -1;
     }
@@ -143,10 +277,40 @@ int Connection::handleWrite() {
   return 0;
 }
 
+std::string Connection::getHttpVersion() const {
+  if (request.request_line.version == "HTTP/1.0" ||
+      request.request_line.version == "HTTP/1.1") {
+    return request.request_line.version;
+  }
+  return HTTP_VERSION;
+}
+
 void Connection::prepareErrorResponse(http::Status status) {
-  response.status_line.version = HTTP_VERSION;
+  response.status_line.version = getHttpVersion();
   response.status_line.status_code = status;
   response.status_line.reason = http::reasonPhrase(status);
+
+  // Check if there's a custom error page configured for this status.
+  std::map<http::Status, std::string>::const_iterator it =
+      error_pages.find(status);
+  if (it != error_pages.end()) {
+    // Serve the custom error page using ErrorFileHandler (streams via
+    // sendfile() and integrates with the Connection's event loop).
+    ErrorFileHandler* efh = new ErrorFileHandler(it->second);
+    // Ensure response status reflects the error
+    response.status_line.version = getHttpVersion();
+    response.status_line.status_code = status;
+    response.status_line.reason = http::reasonPhrase(status);
+    // Let handler prepare headers and stream body
+    HandlerResult hr = efh->start(*this);
+    if (hr == HR_WOULD_BLOCK) {
+      setHandler(efh);
+      return;
+    }
+    // hr == HR_DONE or HR_ERROR: clean up and fall back to default page
+    delete efh;
+    LOG(ERROR) << "Failed to open custom error page: " << it->second;
+  }
 
   std::string title = http::statusWithReason(status);
   std::ostringstream body;
@@ -154,21 +318,36 @@ void Connection::prepareErrorResponse(http::Status status) {
        << CRLF << "<body>" << CRLF << "<center><h1>" << title
        << "</h1></center>" << CRLF << "</body>" << CRLF << "</html>" << CRLF;
 
-  response.getBody().data = body.str();
-  response.addHeader("Content-Type", "text/html; charset=utf-8");
-  std::ostringstream oss;
-  oss << response.getBody().size();
-  response.addHeader("Content-Length", oss.str());
-  write_buffer = response.serialize();
+  // For HEAD requests, send only headers (with correct Content-Length).
+  const std::string& method = request.request_line.method;
+  if (method == "HEAD") {
+    response.addHeader("Content-Type", "text/html; charset=utf-8");
+    std::ostringstream len;
+    len << body.str().size();
+    response.addHeader("Content-Length", len.str());
+
+    std::ostringstream header_stream;
+    header_stream << response.startLine() << CRLF;
+    header_stream << response.serializeHeadersWithConnection();
+    header_stream << CRLF;
+    write_buffer = header_stream.str();
+  } else {
+    response.setBodyWithContentType(body.str(), "text/html; charset=utf-8");
+    write_buffer = response.serialize();
+  }
 }
 
 void Connection::setHandler(IHandler* h) {
   clearHandler();
   active_handler = h;
+  LOG(DEBUG) << "Connection: setHandler installed handler=" << h
+             << " fd=" << fd;
 }
 
 void Connection::clearHandler() {
   if (active_handler) {
+    LOG(DEBUG) << "Connection: clearHandler deleting handler=" << active_handler
+               << " fd=" << fd;
     delete active_handler;
     active_handler = NULL;
   }
@@ -177,18 +356,26 @@ void Connection::clearHandler() {
 HandlerResult Connection::executeHandler(IHandler* handler) {
   // setHandler takes ownership of handler and clears any previous handler.
   setHandler(handler);
-  HandlerResult hr = active_handler->start(*this);
+  IHandler* orig = active_handler;
+  HandlerResult hr = orig->start(*this);
   if (hr == HR_WOULD_BLOCK) {
     // Handler will continue later; keep it installed.
     return HR_WOULD_BLOCK;
   } else if (hr == HR_ERROR) {
-    // Handler failed; clear and prepare a 500 error response.
-    clearHandler();
+    // Handler failed; if it's still the active handler, clear it and
+    // prepare a 500 error response. If it was replaced during start(),
+    // do not touch the currently installed handler (it owns cleanup).
+    if (active_handler == orig) {
+      clearHandler();
+    }
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return HR_ERROR;
   } else {
     // HR_DONE: handler completed synchronously and response is prepared.
-    clearHandler();
+    // Only clear the handler if it's still the original one we invoked.
+    if (active_handler == orig) {
+      clearHandler();
+    }
     return HR_DONE;
   }
 }
@@ -196,27 +383,28 @@ HandlerResult Connection::executeHandler(IHandler* handler) {
 void Connection::processRequest(const Server& server) {
   LOG(DEBUG) << "Processing request for fd: " << fd;
 
-  // 1. Parse request headers (already done in ServerManager)
-  // 2. Get pathname from URI
-  std::string path = request.request_line.uri;
-
-  // Extract path from URI (remove query string if present)
-  std::size_t query_pos = path.find('?');
-  if (query_pos != std::string::npos) {
-    path = path.substr(0, query_pos);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return;
   }
+  std::string path = request.uri.getPath();
 
   LOG(DEBUG) << "Request path: " << path;
 
-  // 3. Match URI with Server.Location
   Location location = server.matchLocation(path);
 
-  // 4. Process response based on location
   processResponse(location);
 }
 
 void Connection::processResponse(const Location& location) {
   LOG(DEBUG) << "Processing response for fd: " << fd;
+  LOG(DEBUG) << "Location max_request_body: " << location.max_request_body;
+  LOG(DEBUG) << "Request body size: " << request.getBody().size();
+
+  // Store error page config (paths already resolved in matchLocation)
+  error_pages = location.error_page;
 
   // Reset response state at the beginning to ensure all handlers start clean
   response = Response();
@@ -228,12 +416,13 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  // Resource-based handler selection:
-  // 1. Redirect handler (if configured) - TODO: implement in future PR
-  // 2. CGI handler (if configured and matching extension) - TODO: implement in
-  // future PR
-  // 3. Directory handler (if path is directory) - TODO: implement in future PR
-  // 4. File handler (default for static files)
+  // Validate request body (Content-Length/header and stored body) for this
+  // location before doing any heavy work.
+  http::Status bstat = validateRequestBodyForLocation(location);
+  if (bstat != http::S_0_UNKNOWN) {
+    prepareErrorResponse(bstat);
+    return;
+  }
 
   if (location.redirect_code != http::S_0_UNKNOWN) {
     // Delegate redirect response preparation to a RedirectHandler instance
@@ -247,7 +436,7 @@ void Connection::processResponse(const Location& location) {
     return;
   }
 
-  if (location.cgi) {
+  if (!location.cgi_root.empty()) {
     // CGI handling - need to find the actual script in the path
     // For URIs like /cgi-bin/test.py/extra/path, we need to find test.py
     std::string resolved_path;
@@ -276,7 +465,7 @@ void Connection::processResponse(const Location& location) {
       return;
     }
 
-    IHandler* handler = new CgiHandler(script_path);
+    IHandler* handler = new CgiHandler(script_path, location.cgi_extensions);
     setHandler(handler);
 
     HandlerResult hr = active_handler->start(*this);
@@ -300,17 +489,25 @@ void Connection::processResponse(const Location& location) {
     return;  // resolvePathForLocation prepared an error response
   }
 
-  // Directory handling
+  // For POST/PUT/DELETE on directories, use FileHandler which can create files
+  std::string method = request.request_line.method;
+  if (is_directory && method == "POST") {
+    // FileHandler can handle POST to directory (creates new file)
+    IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
+    HandlerResult hr = executeHandler(handler);
+    if (hr == HR_WOULD_BLOCK) {
+      return;  // handler will continue later
+    }
+    return;
+  }
+
+  // Directory handling (GET/HEAD only)
   if (is_directory) {
     if (location.autoindex) {
       // Delegate to AutoindexHandler (produces directory listing)
       // Pass a user-facing URI path for display in the listing instead of the
       // filesystem path to avoid leaking internal structure.
-      std::string display_path = request.request_line.uri;
-      std::size_t qpos = display_path.find('?');
-      if (qpos != std::string::npos) {
-        display_path = display_path.substr(0, qpos);
-      }
+      std::string display_path = request.uri.getPath();
       if (display_path.empty()) {
         display_path = "/";
       }
@@ -325,6 +522,11 @@ void Connection::processResponse(const Location& location) {
       }
       // HR_DONE or HR_ERROR: executeHandler already handled everything
       return;
+    } else if (!location.index.empty()) {
+      // `index` directive is configured but no index file was found for the
+      // requested directory -> respond with 404 Not Found (not 403).
+      prepareErrorResponse(http::S_404_NOT_FOUND);
+      return;
     } else {
       // Directory listing not allowed
       prepareErrorResponse(http::S_403_FORBIDDEN);
@@ -333,7 +535,7 @@ void Connection::processResponse(const Location& location) {
   }
 
   // Static file handling - FileHandler handles GET, HEAD, PUT, DELETE
-  IHandler* handler = new FileHandler(resolved_path);
+  IHandler* handler = new FileHandler(resolved_path, request.uri.getPath());
   HandlerResult hr = executeHandler(handler);
   if (hr == HR_WOULD_BLOCK) {
     return;  // handler will continue later
@@ -341,8 +543,9 @@ void Connection::processResponse(const Location& location) {
 }
 
 http::Status Connection::validateRequestForLocation(const Location& location) {
-  // 1. Check HTTP protocol version
-  if (request.request_line.version != HTTP_VERSION) {
+  // 1. Check HTTP protocol version (accept both HTTP/1.0 and HTTP/1.1)
+  if (request.request_line.version != "HTTP/1.0" &&
+      request.request_line.version != "HTTP/1.1") {
     LOG(INFO) << "Unsupported HTTP version: " << request.request_line.version;
     return http::S_505_HTTP_VERSION_NOT_SUPPORTED;
   }
@@ -373,8 +576,46 @@ http::Status Connection::validateRequestForLocation(const Location& location) {
     response.addHeader("Allow", allow_header);
     return http::S_405_METHOD_NOT_ALLOWED;
   }
-
   return http::S_0_UNKNOWN;  // OK
+}
+
+http::Status Connection::validateRequestBodyForLocation(
+    const Location& location) {
+  // Ensure max_request_body was properly inherited/applied
+  if (location.max_request_body == kMaxRequestBodyUnset) {
+    LOG(ERROR) << "Location max_request_body is unset for location: "
+               << location.path;
+    return http::S_500_INTERNAL_SERVER_ERROR;
+  }
+
+  // If the client provided a Content-Length header, validate it first so we
+  // can fail fast before reading/storing potentially large bodies.
+  std::string content_length_str;
+  if (request.getHeader("Content-Length", content_length_str)) {
+    long long content_len = 0;
+    if (!safeStrtoll(content_length_str, content_len)) {
+      LOG(INFO) << "Malformed Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (content_len < 0) {
+      LOG(INFO) << "Negative Content-Length header: " << content_length_str;
+      return http::S_400_BAD_REQUEST;
+    }
+    if (static_cast<std::size_t>(content_len) > location.max_request_body) {
+      LOG(DEBUG) << "Content-Length " << content_len
+                 << " exceeds max_request_body " << location.max_request_body;
+      return http::S_413_PAYLOAD_TOO_LARGE;
+    }
+  }
+
+  // If body has already been read into the request, verify its size too.
+  if (request.getBody().size() > location.max_request_body) {
+    LOG(DEBUG) << "Request body size " << request.getBody().size()
+               << " exceeds max_request_body " << location.max_request_body;
+    return http::S_413_PAYLOAD_TOO_LARGE;
+  }
+
+  return http::S_0_UNKNOWN;
 }
 
 bool Connection::resolvePathForLocation(const Location& location,
@@ -382,26 +623,25 @@ bool Connection::resolvePathForLocation(const Location& location,
                                         bool& out_is_directory) {
   out_is_directory = false;
 
-  // Use the request URI (strip query string)
-  std::string uri = request.request_line.uri;
-  std::size_t q = uri.find('?');
-  if (q != std::string::npos) {
-    uri = uri.substr(0, q);
+  // URI is already parsed in Request::parseStartAndHeaders()
+  // Validation was done in processRequest(), but check again for safety
+  if (!request.uri.isValid()) {
+    LOG(INFO) << "Invalid URI: " << request.request_line.uri;
+    prepareErrorResponse(http::S_400_BAD_REQUEST);
+    return false;
   }
 
-  // Path traversal protection: check for ".." sequences
-  // This handles both raw ".." and URL-encoded variants (%2e%2e, %2E%2E)
-  // by checking the raw URI and rejecting suspicious patterns.
-  // Note: A proper implementation would URL-decode first, then validate.
-  if (uri.find("..") != std::string::npos ||
-      uri.find("%2e%2e") != std::string::npos ||
-      uri.find("%2E%2E") != std::string::npos ||
-      uri.find("%2e%2E") != std::string::npos ||
-      uri.find("%2E%2e") != std::string::npos) {
-    LOG(INFO) << "Path traversal attempt blocked: " << uri;
+  // Path traversal protection: check for ".." sequences in decoded path
+  // The Uri class properly URI-decodes before checking, handling all
+  // encoded variants (%2e%2e, %2E%2E, mixed case, etc.)
+  if (request.uri.hasPathTraversal()) {
+    LOG(INFO) << "Path traversal attempt blocked: " << request.uri.getPath();
     prepareErrorResponse(http::S_403_FORBIDDEN);
     return false;
   }
+
+  // Get the decoded path (query string already stripped by Uri parser)
+  std::string uri = request.uri.getDecodedPath();
 
   // Relative path inside the location
   std::string rel = uri;
@@ -414,11 +654,18 @@ bool Connection::resolvePathForLocation(const Location& location,
     }
   }
 
-  if (location.root.empty()) {
+  // Determine the root directory to use:
+  // - If cgi_root is set, use it (for CGI scripts)
+  // - Otherwise, use the regular root
+  std::string root;
+  if (!location.cgi_root.empty()) {
+    root = location.cgi_root;
+  } else if (!location.root.empty()) {
+    root = location.root;
+  } else {
     prepareErrorResponse(http::S_500_INTERNAL_SERVER_ERROR);
     return false;
   }
-  std::string root = location.root;
 
   std::string path;
   if (!root.empty() && root[root.size() - 1] == '/' && !rel.empty() &&
@@ -433,15 +680,23 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   struct stat st;
   bool path_is_dir = false;
-  if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+  bool path_exists = (stat(path.c_str(), &st) == 0);
+
+  if (path_exists && S_ISDIR(st.st_mode)) {
     path_is_dir = true;
     if (!path.empty() && path[path.size() - 1] != '/') {
       path += '/';
     }
   }
 
+  // If path ends with '/' but doesn't exist or isn't a directory, return 404
+  if (!path.empty() && path[path.size() - 1] == '/' && !path_is_dir) {
+    prepareErrorResponse(http::S_404_NOT_FOUND);
+    return false;
+  }
+
   // Try to resolve directory to index file
-  if (path_is_dir || (!path.empty() && path[path.size() - 1] == '/')) {
+  if (path_is_dir) {
     bool found_index = false;
     for (std::set<std::string>::const_iterator it = location.index.begin();
          it != location.index.end(); ++it) {
@@ -462,4 +717,31 @@ bool Connection::resolvePathForLocation(const Location& location,
 
   out_path = path;
   return true;
+}
+
+void Connection::logAccess() const {
+  // nginx-style combined log format:
+  // remote_addr - - [time] "request" status bytes_sent
+  // Example: 127.0.0.1 - - [12/Dec/2025:15:45:00 +0000] "GET /index.html
+  // HTTP/1.1" 200 1234
+
+  std::string method = request.request_line.method;
+  std::string uri = request.request_line.uri;
+  std::string version = request.request_line.version;
+  int status = static_cast<int>(response.status_line.status_code);
+  std::size_t bytes = write_buffer.size();
+
+  // If request wasn't parsed, use placeholders
+  if (method.empty()) {
+    method = "-";
+  }
+  if (uri.empty()) {
+    uri = "-";
+  }
+  if (version.empty()) {
+    version = "-";
+  }
+
+  LOG(INFO) << remote_addr << " \"" << method << " " << uri << " " << version
+            << "\" " << status << " " << bytes;
 }

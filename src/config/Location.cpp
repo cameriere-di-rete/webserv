@@ -2,17 +2,21 @@
 
 #include "Logger.hpp"
 
+const std::size_t kMaxRequestBodyUnset = static_cast<std::size_t>(-1);
+const std::size_t kMaxRequestBodyDefault = 4096;
+
 Location::Location()
     : path(),
       allow_methods(),
       redirect_code(http::S_0_UNKNOWN),
       redirect_location(),
-      cgi(false),
+      cgi_root(),
+      cgi_extensions(),
       index(),
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(kMaxRequestBodyUnset) {
   LOG(DEBUG) << "Location() default constructor called";
 }
 
@@ -21,12 +25,13 @@ Location::Location(const std::string& p)
       allow_methods(),
       redirect_code(http::S_0_UNKNOWN),
       redirect_location(),
-      cgi(false),
+      cgi_root(),
+      cgi_extensions(),
       index(),
       autoindex(UNSET),
       root(),
       error_page(),
-      max_request_body(0) {
+      max_request_body(kMaxRequestBodyUnset) {
   LOG(DEBUG) << "Location(path) constructor called with path: " << p;
 }
 
@@ -35,7 +40,8 @@ Location::Location(const Location& other)
       allow_methods(other.allow_methods),
       redirect_code(other.redirect_code),
       redirect_location(other.redirect_location),
-      cgi(other.cgi),
+      cgi_root(other.cgi_root),
+      cgi_extensions(other.cgi_extensions),
       index(other.index),
       autoindex(other.autoindex),
       root(other.root),
@@ -48,7 +54,8 @@ Location& Location::operator=(const Location& other) {
     allow_methods = other.allow_methods;
     redirect_code = other.redirect_code;
     redirect_location = other.redirect_location;
-    cgi = other.cgi;
+    cgi_root = other.cgi_root;
+    cgi_extensions = other.cgi_extensions;
     index = other.index;
     autoindex = other.autoindex;
     root = other.root;

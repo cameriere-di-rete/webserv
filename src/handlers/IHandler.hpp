@@ -26,4 +26,9 @@ class IHandler {
   // Returns -1 if no additional FD needs monitoring.
   // This allows epoll to monitor handler-specific FDs for non-blocking I/O.
   virtual int getMonitorFd() const;
+
+  // Check if the handler has timed out (e.g., CGI script running too long).
+  // Returns true if timed out and connection should be cleaned up.
+  // Default implementation returns false (no timeout check).
+  virtual bool checkTimeout(Connection& conn);
 };

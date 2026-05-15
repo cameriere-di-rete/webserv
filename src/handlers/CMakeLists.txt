@@ -2,6 +2,7 @@ set(HANDLER_SOURCES
   IHandler.cpp
   AutoindexHandler.cpp
   EchoHandler.cpp
+  ErrorFileHandler.cpp
   FileHandler.cpp
   RedirectHandler.cpp
   CgiHandler.cpp
