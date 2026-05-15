@@ -135,7 +135,7 @@ std::vector<Server> Config::getServers(void) {
     }
   }
 
-  // ==================== FINE FUNZIONI MEMBRO ====================
+  // Build server objects from configuration blocks
 
   LOG(DEBUG) << "Building server objects from configuration...";
   servers_.clear();
